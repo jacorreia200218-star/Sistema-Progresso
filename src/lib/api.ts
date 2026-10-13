@@ -28,7 +28,7 @@ export async function fetchMe(userId: string): Promise<{ profile: Profile | null
     supabase.from('profiles').select('id, full_name, totem, photo_path').eq('id', userId).maybeSingle(),
     supabase
       .from('memberships')
-      .select('*, sections(id, name, kind, group_id, catalog_version_id, groups(name)), teams(id, section_id, name, archived_at)')
+      .select('*, sections(id, name, kind, group_id, catalog_version_id, groups(name)), teams!memberships_team_id_fkey(id, section_id, name, archived_at)')
       .eq('profile_id', userId)
       .order('requested_at'),
   ]);
