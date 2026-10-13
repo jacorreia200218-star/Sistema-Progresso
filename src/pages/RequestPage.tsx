@@ -8,7 +8,7 @@ import { call, fetchRequest, signedUrl, type RequestDetail } from '../lib/api';
 import { useAction } from '../lib/useAction';
 import { prepareAttachment, safeFileName } from '../lib/image';
 import { errorMessage } from '../lib/errors';
-import { decisionLabel, formatDate, formatDateTime, requestStatusLabel, todayIso } from '../lib/labels';
+import { decisionLabel, formatDate, formatDateTime, requestKindLabel, requestStatusLabel, todayIso } from '../lib/labels';
 import type { RequestVersion } from '../lib/types';
 import { Avatar, Badge, ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
 import NotFound from './NotFound';
@@ -35,13 +35,13 @@ function RequestView({ detail }: { detail: RequestDetail }) {
     <>
       <PageTitle
         title={trail?.name ?? 'Pedido'}
-        subtitle={historic ? 'Pedido de progresso anterior' : 'Pedido de validação de trilho'}
+        subtitle={request.kind === 'negociacao' ? 'Trilho reconhecido na negociação' : historic ? 'Pedido de progresso anterior' : 'Pedido de validação de trilho'}
         back={isOwner ? '/pedidos' : true}
       />
       <div className="row" style={{ marginBottom: 12 }}>
         <Badge {...st} />
-        {historic && <Badge label="Progresso anterior" tone="neutral" icon="clock" />}
-        <span className="faint">Versão {request.current_version}</span>
+        {requestKindLabel[request.kind] && <Badge label={requestKindLabel[request.kind]} tone="neutral" icon="clock" />}
+        {request.kind !== 'negociacao' && <span className="faint">Versão {request.current_version}</span>}
       </div>
       {!isOwner && member && (
         <div className="card flat row">
@@ -57,7 +57,12 @@ function RequestView({ detail }: { detail: RequestDetail }) {
       {isOwner && <OwnerPanel detail={detail} current={current} />}
       {!isOwner && <ReviewerPanel detail={detail} current={current} />}
 
-      {(!isOwner || request.status !== 'rascunho') && <VersionContent version={current} attachments={attachments.filter((a) => a.version_id === current.id)} historic={historic} />}
+      {request.kind === 'negociacao' && (
+        <Notice kind="info">
+          <p>A Equipa de Animação reconheceu, na negociação, que este trilho já tinha sido alcançado (Manual do Dirigente, p. 10). A fundamentação está no histórico.</p>
+        </Notice>
+      )}
+      {request.kind !== 'negociacao' && (!isOwner || request.status !== 'rascunho') && <VersionContent version={current} attachments={attachments.filter((a) => a.version_id === current.id)} historic={historic} />}
 
       <h2 className="section-title">Histórico</h2>
       <div className="card">
@@ -335,7 +340,7 @@ function OwnerPanel({ detail, current }: { detail: RequestDetail; current: Reque
         </>
       )}
       {request.status === 'validado_equipa' && <p>Trilho validado na reunião de Equipa. A decisão foi comunicada ao Conselho de Guias.</p>}
-      {request.status === 'aprovado' && (
+      {request.status === 'aprovado' && request.kind === 'historico' && (
         <p>Progresso anterior reconhecido pelos dirigentes{request.approved_reference_date ? ` (referência: ${formatDate(request.approved_reference_date)})` : ''}.</p>
       )}
       {request.status === 'recusado' && <p>Este progresso anterior não foi reconhecido. Podes seguir pelo progresso normal para este trilho.</p>}

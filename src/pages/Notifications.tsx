@@ -29,7 +29,7 @@ export default function Notifications() {
             {items.map((n) => {
               const body = (
                 <>
-                  <Bell size={18} aria-hidden="true" color={n.read_at ? 'var(--ink-faint)' : 'var(--red)'} />
+                  <Bell size={18} aria-hidden="true" color={n.read_at ? 'var(--ink-faint)' : 'var(--red-ink)'} />
                   <span className="grow">
                     <strong style={{ fontWeight: n.read_at ? 500 : 700 }}>{n.title}</strong>
                     {!n.read_at && <span className="sr-only"> (por ler)</span>}

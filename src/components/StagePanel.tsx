@@ -16,7 +16,7 @@ export function StagePanel({ summary, catalog, linkTrails = true }: { summary: S
     <div className="card">
       <div className="row between">
         <div className="card-title">
-          <Flag aria-hidden="true" color="var(--red)" />
+          <Flag aria-hidden="true" color="var(--red-ink)" />
           <h2 style={{ margin: 0 }}>Etapa {stageName(catalog, path.stage_key)}</h2>
         </div>
         {path.status === 'concluida' ? (
@@ -79,7 +79,7 @@ export function MeritCard({ progress, catalog }: { progress: MemberProgress; cat
   return (
     <div className="card">
       <div className="card-title">
-        <Award aria-hidden="true" color="var(--green)" />
+        <Award aria-hidden="true" color="var(--green-ink)" />
         <h2 style={{ margin: 0 }}>Anilha de mérito</h2>
       </div>
       <p>

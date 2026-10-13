@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import { memberPosition, milestoneByKey, STATE_LABEL } from '../lib/caminho';
 import { useQuery } from '@tanstack/react-query';
 import { useActiveSection } from '../lib/session';
 import { useMembers, useProgress, useTeams } from '../lib/hooks';
@@ -37,6 +38,14 @@ export default function MemberDetail() {
         <div className="grow">
           {member.profiles?.totem && <p style={{ margin: 0 }}>{member.profiles.totem}</p>}
           <p className="faint" style={{ margin: 0 }}>{member.function ? functionLabel[member.function] : ''}{team ? ` · ${team.name}` : ''}</p>
+          {(() => {
+            const pos = memberPosition(p, s.catalog);
+            return (
+              <Link to={`/caminho?vista=seccao&marco=${pos.milestone}&pessoa=${member.id}`} className="stage-chip" style={{ marginTop: 6 }}>
+                {milestoneByKey[pos.milestone].short} · {STATE_LABEL[pos.state].label}
+              </Link>
+            );
+          })()}
         </div>
       </div>
 
@@ -49,7 +58,8 @@ export default function MemberDetail() {
           {sum.ready && (s.isDirigente || s.isGuia) && <RequestStage pathId={sum.path.id} />}
         </div>
       ))}
-      {s.isDirigente && member.status === 'ativo' && !open && p.adhesion && <OpenStage member={member} progress={p} />}
+      {s.isDirigente && member.status === 'ativo' && !open && p.adhesion?.decided_on && p.adhesion.commitment_on && <OpenStage member={member} progress={p} />}
+      {s.isDirigente && member.status === 'ativo' && p.adhesion?.commitment_on && <RecognizeInNegotiation member={member} progress={p} />}
 
       {s.isDirigente && proposals.length > 0 && (
         <>
@@ -95,48 +105,104 @@ export default function MemberDetail() {
 function AdhesionCard({ member, progress }: { member: MemberRow; progress: MemberProgress }) {
   const s = useActiveSection();
   const action = useAction();
-  const [decided, setDecided] = useState(progress.adhesion?.decided_on ?? todayIso());
-  const [commitment, setCommitment] = useState(progress.adhesion?.commitment_on ?? '');
-  const [notes, setNotes] = useState(progress.adhesion?.notes ?? '');
-  const [historical, setHistorical] = useState(progress.adhesion?.is_historical ?? false);
-  const [editing, setEditing] = useState(false);
   const a = progress.adhesion;
+  const [traced, setTraced] = useState(a?.profile_traced_on ?? todayIso());
+  const [decided, setDecided] = useState(a?.decided_on ?? todayIso());
+  const [commitment, setCommitment] = useState(a?.commitment_on ?? '');
+  const [notes, setNotes] = useState(a?.notes ?? '');
+  const [historical, setHistorical] = useState(a?.is_historical ?? false);
+  const [editing, setEditing] = useState(false);
+  const complete = !!a?.decided_on;
   return (
     <section className="card">
-      <h2>Adesão — Desprendimento</h2>
-      {a && !editing ? (
+      <h2>Início de Pista e Promessa</h2>
+      <dl className="meta">
+        <dt>Perfil traçado (Equipa de Animação)</dt><dd>{a?.profile_traced_on ? formatDate(a.profile_traced_on) : 'Por registar'}</dd>
+        <dt>Decisão sobre a adesão (Conselho de Guias)</dt><dd>{a?.decided_on ? formatDate(a.decided_on) : 'Pendente'}</dd>
+        <dt>Promessa / Investidura</dt><dd>{a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</dd>
+        {a?.is_historical && (<><dt>Origem</dt><dd>Registo anterior</dd></>)}
+      </dl>
+      {a?.notes && <div className="quote" style={{ marginTop: 8 }}>{a.notes}</div>}
+      {s.isDirigente && (
         <>
-          <dl className="meta">
-            <dt>Decisão do Conselho de Guias</dt><dd>{formatDate(a.decided_on)}</dd>
-            <dt>Promessa / Investidura</dt><dd>{formatDate(a.commitment_on)}</dd>
-            {a.is_historical && (<><dt>Origem</dt><dd>Registo anterior</dd></>)}
-          </dl>
-          {a.notes && <div className="quote" style={{ marginTop: 8 }}>{a.notes}</div>}
-          {s.isDirigente && <button type="button" className="btn ghost" onClick={() => setEditing(true)}>Corrigir</button>}
-        </>
-      ) : !s.isDirigente ? (
-        <p className="faint">Adesão ainda não registada.</p>
-      ) : (
-        <>
-          <p className="faint">A decisão sobre a adesão é tomada em Conselho de Guias, com a presença de toda a Equipa de Animação.</p>
           <ErrorBox error={action.error} />
           {action.success && <Notice kind="success">{action.success}</Notice>}
-          <div className="grid-2">
-            <Field label="Data da decisão" htmlFor="ad-d"><input id="ad-d" type="date" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
-            <Field label="Promessa / Investidura (opcional)" htmlFor="ad-c"><input id="ad-c" type="date" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
-          </div>
-          <Field label="Notas (opcional)" htmlFor="ad-n"><textarea id="ad-n" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ minHeight: 70 }} /></Field>
-          <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Registo de adesão anterior à aplicação</label>
-          <button type="button" className="btn" disabled={action.busy || !decided}
-            onClick={async () => {
-              const r = await action.run(() => call('record_adhesion', { p_membership: member.id, p_decided_on: decided, p_commitment_on: commitment || null, p_notes: notes, p_is_historical: historical }), 'Adesão registada.');
-              if (r.ok) setEditing(false);
-            }}>
-            Registar adesão
-          </button>
+          {!a?.profile_traced_on && !complete && (
+            <div className="card flat" style={{ marginTop: 10 }}>
+              <p className="faint">O perfil é traçado pela Equipa de Animação durante a adesão, por observação direta, com ajuda do Guia (pp. 4 e 7). Regista só a data; as observações não ficam na aplicação.</p>
+              <div className="row">
+                <input aria-label="Data do traçado do perfil" type="date" max={todayIso()} value={traced} onChange={(e) => setTraced(e.target.value)} style={{ maxWidth: 200 }} />
+                <button type="button" className="btn secondary" disabled={action.busy || !traced}
+                  onClick={() => action.run(() => call('record_profile_traced', { p_membership: member.id, p_date: traced }), 'Traçado do perfil registado.')}>
+                  Registar perfil traçado
+                </button>
+              </div>
+            </div>
+          )}
+          {complete && !editing ? (
+            <button type="button" className="btn ghost" onClick={() => setEditing(true)}>{a?.commitment_on ? 'Corrigir' : 'Registar a Promessa / Investidura'}</button>
+          ) : (
+            <div style={{ marginTop: 10 }}>
+              <p className="faint">A decisão sobre a adesão é tomada em Conselho de Guias, com a presença de toda a Equipa de Animação (p. 7). A primeira etapa só abre depois da Promessa/Investidura (p. 10).</p>
+              <div className="grid-2">
+                <Field label="Data da decisão sobre a adesão" htmlFor="ad-d"><input id="ad-d" type="date" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
+                <Field label="Promessa / Investidura (se já aconteceu)" htmlFor="ad-c"><input id="ad-c" type="date" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
+              </div>
+              <Field label="Notas (opcional)" htmlFor="ad-n"><textarea id="ad-n" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ minHeight: 70 }} /></Field>
+              <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Registo de adesão anterior à aplicação</label>
+              <button type="button" className="btn" disabled={action.busy || !decided}
+                onClick={async () => {
+                  const r = await action.run(() => call('record_adhesion', { p_membership: member.id, p_decided_on: decided, p_commitment_on: commitment || null, p_notes: notes, p_is_historical: historical }), 'Registo guardado.');
+                  if (r.ok) setEditing(false);
+                }}>
+                Guardar
+              </button>
+            </div>
+          )}
         </>
       )}
     </section>
+  );
+}
+
+/** Reconhecimento, na negociação, de trilhos já alcançados (p. 10). */
+function RecognizeInNegotiation({ member, progress }: { member: MemberRow; progress: MemberProgress }) {
+  const s = useActiveSection();
+  const action = useAction();
+  const [trail, setTrail] = useState('');
+  const [comment, setComment] = useState('');
+  const [ref, setRef] = useState('');
+  const active = new Set(progress.requests.filter((r) => r.status !== 'recusado' && r.status !== 'cancelado').map((r) => r.trail_key));
+  return (
+    <details className="card flat">
+      <summary>Reconhecer na negociação um trilho já alcançado</summary>
+      <p className="faint" style={{ marginTop: 8 }}>
+        «A Equipa de Animação deverá validar os trilhos que o elemento demonstre já ter atingido, desde que devidamente fundamentados»,
+        informando a Equipa (Manual, p. 10). Fica registado com a fundamentação e conta como trilho validado.
+      </p>
+      <ErrorBox error={action.error} />
+      {action.success && <Notice kind="success">{action.success}</Notice>}
+      <Field label="Trilho" htmlFor="rn-t">
+        <select id="rn-t" value={trail} onChange={(e) => setTrail(e.target.value)}>
+          <option value="">Escolhe…</option>
+          {s.catalog.areas.map((a) => (
+            <optgroup key={a.id} label={a.name}>
+              {a.catalog_trails.filter((t) => !active.has(t.key)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      </Field>
+      <Field label="Fundamentação (obrigatória)" htmlFor="rn-c"><textarea id="rn-c" value={comment} onChange={(e) => setComment(e.target.value)} style={{ minHeight: 70 }} /></Field>
+      <Field label="Referência temporal (opcional)" htmlFor="rn-d"><input id="rn-d" type="date" max={todayIso()} value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
+      <ConfirmButton className="btn" confirmLabel="Reconhecer" disabled={action.busy || !trail || !comment.trim()}
+        description="O pioneiro e o guia da equipa são informados."
+        onConfirm={async () => {
+          const r = await action.run(() => call('recognize_in_negotiation', { p_membership: member.id, p_trail: trail, p_comment: comment, p_reference_date: ref || null }), 'Trilho reconhecido na negociação.');
+          if (r.ok) { setTrail(''); setComment(''); setRef(''); }
+        }}>
+        Reconhecer trilho
+      </ConfirmButton>
+    </details>
   );
 }
 

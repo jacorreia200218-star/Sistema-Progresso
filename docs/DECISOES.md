@@ -8,8 +8,11 @@
 | Q2 | O enquadramento de «Solidariedade e tolerância» e «Interação e cooperação» é idêntico (p. 46). | Idem. |
 | Q3 | Quem regista na aplicação a decisão sobre o pedido do próprio guia? | Regra local L1: um dirigente regista-a, em nome da reunião de Equipa. Alternativa possível: um subguia — não implementado. |
 | Q4 | Um dirigente pode devolver um pedido de progresso anterior para correção (além de aprovar/recusar)? | Implementado (L4), porque o pedido prevê «correção de um pedido histórico devolvido». |
+| Q5 | No «Caminho da secção», os pioneiros devem ver quantos colegas estão em cada marco? | Implementado: contagens visíveis a qualquer membro ativo; nomes só dentro das permissões existentes. Numa secção pequena a contagem pode identificar alguém — fácil de restringir aos dirigentes se preferirem. |
+| Q6 | Registar na aplicação os Sinais de Pista e a passagem de secção? | Não registados: são momentos informativos no Caminho. A saída faz-se com «Saiu da secção» na Gestão. |
+| Q7 | Pioneiros com etapa aberta antes de a Promessa passar a ser exigida | Mantêm-se na etapa; a Promessa aparece como «por registar» até a Equipa de Animação a registar. |
 
-Ver também as regras locais L1–L5 em `catalog/RELATORIO_IMPORTACAO.md`.
+Ver também as regras locais L1–L5 em `catalog/RELATORIO_IMPORTACAO.md` e as regras do Caminho em `docs/CAMINHO.md`.
 
 ## Membros sem email próprio (por decidir antes de criar alternativa)
 

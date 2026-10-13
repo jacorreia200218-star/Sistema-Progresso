@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle, ArrowLeft, Check, CheckCircle2, Circle, Clock, Compass, Info, MessageCircle, Pencil, RotateCcw, Send, Sprout, X,
 } from 'lucide-react';
@@ -70,14 +70,12 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 
 export function Back({ to, label = 'Voltar' }: { to?: string; label?: string }) {
   const navigate = useNavigate();
-  if (to)
-    return (
-      <Link to={to} className="back">
-        <ArrowLeft size={18} aria-hidden="true" /> {label}
-      </Link>
-    );
+  // Volta à página anterior (mantendo filtros e separadores); se a página foi
+  // aberta diretamente (sem histórico na aplicação), vai para o destino indicado.
+  const canGoBack = typeof window !== 'undefined' && (window.history.state?.idx ?? 0) > 0;
   return (
-    <button type="button" className="back btn ghost" style={{ color: 'var(--ink-soft)', paddingLeft: 0 }} onClick={() => navigate(-1)}>
+    <button type="button" className="back btn ghost" style={{ color: 'var(--ink-soft)', paddingLeft: 0 }}
+      onClick={() => (canGoBack ? navigate(-1) : navigate(to ?? '/'))}>
       <ArrowLeft size={18} aria-hidden="true" /> {label}
     </button>
   );

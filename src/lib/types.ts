@@ -1,7 +1,7 @@
 // Tipos das linhas da base de dados usados pela interface.
 export type MemberStatus = 'pendente' | 'ativo' | 'suspenso' | 'saiu';
 export type MemberFunction = 'pioneiro' | 'guia' | 'dirigente';
-export type RequestKind = 'normal' | 'historico';
+export type RequestKind = 'normal' | 'historico' | 'negociacao';
 export type RequestStatus =
   | 'rascunho'
   | 'submetido'
@@ -19,7 +19,8 @@ export type DecisionKind =
   | 'revisao_animacao'
   | 'aprovado_historico'
   | 'recusado_historico'
-  | 'devolvido_historico';
+  | 'devolvido_historico'
+  | 'reconhecido_negociacao';
 export type ChoiceStatus = 'proposta' | 'confirmada' | 'recusada' | 'retirada' | 'substituida';
 export type StageRequestStatus = 'submetido' | 'decidido_conselho' | 'confirmada' | 'nao_confirmada' | 'cancelado';
 
@@ -124,8 +125,9 @@ export interface Catalog {
 
 export interface Adhesion {
   membership_id: string;
-  decided_on: string;
+  decided_on: string | null;
   commitment_on: string | null;
+  profile_traced_on?: string | null;
   notes: string | null;
   is_historical: boolean;
   recorded_at: string;

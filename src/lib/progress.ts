@@ -124,8 +124,11 @@ export function nextAction(catalog: Catalog, p: MemberProgress): NextAction {
   if (draft) {
     return { title: `Terminar o pedido de «${name(draft.trail_key)}»`, detail: 'Tens um rascunho guardado. Completa a reflexão e submete quando sentires que alcançaste o trilho.', to: `/pedidos/${draft.id}` };
   }
-  if (!p.adhesion) {
-    return { title: 'Viver a etapa do Desprendimento', detail: 'A tua adesão ainda não está registada. Conversa com o teu guia e com a Equipa de Animação.' };
+  if (!p.adhesion?.decided_on) {
+    return { title: 'Viver o Início de Pista', detail: 'Estás na adesão (etapa do Desprendimento). Conhece a tua Equipa, a Lei e a mística dos Pioneiros; quando estiveres pronto, diz que queres fazer a Promessa.', to: '/caminho' };
+  }
+  if (!p.adhesion.commitment_on) {
+    return { title: 'Preparar a Promessa / Investidura', detail: 'A tua adesão foi decidida em Conselho de Guias. Prepara o momento da Promessa/Investidura com a tua Equipa.', to: '/caminho' };
   }
   const path = openPath(p.paths);
   if (!path) {

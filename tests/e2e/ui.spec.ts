@@ -29,7 +29,8 @@ test('pioneiro: início, progresso, trilho e pedido', async ({ page }, info) => 
   await expect(page.getByRole('heading', { name: 'Olá, Pedro' })).toBeVisible();
   // Próxima ação concreta: o pedido devolvido tem prioridade
   await expect(page.getByRole('heading', { name: /Rever o pedido de «Autoestima»/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Etapa Conhecimento' })).toBeVisible();
+  await expect(page.getByText('Onde estou no caminho')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'As seis áreas' })).toBeVisible();
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/inicio-${info.project.name}.png`, fullPage: true });
 
@@ -92,7 +93,7 @@ test('pioneiro não vê ecrãs de gestão', async ({ page }) => {
 test('dirigente e administração', async ({ page }, info) => {
   const mock = await installMock(page, leader());
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Equipa de Animação' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pendentes' })).toBeVisible();
   await expect(page.getByText(/pedido\(s\) de entrada por confirmar/)).toBeVisible();
   await noHorizontalScroll(page);
 
@@ -127,7 +128,7 @@ test('dirigente e administração', async ({ page }, info) => {
   await page.screenshot({ path: `test-results/gestao-${info.project.name}.png`, fullPage: true });
 
   await page.goto('/membros/m-p1');
-  await expect(page.getByRole('heading', { name: 'Adesão — Desprendimento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Início de Pista e Promessa' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Anilha de mérito' })).toBeVisible();
   await expect(page.getByText('Ainda não elegível').first()).toBeVisible();
   await noHorizontalScroll(page);

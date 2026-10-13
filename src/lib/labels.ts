@@ -33,6 +33,7 @@ export const decisionLabel: Record<DecisionKind, string> = {
   aprovado_historico: 'Progresso anterior reconhecido',
   recusado_historico: 'Progresso anterior não reconhecido',
   devolvido_historico: 'Progresso anterior devolvido para correção',
+  reconhecido_negociacao: 'Reconhecido na negociação pela Equipa de Animação',
 };
 
 export const stageRequestLabel: Record<StageRequestStatus, { label: string; tone: Tone; icon: string }> = {
@@ -70,4 +71,10 @@ export function formatDateTime(d: string | null | undefined): string {
 export const todayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export const requestKindLabel: Record<string, string> = {
+  normal: '',
+  historico: 'Progresso anterior',
+  negociacao: 'Reconhecido na negociação',
 };

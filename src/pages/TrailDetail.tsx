@@ -91,7 +91,7 @@ export default function TrailDetail() {
 
       <section className="card">
         <div className="card-title">
-          <Lightbulb aria-hidden="true" color="var(--green)" />
+          <Lightbulb aria-hidden="true" color="var(--green-ink)" />
           <h2 style={{ margin: 0 }}>Oportunidades educativas</h2>
         </div>
         <p className="faint">Sugestões do manual — exemplos, não uma lista fechada. São meios para crescer; realizá-las não valida o trilho por si.</p>

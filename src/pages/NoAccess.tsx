@@ -32,7 +32,7 @@ export default function NoAccess() {
       {s.pending.length > 0 && (
         <div className="card">
           <div className="card-title">
-            <Clock aria-hidden="true" color="var(--green)" />
+            <Clock aria-hidden="true" color="var(--green-ink)" />
             <h2 style={{ margin: 0 }}>Pedido de entrada enviado</h2>
           </div>
           {s.pending.map((m) => (

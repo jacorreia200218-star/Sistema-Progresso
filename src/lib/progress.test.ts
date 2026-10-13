@@ -40,7 +40,7 @@ const request = (key: string, status: TrailRequest['status'], kind: TrailRequest
   approved_reference_date: null, created_at: '2026-01-03', updated_at: '2026-01-03',
 });
 const base = (over: Partial<MemberProgress> = {}): MemberProgress => ({
-  adhesion: { membership_id: 'm', decided_on: '2025-12-01', commitment_on: null, notes: null, is_historical: false, recorded_at: '' },
+  adhesion: { membership_id: 'm', decided_on: '2025-12-01', commitment_on: '2025-12-10', notes: null, is_historical: false, recorded_at: '' },
   paths: [path], choices: [], requests: [], stageRequests: [], merit: null, ...over,
 });
 
@@ -101,7 +101,7 @@ describe('próxima ação', () => {
     expect(nextAction(catalog, base({ requests: [request('F1', 'rascunho')] })).to).toBe('/pedidos/r-F1-rascunho');
   });
   it('sem adesão, orienta para o Desprendimento', () => {
-    expect(nextAction(catalog, base({ adhesion: null, paths: [] })).title).toContain('Desprendimento');
+    expect(nextAction(catalog, base({ adhesion: null, paths: [] })).title).toContain('Início de Pista');
   });
   it('indica a área ainda sem escolha', () => {
     expect(nextAction(catalog, base()).title).toBe('Escolher um trilho de F');

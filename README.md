@@ -34,6 +34,8 @@ catalog/                    Catálogo da III Secção extraído do manual (JSON)
 docs/fonte/                 Manual do Dirigente (PDF fonte)
 docs/BACKUP.md              Exportação, cópias de segurança e restauro
 docs/DECISOES.md            Decisões, regras locais e questões em aberto (ex.: membros sem email)
+docs/CAMINHO.md             Regras pedagógicas do Caminho, estados e permissões
+supabase/atualizacoes/      SQL para atualizar um projeto já instalado (colar no SQL Editor)
 scripts/verify-catalog.mjs  Verifica o catálogo contra o PDF (posição de cada objetivo nas colunas)
 scripts/generate-catalog-sql.mjs  Gera a migração SQL do catálogo a partir do JSON
 supabase/migrations/        Esquema, permissões (RLS), funções, armazenamento, catálogo
@@ -190,5 +192,9 @@ Para reconstruir a migração do catálogo depois de alterar o JSON: `npm run ca
   Desligar bloqueia novas submissões no servidor, sem afetar pedidos já submetidos nem aprovações.
 - **Anilha de mérito:** elegibilidade calculada (18 trilhos + Construção concluída) mostrada à parte da
   atribuição registada por um dirigente, com data.
+- **Caminho** (`docs/CAMINHO.md`): mapa do percurso com os marcos do manual (Sinais de Pista, Início de Pista,
+  Promessa, Conhecimento, Vontade, Construção, Acampamento, Passagem), o ciclo de cada etapa e o que falta por
+  área; vistas «O meu caminho» e «Caminho da secção» (por equipa, dentro das permissões), em mapa ou lista.
+- **Temas** Claro / Escuro / Sistema (Perfil › Aparência, ou o botão na barra superior).
 - **Notificações** dentro da aplicação para pedidos e decisões.
 - Detalhes de segurança e decisões em `docs/DECISOES.md`; catálogo em `catalog/RELATORIO_IMPORTACAO.md`.

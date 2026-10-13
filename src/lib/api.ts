@@ -199,3 +199,44 @@ export async function signedUrl(bucket: 'anexos' | 'fotografias', path: string, 
   if (error) throw new Error(errorMessage(error));
   return data.signedUrl;
 }
+
+export interface PathMember {
+  membership_id: string;
+  full_name: string;
+  totem: string | null;
+  photo_path: string | null;
+  team_id: string | null;
+  function: 'pioneiro' | 'guia';
+  milestone: string;
+  state: string;
+  is_me: boolean;
+}
+
+export interface SectionPath {
+  scope: 'seccao' | 'equipa' | 'proprio';
+  total: number;
+  counts: Record<string, number>;
+  members: PathMember[];
+}
+
+/** Caminho da secção: contagens para todos; nomes só dentro das permissões (verificado no servidor). */
+export function fetchSectionPath(sectionId: string): Promise<SectionPath> {
+  return call<SectionPath>('section_path', { p_section: sectionId });
+}
+
+export function fetchPendingCounts(sectionId: string): Promise<Record<string, number>> {
+  return call<Record<string, number>>('my_pending_counts', { p_section: sectionId });
+}
+
+export interface ActivityItem {
+  at: string;
+  kind: string;
+  membership_id: string;
+  member: string;
+  subject: string | null;
+  ref: string;
+}
+
+export function fetchActivity(sectionId: string, limit = 12): Promise<ActivityItem[]> {
+  return call<ActivityItem[]>('section_activity', { p_section: sectionId, p_limit: limit });
+}

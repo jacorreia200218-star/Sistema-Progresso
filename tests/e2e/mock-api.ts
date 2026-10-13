@@ -31,7 +31,29 @@ function buildCatalog() {
 export interface Persona {
   userId: string;
   tables: Record<string, Row[]>;
+  rpc?: Record<string, unknown>;
 }
+
+// Pessoas fictícias (apenas teste) espalhadas pelos marcos do caminho.
+const FICTICIOS: [string, string, string, string][] = [
+  ['Ana Fictícia', 'teamA', 'inicio_pista', 'em_adesao'],
+  ['Bruno Fictício', 'teamB', 'inicio_pista', 'perfil_tracado'],
+  ['Carla Fictícia', 'teamA', 'promessa', 'aguarda_promessa'],
+  ['Pedro Teste', 'teamA', 'conhecimento', 'em_curso'],
+  ['Diogo Fictício', 'teamB', 'conhecimento', 'requisitos_cumpridos'],
+  ['Eva Fictícia', 'teamB', 'conhecimento', 'em_validacao'],
+  ['Filipe Fictício', 'teamA', 'conhecimento', 'em_curso'],
+  ['Guia Teste', 'teamA', 'vontade', 'em_curso'],
+  ['Helena Fictícia', 'teamB', 'vontade', 'concluida'],
+  ['Inês Fictícia', 'teamA', 'construcao', 'em_curso'],
+  ['João Fictício', 'teamB', 'acampamento', 'etapas_concluidas'],
+];
+const pathMembers = FICTICIOS.map(([name, team, milestone, state], i) => ({
+  membership_id: name === 'Pedro Teste' ? 'm-p1' : name === 'Guia Teste' ? 'm-guia' : `m-f${i}`,
+  full_name: name, totem: null, photo_path: null, team_id: team, function: name === 'Guia Teste' ? 'guia' : 'pioneiro',
+  milestone, state, is_me: false,
+}));
+const counts = pathMembers.reduce<Record<string, number>>((acc, m) => ({ ...acc, [m.milestone]: (acc[m.milestone] ?? 0) + 1 }), {});
 
 const section = { id: 'sec1', name: 'Pioneiros (teste)', kind: 'pioneiros', group_id: 'g1', catalog_version_id: 'v1', groups: { name: 'Agrupamento de teste' } };
 const teams = [
@@ -101,6 +123,11 @@ export function pioneer(): Persona {
       experiences: [],
       ...progressRows(),
     },
+    rpc: {
+      section_path: { scope: 'proprio', total: pathMembers.length, counts, members: pathMembers.filter((m) => m.membership_id === 'm-p1').map((m) => ({ ...m, is_me: true })) },
+      my_pending_counts: { pedidos: 2 },
+      section_activity: [],
+    },
   };
 }
 
@@ -123,7 +150,20 @@ export function leader(): Persona {
       notifications: [],
       ...rows,
     },
+    rpc: {
+      section_path: { scope: 'seccao', total: pathMembers.length, counts, members: pathMembers },
+      my_pending_counts: { acompanhamento: 3, gestao: 1 },
+      section_activity: [
+        { at: now, kind: 'validado_equipa', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Desempenho', ref: 'r-ok' },
+        { at: now, kind: 'etapa_aberta', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Conhecimento', ref: 'path1' },
+      ],
+    },
   };
+}
+
+export function emptyLeader(): Persona {
+  const p = leader();
+  return { ...p, rpc: { ...p.rpc, section_path: { scope: 'seccao', total: 0, counts: {}, members: [] }, section_activity: [] } };
 }
 
 function matches(row: Row, params: URLSearchParams) {
@@ -175,7 +215,8 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
         return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'P0001', message: f.message ?? 'Erro de teste.' }) });
       }
       calls.push({ fn, body });
-      const result = fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? 'codigo-de-teste' : null;
+      const result = persona.rpc && fn in persona.rpc ? persona.rpc[fn]
+        : fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? 'codigo-de-teste' : null;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
     }
     if (p.startsWith('/rest/v1/')) {

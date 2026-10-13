@@ -9,6 +9,7 @@ import { compressImage } from '../lib/image';
 import { errorMessage } from '../lib/errors';
 import { functionLabel, memberStatusLabel } from '../lib/labels';
 import { Avatar, ErrorBox, Field, Notice, PageTitle } from '../components/ui';
+import { ThemeControl } from '../components/ThemeControl';
 
 export default function Profile() {
   const s = useActiveSection();
@@ -102,6 +103,11 @@ export default function Profile() {
             <button type="button" className="btn ghost" onClick={removePhoto} disabled={action.busy}>Remover</button>
           )}
         </div>
+      </div>
+
+      <div className="card">
+        <h2>Aparência</h2>
+        <ThemeControl />
       </div>
 
       {s.memberships.length > 1 && (

@@ -32,10 +32,10 @@ export default function Leaders({ tab: forced }: { tab?: string }) {
 
   return (
     <>
-      <PageTitle title="Revisões" subtitle="Acompanhamento da secção pela Equipa de Animação." />
+      <PageTitle title="Acompanhamento" subtitle="Acompanhamento da secção pela Equipa de Animação." />
       <nav className="tabs" aria-label="Secções do painel">
         {TABS.map(([k, label]) => (
-          <Link key={k} to={`/dirigentes/${k}`} className="tab" aria-current={tab === k ? 'page' : undefined}>
+          <Link key={k} to={`/acompanhamento/${k}`} className="tab" aria-current={tab === k ? 'page' : undefined}>
             {label}
           </Link>
         ))}

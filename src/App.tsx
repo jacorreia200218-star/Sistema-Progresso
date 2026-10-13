@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { isConfigured } from './lib/supabase';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { SectionProvider, useSection } from './lib/session';
@@ -27,7 +27,14 @@ const Team = lazy(() => import('./pages/Team'));
 const Leaders = lazy(() => import('./pages/Leaders'));
 const MemberDetail = lazy(() => import('./pages/MemberDetail'));
 const Admin = lazy(() => import('./pages/Admin'));
+const Caminho = lazy(() => import('./pages/Caminho'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+
+// Endereços antigos («Revisões» → «Acompanhamento»); notificações já guardadas usam-nos.
+function LegacyLeaders() {
+  const { tab } = useParams();
+  return <Navigate to={tab ? `/acompanhamento/${tab}` : '/acompanhamento'} replace />;
+}
 
 function Guard({ when, children }: { when: boolean; children: ReactNode }) {
   return when ? <>{children}</> : <Navigate to="/" replace />;
@@ -43,6 +50,7 @@ function Authenticated() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="caminho" element={<Caminho />} />
           <Route path="progresso" element={<Guard when={s.isMember}><Progress /></Guard>} />
           <Route path="progresso/trilho/:key" element={<TrailDetail />} />
           <Route path="progresso-anterior" element={<Guard when={s.isMember}><Historical /></Guard>} />
@@ -52,8 +60,10 @@ function Authenticated() {
           <Route path="revisoes/pedido/:id" element={<RequestPage />} />
           <Route path="equipa" element={<Guard when={s.isGuia}><Team /></Guard>} />
           <Route path="conselho" element={<Guard when={s.isGuia || s.isDirigente}>{s.isDirigente ? <Leaders tab="conselho" /> : <Team />}</Guard>} />
-          <Route path="dirigentes" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
-          <Route path="dirigentes/:tab" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
+          <Route path="acompanhamento" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
+          <Route path="acompanhamento/:tab" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
+          <Route path="dirigentes" element={<LegacyLeaders />} />
+          <Route path="dirigentes/:tab" element={<LegacyLeaders />} />
           <Route path="membros/:id" element={<Guard when={s.isDirigente || s.isGuia}><MemberDetail /></Guard>} />
           <Route path="gestao" element={<Guard when={s.isAdmin}><Admin /></Guard>} />
           <Route path="gestao/:tab" element={<Guard when={s.isAdmin}><Admin /></Guard>} />
