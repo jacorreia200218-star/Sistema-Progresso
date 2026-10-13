@@ -6,7 +6,7 @@ export default function ConfigMissing() {
     <PublicShell title="Configuração em falta">
       <h1>Configuração em falta</h1>
       <Notice kind="warn">
-        <p>
+        <p className="prose">
           A aplicação ainda não está ligada a um projeto Supabase. Define <code>VITE_SUPABASE_URL</code> e{' '}
           <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> (ver <code>.env.example</code> e o README).
         </p>

@@ -42,7 +42,7 @@ export function PedidosView({ subject, progress }: { subject: Subject; progress:
       {list.length === 0 ? (
         <div className="card">
           <Empty title={progress.requests.length ? 'Nenhum pedido neste estado.' : 'Ainda não há pedidos.'}>
-            {subject.isSelf && <p>Abre um trilho em «Áreas FACEIS» e usa «Pedir validação» quando sentires que alcançaste os seus objetivos.</p>}
+            {subject.isSelf && <p className="prose">Abre um trilho em «Áreas FACEIS» e usa «Pedir validação» quando sentires que alcançaste os seus objetivos.</p>}
           </Empty>
         </div>
       ) : (

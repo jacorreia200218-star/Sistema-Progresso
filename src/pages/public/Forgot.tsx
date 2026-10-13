@@ -33,7 +33,7 @@ export default function Forgot() {
       <h1>Recuperar acesso</h1>
       {sent ? (
         <Notice kind="success">
-          <p>Se existir uma conta com este email, vais receber um link para definir uma nova palavra-passe.</p>
+          <p className="prose">Se existir uma conta com este email, vais receber um link para definir uma nova palavra-passe.</p>
         </Notice>
       ) : (
         <>

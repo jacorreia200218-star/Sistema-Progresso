@@ -23,7 +23,7 @@ export default function Landing() {
         <li className="list-item"><RouteIcon aria-hidden="true" /> <span>Etapas do Conhecimento, Vontade e Construção.</span></li>
         <li className="list-item"><Leaf aria-hidden="true" /> <span>Crescimento pessoal, sem pontos nem classificações.</span></li>
       </ul>
-      <p className="faint">
+      <p className="faint prose">
         O acesso aos dados exige conta individual e entrada confirmada na secção. Esta é uma ferramenta de acompanhamento local:
         não substitui os registos oficiais do CNE.
       </p>

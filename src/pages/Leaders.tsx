@@ -113,7 +113,7 @@ function SectionOverview({ members }: { members: MemberRow[] }) {
       ))}
       <div className="card flat">
         <h3>Exportar dados</h3>
-        <p className="faint">Ficheiro JSON com os dados pedagógicos da secção (sem anexos). Guarda-o num local seguro: contém dados pessoais.</p>
+        <p className="faint prose">Ficheiro JSON com os dados pedagógicos da secção (sem anexos). Guarda-o num local seguro: contém dados pessoais.</p>
         <ErrorBox error={action.error} />
         {action.success && <Notice kind="success">{action.success}</Notice>}
         <button type="button" className="btn secondary" disabled={action.busy} onClick={exportData}>
@@ -135,7 +135,7 @@ function Negotiation({ members }: { members: MemberRow[] }) {
   const list = choices.data ?? [];
   return (
     <div className="card">
-      <p className="faint">Propostas de escolha e de troca de trilhos. A decisão é tua, depois de conversares com o pioneiro.</p>
+      <p className="faint prose">Propostas de escolha e de troca de trilhos. A decisão é tua, depois de conversares com o pioneiro.</p>
       {list.length === 0 ? <Empty title="Sem propostas por negociar." /> : list.map((c) => (
         <ChoiceDecision key={c.id} choice={c} member={names[c.membership_id]}
           stage={stageName(catalog, paths.data?.find((p) => p.id === c.stage_path_id)?.stage_key ?? '')} />
@@ -159,7 +159,7 @@ export function ChoiceDecision({ choice, member, stage }: { choice: StageChoice;
         {choice.replaces_choice_id ? 'Troca para ' : 'Proposta: '}
         <Link to={`/meu-progresso/trilho/${trail?.key}`}>{trail?.name}</Link>
       </p>
-      {choice.planned_opportunities && <div className="quote">{choice.planned_opportunities}</div>}
+      {choice.planned_opportunities && <div className="quote prose">{choice.planned_opportunities}</div>}
       <ErrorBox error={action.error} />
       {action.success ? <Notice kind="success">{action.success}</Notice> : (
         <>
@@ -203,7 +203,7 @@ function Council({ members }: { members: MemberRow[] }) {
       </div>
       <h2 className="section-title">Decisões das reuniões de Equipa (comunicação ao Conselho)</h2>
       <div className="card">
-        <p className="faint">Se uma validação for manifestamente incoerente com a atitude do pioneiro, abre o pedido e regista uma devolução fundamentada.</p>
+        <p className="faint prose">Se uma validação for manifestamente incoerente com a atitude do pioneiro, abre o pedido e regista uma devolução fundamentada.</p>
         {recent.length ? <RequestList requests={recent} catalog={catalog} names={names} base="/revisoes/pedido" /> : <Empty title="Sem decisões recentes." />}
       </div>
     </>
@@ -249,7 +249,7 @@ export function StageDecision({ sr, member, stage }: { sr: StageRequest; member?
                 <label className="radio-card"><input type="radio" checked={opinion === 'confirmada'} onChange={() => setOpinion('confirmada')} /> Confirmar a etapa</label>
                 <label className="radio-card"><input type="radio" checked={opinion === 'nao_confirmada'} onChange={() => setOpinion('nao_confirmada')} /> Não confirmar</label>
               </div>
-              {diverges && <Notice kind="warn"><p>A opinião diverge do Conselho de Guias: fundamenta de forma construtiva e explica-a ao Conselho, à Equipa e ao pioneiro.</p></Notice>}
+              {diverges && <Notice kind="warn"><p className="prose">A opinião diverge do Conselho de Guias: fundamenta de forma construtiva e explica-a ao Conselho, à Equipa e ao pioneiro.</p></Notice>}
             </fieldset>
           )}
           <Field label="Data" htmlFor={`d-${sr.id}`}>
@@ -284,7 +284,7 @@ function PendingRequests({ members }: { members: MemberRow[] }) {
     <>
       <h2 className="section-title">Pedidos de guias (registo pela Equipa de Animação)</h2>
       <div className="card">
-        <p className="faint">O guia não regista a decisão sobre o próprio pedido. Regista aqui a decisão da reunião de Equipa.</p>
+        <p className="faint prose">O guia não regista a decisão sobre o próprio pedido. Regista aqui a decisão da reunião de Equipa.</p>
         {fromGuias.length ? <RequestList requests={fromGuias} catalog={catalog} names={names} base="/revisoes/pedido" /> : <Empty title="Sem pedidos de guias." />}
       </div>
       <h2 className="section-title">Outros pedidos à espera da reunião de Equipa</h2>
@@ -305,7 +305,7 @@ function HistoricRequests({ members }: { members: MemberRow[] }) {
   return (
     <>
       <Notice kind="info">
-        <p>
+        <p className="prose">
           Registo de progresso anterior: <strong>{settings?.historical_progress_enabled ? 'ativo' : 'desativado'}</strong>. Pedidos já submetidos continuam avaliáveis.
           Declarar uma etapa anterior ou a anilha faz-se no percurso de cada membro.
         </p>
@@ -341,7 +341,7 @@ function MeritRow({ m }: { m: MemberRow }) {
 function Merit({ members }: { members: MemberRow[] }) {
   return (
     <div className="card">
-      <p className="faint">
+      <p className="faint prose">
         Elegibilidade calculada: todos os trilhos da secção validados e a última etapa (Construção) concluída. A atribuição efetiva é registada por um
         dirigente, com data, no percurso de cada membro. Não depende de anos na secção, fotografias ou pontos.
       </p>

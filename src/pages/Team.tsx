@@ -33,12 +33,12 @@ export default function Team() {
       <PageTitle title={team ? `Equipa ${team.name.replace(/^Equipa\s+/i, '')}` : 'Equipa'} subtitle="Pedidos para a reunião de Equipa e acompanhamento dos teus companheiros." />
       <h2 className="section-title">Pedidos para a reunião de Equipa</h2>
       <div className="card">
-        <p className="faint">Na reunião, a Equipa decide em conjunto. Aqui registas a decisão tomada — o registo não substitui a reunião.</p>
+        <p className="faint prose">Na reunião, a Equipa decide em conjunto. Aqui registas a decisão tomada — o registo não substitui a reunião.</p>
         {queue.length ? <RequestList requests={queue} catalog={catalog} names={names} base="/revisoes/pedido" /> : <Empty title="Sem pedidos à espera." />}
       </div>
       {mineWaiting.length > 0 && (
         <Notice kind="info">
-          <p>Tens {mineWaiting.length} pedido(s) teu(s) em análise. Não podes registar a decisão sobre os teus próprios pedidos: a Equipa de Animação regista-a em nome da reunião de Equipa.</p>
+          <p className="prose">Tens {mineWaiting.length} pedido(s) teu(s) em análise. Não podes registar a decisão sobre os teus próprios pedidos: a Equipa de Animação regista-a em nome da reunião de Equipa.</p>
         </Notice>
       )}
       <h2 className="section-title">Comunicado ao Conselho de Guias</h2>

@@ -110,7 +110,7 @@ function PendingRow({ m, teams }: { m: MemberRow; teams: Team[] }) {
       <ErrorBox error={action.error} />
       {action.success ? <Notice kind="success">{action.success}</Notice> : (
         <>
-          <p className="faint" style={{ marginTop: 10 }}>Confirma que conheces esta pessoa antes de aprovar. A equipa indicada vem pré-preenchida e podes corrigi-la; a função é atribuída por ti.</p>
+          <p className="faint prose" style={{ marginTop: 10 }}>Confirma que conheces esta pessoa antes de aprovar. A equipa indicada vem pré-preenchida e podes corrigi-la; a função é atribuída por ti.</p>
           <NameFields m={m} />
           <RoleFields fn={fn} setFn={setFn} team={team} setTeam={setTeam} teams={teams} idp={m.id} />
           <div className="btn-row" style={{ marginTop: 0 }}>
@@ -278,7 +278,7 @@ function Invites() {
     <>
       <details className="card">
         <summary className="row" style={{ cursor: 'pointer' }}><strong>Novo convite</strong></summary>
-        <p className="faint" style={{ marginTop: 8 }}>O convite permite pedir entrada; cada pessoa usa a sua conta e o pedido continua a precisar da tua confirmação. Nunca dá funções de dirigente nem de administração.</p>
+        <p className="faint prose" style={{ marginTop: 8 }}>O convite permite pedir entrada; cada pessoa usa a sua conta e o pedido continua a precisar da tua confirmação. Nunca dá funções de dirigente nem de administração.</p>
         <ErrorBox error={action.error} />
         {action.success && <Notice kind="success">{action.success}</Notice>}
         <Field label="Descrição (para ti)" htmlFor="il"><input id="il" type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex.: Pioneiros 2026/27" /></Field>
@@ -312,7 +312,7 @@ function Invites() {
                     </span>
                     <Badge label={state} tone={active ? 'ok' : 'muted'} icon={active ? 'check' : 'x'} />
                   </div>
-                  {active && (i.code ? <InviteShare code={i.code} /> : <p className="faint">Convite antigo (código longo, mostrado só na criação). Gera um novo para teres um código curto.</p>)}
+                  {active && (i.code ? <InviteShare code={i.code} /> : <p className="faint prose">Convite antigo (código longo, mostrado só na criação). Gera um novo para teres um código curto.</p>)}
                   <div className="btn-row">
                     {(active || state === 'Esgotado' || state === 'Expirado') && (
                       <ConfirmButton className="btn ghost" confirmLabel="Gerar novo" description="Cria um código novo com as mesmas condições e revoga este."
@@ -347,11 +347,11 @@ function Settings() {
     <>
       <div className="card">
         <h2>Progresso anterior</h2>
-        <p>
+        <p className="prose">
           Permite que pioneiros registem trilhos concluídos antes de usarem a aplicação. Estes pedidos seguem diretamente para os dirigentes.
         </p>
         <p>Estado atual: <Badge label={enabled ? 'Ativo' : 'Desativado'} tone={enabled ? 'ok' : 'muted'} icon={enabled ? 'check' : 'x'} /></p>
-        <p className="faint">
+        <p className="faint prose">
           Ao desativar: o servidor bloqueia novas submissões (mesmo com formulários abertos); pedidos já submetidos continuam avaliáveis,
           aprovações mantêm-se e o progresso normal continua disponível. Podes reativar a qualquer momento.
         </p>
@@ -394,7 +394,7 @@ function Log() {
   const fn = (f: string | null) => (f ? functionLabel[f as MemberFunction] : '—');
   return (
     <div className="card">
-      <p className="faint">Histórico de mudanças de estado, função, equipa e administração. Criado automaticamente pelo servidor; não é editável.</p>
+      <p className="faint prose">Histórico de mudanças de estado, função, equipa e administração. Criado automaticamente pelo servidor; não é editável.</p>
       {!(q.data ?? []).length ? <Empty title="Sem registos." /> : (
         <ul className="list">
           {(q.data ?? []).map((h) => (

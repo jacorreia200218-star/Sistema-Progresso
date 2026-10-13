@@ -109,7 +109,7 @@ export function Field({ label, hint, children, htmlFor }: { label: string; hint?
     <div className="field">
       <label htmlFor={htmlFor}>{label}</label>
       {hint && (
-        <span className="hint" id={`${htmlFor}-hint`}>
+        <span className="hint prose" id={`${htmlFor}-hint`}>
           {hint}
         </span>
       )}

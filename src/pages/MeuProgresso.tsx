@@ -68,7 +68,7 @@ export default function MeuProgresso() {
         </div>
       )}
       {subject.consulted && (
-        <p className="consult-note" role="note">
+        <p className="consult-note prose" role="note">
           <strong>Modo de consulta</strong> · {subject.consulted.full_name}. As ações do pioneiro não estão disponíveis.
           {subject.isDirigente && <> Decisões: <Link to={`/membros/${subject.consulted.membership_id}`}>percurso do membro</Link>.</>}
         </p>
@@ -77,7 +77,7 @@ export default function MeuProgresso() {
       {!subject.subjectId ? (
         subject.pathLoading ? <Loading rows={2} /> : (
           <div className="card">
-            <p>Os dirigentes não têm percurso pessoal na aplicação. Escolhe acima um pioneiro para consultar o seu progresso.</p>
+            <p className="prose">Os dirigentes não têm percurso pessoal na aplicação. Escolhe acima um pioneiro para consultar o seu progresso.</p>
             {subject.authorized.length === 0 && <p className="faint">Ainda não há pioneiros ativos na secção.</p>}
           </div>
         )

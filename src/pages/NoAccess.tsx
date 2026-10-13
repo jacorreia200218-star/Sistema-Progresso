@@ -94,19 +94,19 @@ export default function NoAccess() {
               <TeamChoice membershipId={m.id} current={m.requested_team_id ?? ''} onSaved={s.refetch} />
             </div>
           ))}
-          <p className="muted">A administração da secção confirma a tua entrada, a equipa e a função (e pode corrigi-las mais tarde).</p>
+          <p className="muted prose">A administração da secção confirma a tua entrada, a equipa e a função (e pode corrigi-las mais tarde).</p>
           <button type="button" className="btn secondary" onClick={s.refetch}>Verificar de novo</button>
         </div>
       )}
       {suspended.length > 0 && (
         <Notice kind="warn">
-          <p>O teu acesso a {suspended.map((m) => m.sections?.name).join(', ')} está suspenso. Fala com a administração da secção.</p>
+          <p className="prose">O teu acesso a {suspended.map((m) => m.sections?.name).join(', ')} está suspenso. Fala com a administração da secção.</p>
         </Notice>
       )}
       {s.pending.length === 0 && (
         <div className="card">
           <h2>Tenho um convite</h2>
-          <p className="muted">Cola o código do convite que recebeste da tua secção (ou abre o link do convite).</p>
+          <p className="muted prose">Cola o código do convite que recebeste da tua secção (ou abre o link do convite).</p>
           <ErrorBox error={action.error} />
           {action.success && <Notice kind="success">{action.success}</Notice>}
           {joinError && <Notice kind="error"><p>{joinError}</p></Notice>}
@@ -125,7 +125,7 @@ export default function NoAccess() {
                 <strong>{preview.section}</strong>{preview.group ? ` · ${preview.group}` : ''}
                 {preview.team && <><br />Equipa: <strong>{preview.team}</strong></>}
               </p>
-              <p className="faint">A administração da secção confirma a tua entrada, a equipa e a função. O convite não dá funções de dirigente nem de administração.</p>
+              <p className="faint prose">A administração da secção confirma a tua entrada, a equipa e a função. O convite não dá funções de dirigente nem de administração.</p>
               <div className="btn-row">
                 <button type="button" className="btn" disabled={action.busy} onClick={confirm}>{action.busy ? 'A enviar…' : 'Confirmar entrada'}</button>
                 <button type="button" className="btn ghost" onClick={() => setPreview(null)}>Mudar código</button>

@@ -55,10 +55,12 @@ function AreaCard({ area, progress, subject, expCount }: { area: CatalogArea; pr
           <strong className="grow">{area.name}</strong>
           <span className="faint">{validated} de 3 validados</span>
         </span>
-        <span className="ac-line">
-          {currentTrail ? <>{currentTrail.name}{current?.status === 'proposta' ? ' (proposta)' : ''}</> : <span className="faint">{path ? 'Trilho por escolher' : 'Sem etapa em curso'}</span>}
+        {currentTrail && <span className="ac-line">{currentTrail.name}</span>}
+        <span>
+          {!path ? <span className="faint">Sem etapa em curso</span>
+            : !currentTrail ? <Badge label="Por escolher" tone="muted" icon="circle" />
+            : <Badge {...(current?.status === 'proposta' ? { label: 'Em negociação', tone: 'neutral' as const, icon: 'clock' } : CATEGORY_LABEL[cat!])} />}
         </span>
-        {cat && <span><Badge {...(current?.status === 'proposta' ? { label: 'Em negociação', tone: 'neutral' as const, icon: 'clock' } : CATEGORY_LABEL[cat])} /></span>}
       </Link>
     </li>
   );

@@ -14,14 +14,14 @@ import { ConfirmButton, ErrorBox, Field, Notice } from './ui';
 
 export function VersionContent({ version, attachments, historic, compact }: { version: RequestVersion; attachments: RequestDetail['attachments']; historic: boolean; compact?: boolean }) {
   return (
-    <section className={compact ? '' : 'card'}>
+    <section className={compact ? 'version-content' : 'card version-content'}>
       {!compact && <h2>Reflexão e vivências</h2>}
       <p className="label">O que fiz</p>
-      <div className="quote">{version.experiences || '—'}</div>
-      {version.context && (<><p className="label" style={{ marginTop: 10 }}>Em que contexto</p><div className="quote">{version.context}</div></>)}
+      <div className="quote prose">{version.experiences || '—'}</div>
+      {version.context && (<><p className="label" style={{ marginTop: 10 }}>Em que contexto</p><div className="quote prose">{version.context}</div></>)}
       <p className="label" style={{ marginTop: 10 }}>O que aprendi</p>
-      <div className="quote">{version.reflection || '—'}</div>
-      {version.evidence && (<><p className="label" style={{ marginTop: 10 }}>Como demonstrei os objetivos do trilho</p><div className="quote">{version.evidence}</div></>)}
+      <div className="quote prose">{version.reflection || '—'}</div>
+      {version.evidence && (<><p className="label" style={{ marginTop: 10 }}>Como demonstrei os objetivos do trilho</p><div className="quote prose">{version.evidence}</div></>)}
       <dl className="meta" style={{ marginTop: 10 }}>
         {(version.period_start || version.period_end) && (
           <>
@@ -162,7 +162,7 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
         <h2>{historic ? 'Descreve o que já concluíste' : 'Reflexão e vivências'}</h2>
         {historicBlocked && (
           <Notice kind="warn">
-            <p>
+            <p className="prose">
               O registo de progresso anterior está desativado nesta secção. Podes cancelar este pedido e usar o progresso normal para o
               mesmo trilho, ou aguardar que seja reativado.
             </p>
@@ -202,7 +202,7 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
         )}
 
         <p className="label">Anexos (opcional)</p>
-        <p className="faint">JPG, PNG, WebP ou PDF, até 10 MB. As fotografias são comprimidas. Um anexo é um apoio, não uma prova que valide o trilho.</p>
+        <p className="faint prose">JPG, PNG, WebP ou PDF, até 10 MB. As fotografias são comprimidas. Um anexo é um apoio, não uma prova que valide o trilho.</p>
         <AttachmentList
           attachments={currentAttachments}
           busy={action.busy}
@@ -265,7 +265,7 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
       )}
       {request.status === 'devolvido' && (
         <>
-          <p>O pedido foi devolvido para continuares a trabalhar. Lê os comentários no histórico.</p>
+          <p className="prose">O pedido foi devolvido para continuares a trabalhar. Lê os comentários no histórico.</p>
           <div className="btn-row">
             <button type="button" className="btn" disabled={action.busy}
               onClick={() => action.run(() => call('start_new_version', { p_request: request.id }), 'Nova versão criada.')}>
@@ -279,11 +279,11 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
           </div>
         </>
       )}
-      {request.status === 'validado_equipa' && <p>Trilho validado na reunião de Equipa. A decisão foi comunicada ao Conselho de Guias.</p>}
+      {request.status === 'validado_equipa' && <p className="prose">Trilho validado na reunião de Equipa. A decisão foi comunicada ao Conselho de Guias.</p>}
       {request.status === 'aprovado' && request.kind === 'historico' && (
-        <p>Progresso anterior reconhecido pelos dirigentes{request.approved_reference_date ? ` (referência: ${formatDate(request.approved_reference_date)})` : ''}.</p>
+        <p className="prose">Progresso anterior reconhecido pelos dirigentes{request.approved_reference_date ? ` (referência: ${formatDate(request.approved_reference_date)})` : ''}.</p>
       )}
-      {request.status === 'recusado' && <p>Este progresso anterior não foi reconhecido. Podes seguir pelo progresso normal para este trilho.</p>}
+      {request.status === 'recusado' && <p className="prose">Este progresso anterior não foi reconhecido. Podes seguir pelo progresso normal para este trilho.</p>}
       {request.status === 'cancelado' && <p>Pedido cancelado.</p>}
     </section>
   );

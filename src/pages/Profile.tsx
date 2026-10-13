@@ -86,13 +86,13 @@ export default function Profile() {
         <Field label="Totem (opcional)" htmlFor="totem">
           <input id="totem" type="text" maxLength={120} value={totem} onChange={(e) => setTotem(e.target.value)} />
         </Field>
-        <p className="faint">A equipa e a função são definidas pela administração da secção.</p>
+        <p className="faint prose">A equipa e a função são definidas pela administração da secção.</p>
         <button className="btn" disabled={action.busy}>Guardar</button>
       </form>
 
       <div className="card">
         <h2>Fotografia (opcional)</h2>
-        <p className="faint">Fica privada: só é vista por quem acompanha o teu percurso e pela tua equipa. É comprimida antes do envio.</p>
+        <p className="faint prose">Fica privada: só é vista por quem acompanha o teu percurso e pela tua equipa. É comprimida antes do envio.</p>
         <ErrorBox error={photoError} />
         <div className="btn-row">
           <label className="btn secondary">
@@ -143,7 +143,7 @@ export default function Profile() {
           <button type="button" className="btn ghost" onClick={() => supabase.auth.signOut()}><LogOut size={18} aria-hidden="true" /> Sair</button>
         </div>
       </form>
-      <p className="faint">Ferramenta de acompanhamento local. Não substitui os registos oficiais do CNE.</p>
+      <p className="faint prose">Ferramenta de acompanhamento local. Não substitui os registos oficiais do CNE.</p>
     </>
   );
 }

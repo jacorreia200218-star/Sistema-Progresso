@@ -36,7 +36,7 @@ export function MilestoneInfo({ k }: { k: MilestoneKey }) {
   const m = milestoneByKey[k];
   return (
     <div className="stack">
-      <p>{m.summary}</p>
+      <p className="prose">{m.summary}</p>
       <div className="grid-2">
         <div>
           <h4>O que é necessário</h4>
@@ -44,9 +44,9 @@ export function MilestoneInfo({ k }: { k: MilestoneKey }) {
         </div>
         <div>
           <h4>Como se valida</h4>
-          <p>{m.validation}</p>
+          <p className="prose">{m.validation}</p>
           <h4>O que permite avançar</h4>
-          <p>{m.advance}</p>
+          <p className="prose">{m.advance}</p>
         </div>
       </div>
       {k === 'inicio_pista' && (
@@ -56,10 +56,10 @@ export function MilestoneInfo({ k }: { k: MilestoneKey }) {
           <ul className="tight">{ADHESION_KNOWLEDGE.movimento.map((x) => <li key={x}>{x}</li>)}</ul>
           <h4>Adesão à secção</h4>
           <ul className="tight">{ADHESION_KNOWLEDGE.seccao.map((x) => <li key={x}>{x}</li>)}</ul>
-          <p className="faint">{ADHESION_KNOWLEDGE.nota}</p>
+          <p className="faint prose">{ADHESION_KNOWLEDGE.nota}</p>
         </details>
       )}
-      {m.note && <p className="faint">{m.note}</p>}
+      {m.note && <p className="faint prose">{m.note}</p>}
       <p className="faint">Manual do Dirigente, {m.pages}.</p>
     </div>
   );

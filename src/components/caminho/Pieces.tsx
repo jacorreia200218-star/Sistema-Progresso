@@ -112,7 +112,7 @@ export function PersonalAtMilestone({ k, progress, catalog, self }: { k: Milesto
             <span><strong>Promessa / Investidura:</strong> {a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</span>
           </li>
         </ul>
-        {pos.state === 'aguarda_etapa' && <p className="faint">A Equipa de Animação abre contigo a etapa do Conhecimento, na primeira negociação, e entrega a insígnia.</p>}
+        {pos.state === 'aguarda_etapa' && <p className="faint prose">A Equipa de Animação abre contigo a etapa do Conhecimento, na primeira negociação, e entrega a insígnia.</p>}
       </div>
     );
   }

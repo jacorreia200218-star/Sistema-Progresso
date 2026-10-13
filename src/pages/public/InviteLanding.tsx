@@ -28,7 +28,7 @@ export default function InviteLanding() {
       <h1>Foste convidado para a secção</h1>
       {stored && <p>Código do convite: <strong className="invite-code">{formatInviteCode(stored)}</strong></p>}
       <Notice kind="info">
-        <p>
+        <p className="prose">
           Cria a tua conta individual (ou entra, se já tiveres). Antes de confirmares, vês a secção e a equipa de destino; depois o
           pedido fica a aguardar a confirmação da administração.
         </p>

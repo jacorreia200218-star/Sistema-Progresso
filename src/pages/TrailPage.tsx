@@ -99,7 +99,7 @@ export default function TrailPage() {
         <h1>{trail.name}</h1>
         <Objectives trail={trail} />
         <TrailMore trail={trail} />
-        <p className="faint">Para ver o estado e pedir validação, abre este trilho a partir de «Progresso».</p>
+        <p className="faint prose">Para ver o estado e pedir validação, abre este trilho a partir de «Progresso».</p>
       </>
     );
   }
@@ -136,7 +136,7 @@ export default function TrailPage() {
       {choice?.planned_opportunities && (
         <section className="card" aria-labelledby="h-op">
           <h2 id="h-op">Oportunidades escolhidas</h2>
-          <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{choice.planned_opportunities}</p>
+          <p className="prose" style={{ whiteSpace: 'pre-line', margin: 0 }}>{choice.planned_opportunities}</p>
         </section>
       )}
 
@@ -185,7 +185,7 @@ function Objectives({ trail }: { trail: CatalogTrail }) {
         <div key={o.id} className="objective">
           <span className="code">{o.code}</span>
           <div>
-            <p style={{ margin: 0 }}>{o.text}</p>
+            <p className="prose" style={{ margin: 0 }}>{o.text}</p>
             {o.pending_note && <p className="faint" style={{ margin: '4px 0 0' }}><AlertTriangle size={13} aria-hidden="true" /> Pendente: {o.pending_note}</p>}
           </div>
         </div>
@@ -200,14 +200,14 @@ function TrailMore({ trail }: { trail: CatalogTrail }) {
     <div className="card">
       <details className="more-inner" style={{ borderTop: 0 }}>
         <summary>Explicação e palavras-chave</summary>
-        <p style={{ whiteSpace: 'pre-line' }}>{trail.framing}</p>
+        <p className="prose" style={{ whiteSpace: 'pre-line' }}>{trail.framing}</p>
         {trail.pending_note && <Notice kind="warn"><p><strong>Ponto pendente de confirmação.</strong> {trail.pending_note}</p></Notice>}
         {trail.keywords.length > 0 && <p className="faint">{trail.keywords.join(' · ')}</p>}
       </details>
       {trail.opportunities.length > 0 && (
         <details className="more-inner">
           <summary>Ver exemplos</summary>
-          <p className="faint">Sugestões de oportunidades educativas do manual (exemplos, não obrigatórias). Realizar uma oportunidade não valida o trilho por si.</p>
+          <p className="faint prose">Sugestões de oportunidades educativas do manual (exemplos, não obrigatórias). Realizar uma oportunidade não valida o trilho por si.</p>
           <ul className="tight">{trail.opportunities.map((o, i) => <li key={i}>{o}</li>)}</ul>
         </details>
       )}
@@ -236,7 +236,7 @@ function FeedbackBox({ progress, requestId }: { progress: MemberProgress; reques
 
 function NoRequest({ subject, trail, onCreated }: { subject: Subj; trail: CatalogTrail; onCreated: (msg: string) => void }) {
   const action = useAction();
-  if (!subject.isSelf) return <p className="faint">Ainda não há pedido de validação para este trilho.</p>;
+  if (!subject.isSelf) return <p className="faint prose">Ainda não há pedido de validação para este trilho.</p>;
   // A mensagem fica na secção: este bloco desaparece assim que o pedido existe.
   const create = async (kind: 'normal' | 'historico') => {
     const res = await action.run(() => call<string>('create_trail_request', { p_membership: subject.membership.id, p_trail: trail.id, p_kind: kind }));
@@ -244,7 +244,7 @@ function NoRequest({ subject, trail, onCreated }: { subject: Subj; trail: Catalo
   };
   return (
     <>
-      <p className="faint">
+      <p className="faint prose">
         O pedido fica em rascunho até o submeteres. Depois segue para a reunião de Equipa; o trilho só fica «Validado» depois da decisão.
       </p>
       <ErrorBox error={action.error} />
@@ -291,7 +291,7 @@ function ChoiceSection({ subject, trail, progress }: { subject: Subj; trail: Cat
       ) : areaProposed ? (
         <p className="faint">{subject.isSelf ? 'Já tens uma proposta pendente nesta área.' : 'Há uma proposta pendente nesta área.'}</p>
       ) : (
-        <p className="faint">Ainda sem trilho escolhido nesta área para a etapa.</p>
+        <p className="faint prose">Ainda sem trilho escolhido nesta área para a etapa.</p>
       )}
       {choiceHere?.status === 'proposta' && subject.isSelf && (
         <button type="button" className="btn secondary" disabled={action.busy} onClick={() => action.run(() => call('withdraw_choice', { p_choice: choiceHere.id }), 'Proposta retirada.')}>Retirar proposta</button>
@@ -324,7 +324,7 @@ function ExperiencesSection({ trail, membershipId, items }: { trail: CatalogTrai
   return (
     <section className="card" id="vivencias" aria-labelledby="h-viv">
       <div className="card-title"><NotebookPen size={18} aria-hidden="true" color="var(--green-ink)" /><h2 id="h-viv" style={{ margin: 0 }}>Vivências e reflexões registadas</h2></div>
-      <p className="faint">Só tu vês estas vivências. Registar uma atividade não valida o trilho: a validação é feita pelo pedido.</p>
+      <p className="faint prose">Só tu vês estas vivências. Registar uma atividade não valida o trilho: a validação é feita pelo pedido.</p>
       {items.length > 0 ? (
         <ul className="list">
           {items.map((x) => (

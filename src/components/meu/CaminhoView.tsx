@@ -43,7 +43,7 @@ export function CaminhoView({ subject, progress }: { subject: Subject; progress:
           <div>
             <h2>Etapa atual</h2>
             <p className="summary-main">{counts.stage ? counts.stage.name : milestoneByKey[pos.milestone].name}</p>
-            <p className="faint">
+            <p className="faint prose">
               {STATE_LABEL[pos.state].label}
               {counts.stage && ` · ${counts.stage.validated} de ${counts.stage.areas} áreas com trilho validado nesta etapa`}
             </p>
@@ -52,11 +52,11 @@ export function CaminhoView({ subject, progress }: { subject: Subject; progress:
           <div>
             <h2>Histórico reconhecido</h2>
             <p className="summary-main">{counts.validated} {counts.validated === 1 ? 'trilho validado' : 'trilhos validados'}</p>
-            <p className="faint">
+            <p className="faint prose">
               Em todas as etapas{counts.recognized > 0 ? `; ${counts.recognized} de progresso anterior ou reconhecidos na negociação` : ''}.
             </p>
             {stageOpen && counts.unassigned.length > 0 && (
-              <p className="faint">
+              <p className="faint prose">
                 {counts.unassigned.length === 1 ? '1 trilho validado ainda não está associado' : `${counts.unassigned.length} trilhos validados ainda não estão associados`} a
                 nenhuma etapa. Só conta{counts.unassigned.length === 1 ? '' : 'm'} para a etapa atual depois de confirmado{counts.unassigned.length === 1 ? '' : 's'} na negociação com a Equipa de Animação.
               </p>
@@ -83,7 +83,7 @@ export function CaminhoView({ subject, progress }: { subject: Subject; progress:
         <div className="next-line">
           <span className="faint">{subject.isSelf ? 'Próximo passo' : 'Próximo passo do pioneiro'}</span>
           <p style={{ margin: 0 }}><strong>{next.title}</strong></p>
-          {next.detail && <p className="faint" style={{ margin: '2px 0 0' }}>{next.detail}</p>}
+          {next.detail && <p className="faint prose" style={{ margin: '2px 0 0' }}>{next.detail}</p>}
           {next.to && next.label && !next.to.startsWith('/meu-progresso?vista=caminho') && <Link to={next.to} className="btn" style={{ marginTop: 6 }}>{next.label}</Link>}
         </div>
         <ErrorBox error={action.error} />

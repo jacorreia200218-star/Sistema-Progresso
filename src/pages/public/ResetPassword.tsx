@@ -42,7 +42,7 @@ export default function ResetPassword() {
       ) : !session ? (
         <>
           <Notice kind="warn">
-            <p>O link expirou ou já foi usado. Pede um novo link de recuperação.</p>
+            <p className="prose">O link expirou ou já foi usado. Pede um novo link de recuperação.</p>
           </Notice>
           <Link to="/recuperar" className="btn block">Pedir novo link</Link>
         </>

@@ -30,7 +30,7 @@ export default function Historical() {
       <PageTitle title="Progresso anterior" subtitle="Trilhos que já concluíste antes de usar a aplicação." back="/meu-progresso?vista=pedidos" />
       {enabled ? (
         <div className="card">
-          <p>
+          <p className="prose">
             Indica cada trilho já concluído, com uma explicação e, se quiseres, uma data aproximada e um comprovativo. Estes pedidos
             seguem diretamente para os dirigentes e <strong>só contam depois de aprovados</strong>.
           </p>
@@ -42,7 +42,7 @@ export default function Historical() {
         </div>
       ) : (
         <Notice kind="info">
-          <p>O registo de progresso anterior não está disponível nesta secção. Os pedidos já enviados continuam a ser avaliados.</p>
+          <p className="prose">O registo de progresso anterior não está disponível nesta secção. Os pedidos já enviados continuam a ser avaliados.</p>
         </Notice>
       )}
       <h2 className="section-title">Os meus pedidos de progresso anterior</h2>

@@ -105,7 +105,7 @@ function SummaryTab({ member, progress }: { member: MemberRow; progress: MemberP
       <div className="next-line">
         <span className="faint">Próximo passo do pioneiro</span>
         <p style={{ margin: 0 }}><strong>{next.title}</strong></p>
-        {next.detail && <p className="faint" style={{ margin: '2px 0 0' }}>{next.detail}</p>}
+        {next.detail && <p className="faint prose" style={{ margin: '2px 0 0' }}>{next.detail}</p>}
         {next.to && next.label && <Link to={next.to} className="btn" style={{ marginTop: 6 }}>{next.label}</Link>}
       </div>
     </section>
@@ -135,7 +135,7 @@ function StageTab({ member, progress: p }: { member: MemberRow; progress: Member
       {open && counts.unassigned.length > 0 && (
         <section className="card" aria-labelledby="h-sem-etapa">
           <h2 id="h-sem-etapa">Trilhos reconhecidos sem etapa</h2>
-          <p className="faint">Já estão validados mas só contam para a etapa depois de propostos e confirmados na negociação. Nada é associado automaticamente.</p>
+          <p className="faint prose">Já estão validados mas só contam para a etapa depois de propostos e confirmados na negociação. Nada é associado automaticamente.</p>
           <ul className="list">
             {counts.unassigned.map((t) => (
               <li key={t.id} className="list-item">
@@ -255,7 +255,7 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
       </dl>
       {outOfOrder && (
         <Notice kind="warn">
-          <p>A Promessa ({formatDate(a!.commitment_on)}) está registada antes da decisão sobre a adesão ({formatDate(a!.decided_on)}). Normalmente acontece depois (pp. 7 e 10). Revê as datas{a?.notes ? '; a fundamentação está nas notas.' : ' ou fundamenta o registo nas notas.'}</p>
+          <p className="prose">A Promessa ({formatDate(a!.commitment_on)}) está registada antes da decisão sobre a adesão ({formatDate(a!.decided_on)}). Normalmente acontece depois (pp. 7 e 10). Revê as datas{a?.notes ? '; a fundamentação está nas notas.' : ' ou fundamenta o registo nas notas.'}</p>
         </Notice>
       )}
       {a?.notes && <div className="quote" style={{ marginTop: 8 }}>{a.notes}</div>}
@@ -265,7 +265,7 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
           {action.success && <Notice kind="success">{action.success}</Notice>}
           {!a?.profile_traced_on && !complete && (
             <div className="card flat" style={{ marginTop: 10 }}>
-              <p className="faint">O perfil é traçado pela Equipa de Animação durante a adesão, por observação direta, com ajuda do Guia (pp. 4 e 7). Regista só a data; as observações não ficam na aplicação.</p>
+              <p className="faint prose">O perfil é traçado pela Equipa de Animação durante a adesão, por observação direta, com ajuda do Guia (pp. 4 e 7). Regista só a data; as observações não ficam na aplicação.</p>
               <div className="row">
                 <input aria-label="Data do traçado do perfil" type="date" max={todayIso()} value={traced} onChange={(e) => setTraced(e.target.value)} style={{ maxWidth: 200 }} />
                 <button type="button" className="btn secondary" disabled={action.busy || !traced}
@@ -279,13 +279,13 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
             <button type="button" className="btn ghost" onClick={() => setEditing(true)}>{a?.commitment_on ? 'Corrigir' : 'Registar a Promessa / Investidura'}</button>
           ) : (
             <div style={{ marginTop: 10 }}>
-              <p className="faint">A decisão sobre a adesão é tomada em Conselho de Guias, com a presença de toda a Equipa de Animação (p. 7). A primeira etapa só abre depois da Promessa/Investidura (p. 10).</p>
+              <p className="faint prose">A decisão sobre a adesão é tomada em Conselho de Guias, com a presença de toda a Equipa de Animação (p. 7). A primeira etapa só abre depois da Promessa/Investidura (p. 10).</p>
               <div className="grid-2">
                 <Field label="Data da decisão sobre a adesão" htmlFor="ad-d"><input id="ad-d" type="date" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
                 <Field label="Promessa / Investidura (se já aconteceu)" htmlFor="ad-c"><input id="ad-c" type="date" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
               </div>
-              <p className="faint">As datas são as do acontecimento; a data em que fica registado é guardada à parte.</p>
-              {formOutOfOrder && <Notice kind="warn"><p>A Promessa fica antes da decisão sobre a adesão. Confirma as datas ou explica nas notas por que razão o registo é assim.</p></Notice>}
+              <p className="faint prose">As datas são as do acontecimento; a data em que fica registado é guardada à parte.</p>
+              {formOutOfOrder && <Notice kind="warn"><p className="prose">A Promessa fica antes da decisão sobre a adesão. Confirma as datas ou explica nas notas por que razão o registo é assim.</p></Notice>}
               <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Registo retroativo (anterior à aplicação)</label>
               <Field label={formOutOfOrder || historical ? 'Fundamentação (obrigatória)' : 'Notas (opcional)'} htmlFor="ad-n"><textarea id="ad-n" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ minHeight: 70 }} /></Field>
               <button type="button" className="btn" disabled={action.busy || !decided || needsNotes}
@@ -314,7 +314,7 @@ function RecognizeInNegotiation({ member, progress }: { member: MemberRow; progr
   return (
     <details className="card flat">
       <summary>Reconhecer na negociação um trilho já alcançado</summary>
-      <p className="faint" style={{ marginTop: 8 }}>
+      <p className="faint prose" style={{ marginTop: 8 }}>
         «A Equipa de Animação deverá validar os trilhos que o elemento demonstre já ter atingido, desde que devidamente fundamentados»,
         informando a Equipa (Manual, p. 10). Fica registado com a fundamentação e conta como trilho validado.
       </p>
@@ -345,7 +345,7 @@ function OpenStage({ member, progress }: { member: MemberRow; progress: MemberPr
   return (
     <section className="card flat">
       <h3>Abrir a etapa {next.name}</h3>
-      <p className="faint">A insígnia de progresso é entregue no início da etapa. Podes registar a data agora ou mais tarde.</p>
+      <p className="faint prose">A insígnia de progresso é entregue no início da etapa. Podes registar a data agora ou mais tarde.</p>
       <ErrorBox error={action.error} />
       <Field label="Entrega da insígnia (opcional)" htmlFor="ins"><input id="ins" type="date" max={todayIso()} value={insignia} onChange={(e) => setInsignia(e.target.value)} /></Field>
       <button type="button" className="btn" disabled={action.busy}
@@ -385,7 +385,7 @@ function StageActions({ path }: { path: StagePath }) {
       {path.status === 'em_curso' && (
         <>
           <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '16px 0' }} />
-          <p className="faint">Declarar como concluída uma etapa vivida antes da aplicação. Exige um trilho validado ou reconhecido em cada área atribuído a esta etapa, e uma fundamentação.</p>
+          <p className="faint prose">Declarar como concluída uma etapa vivida antes da aplicação. Exige um trilho validado ou reconhecido em cada área atribuído a esta etapa, e uma fundamentação.</p>
           <Field label="Fundamentação" htmlFor={`dc-${path.id}`}><textarea id={`dc-${path.id}`} value={declare} onChange={(e) => setDeclare(e.target.value)} style={{ minHeight: 70 }} /></Field>
           <ConfirmButton confirmLabel="Declarar etapa anterior" disabled={action.busy || !declare.trim()}
             onConfirm={() => action.run(() => call('declare_historical_stage', { p_stage_path: path.id, p_date: date, p_comment: declare }), 'Etapa anterior declarada.')}>
@@ -425,7 +425,7 @@ function ProposeForMember({ pathId, progress }: { pathId: string; progress: Memb
   return (
     <details className="card flat">
       <summary>Propor trilho para a etapa</summary>
-      <p className="faint">Inclui trilhos já validados ou reconhecidos que queiras atribuir a esta etapa (sem contar duas vezes). A proposta fica a aguardar a negociação.</p>
+      <p className="faint prose">Inclui trilhos já validados ou reconhecidos que queiras atribuir a esta etapa (sem contar duas vezes). A proposta fica a aguardar a negociação.</p>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
       <TrailPicker catalog={s.catalog} id="pt" value={trail} onChange={setTrail} areas={options} available={(t) => !used.has(t.key)}
@@ -466,7 +466,7 @@ function MeritPanel({ member, progress }: { member: MemberRow; progress: MemberP
         </p>
       ) : s.isDirigente && member.status === 'ativo' ? (
         <>
-          <p className="faint">A elegibilidade é calculada; a atribuição é um registo próprio da Equipa de Animação.</p>
+          <p className="faint prose">A elegibilidade é calculada; a atribuição é um registo próprio da Equipa de Animação.</p>
           <ErrorBox error={action.error} />
           {action.success && <Notice kind="success">{action.success}</Notice>}
           <Field label="Data de atribuição" htmlFor="md"><input id="md" type="date" max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, MessageSquare } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ClipboardList, Compass, Flag, MessageSquare, Route as RouteIcon, Send, Users, UsersRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useActiveSection } from '../lib/session';
 import { useProgress, useTeams } from '../lib/hooks';
@@ -41,16 +41,16 @@ function MemberHome() {
   return (
     <>
       <StatCards label="Resumo do meu progresso" items={[
-        { label: 'Etapa atual', value: c.stage?.name ?? milestoneByKey[pos.milestone].name, hint: STATE_LABEL[pos.state].label, to: '/meu-progresso?vista=caminho' },
-        { label: 'Trilhos em desenvolvimento', value: c.inDevelopment, to: '/meu-progresso?vista=areas&filtro=em_desenvolvimento' },
-        { label: 'Pedidos em validação', value: c.inValidation, to: '/meu-progresso?vista=pedidos&pfiltro=aguarda' },
-        { label: 'Trilhos validados', value: c.validated, to: '/meu-progresso?vista=areas&filtro=validado' },
+        { label: 'Etapa atual', value: c.stage?.name ?? milestoneByKey[pos.milestone].name, hint: STATE_LABEL[pos.state].label, to: '/meu-progresso?vista=caminho', tone: 'azul', icon: RouteIcon },
+        { label: 'Trilhos em desenvolvimento', value: c.inDevelopment, to: '/meu-progresso?vista=areas&filtro=em_desenvolvimento', tone: 'verde', icon: Compass },
+        { label: 'Pedidos em validação', value: c.inValidation, to: '/meu-progresso?vista=pedidos&pfiltro=aguarda', tone: 'ambar', icon: Send },
+        { label: 'Trilhos validados', value: c.validated, to: '/meu-progresso?vista=areas&filtro=validado', tone: 'lilas', icon: CheckCircle2 },
       ]} />
 
       <section className="card next-step" aria-labelledby="h-next">
         <h2 id="h-next" className="faint-title">Próximo passo</h2>
         <p className="next-title">{action.title}</p>
-        {action.detail && <p className="faint">{action.detail}</p>}
+        {action.detail && <p className="faint prose">{action.detail}</p>}
         {action.to && <Link to={action.to} className="btn">{action.label ?? 'Continuar'} <ArrowRight size={16} aria-hidden="true" /></Link>}
       </section>
 
@@ -151,7 +151,7 @@ function LeaderHome() {
               <Link to="/gestao/equipas" className="btn secondary">Criar equipas</Link>
               <Link to="/gestao/convites" className="btn">Convidar elementos</Link>
             </div>
-          ) : <p className="faint">Pede à administração da secção para criar equipas e convites.</p>}
+          ) : <p className="faint prose">Pede à administração da secção para criar equipas e convites.</p>}
         </Empty>
       </div>
     );
@@ -160,10 +160,10 @@ function LeaderHome() {
   return (
     <>
       <StatCards label="Resumo da secção" items={[
-        { label: 'Pioneiros', value: total, to: '/caminho' },
-        { label: 'Equipas', value: activeTeams, to: s.isAdmin ? '/gestao/equipas' : '/caminho' },
-        { label: 'Pedidos pendentes', value: pendingReqs, to: '/acompanhamento/pedidos' },
-        { label: 'Etapas por validar', value: openStages, to: '/acompanhamento/conselho' },
+        { label: 'Pioneiros', value: total, to: '/caminho', tone: 'azul', icon: Users },
+        { label: 'Equipas', value: activeTeams, to: s.isAdmin ? '/gestao/equipas' : '/caminho?vista=equipa', tone: 'verde', icon: UsersRound },
+        { label: 'Pedidos pendentes', value: pendingReqs, to: '/acompanhamento/pedidos', tone: 'ambar', icon: ClipboardList },
+        { label: 'Etapas por validar', value: openStages, to: '/acompanhamento/conselho', tone: 'lilas', icon: Flag },
       ]} />
 
       <section className="card" aria-labelledby="h-dist">
@@ -220,8 +220,8 @@ function AdminOnlyHome() {
   const pending = counts.data?.gestao ?? 0;
   return (
     <StatCards label="Gestão" items={[
-      { label: 'Pedidos de entrada', value: pending, to: '/gestao/membros' },
-      { label: 'Gestão', value: '→', hint: 'Membros, equipas, convites', to: '/gestao' },
+      { label: 'Pedidos de entrada', value: pending, to: '/gestao/membros', tone: 'ambar', icon: ClipboardList },
+      { label: 'Membros e equipas', value: <Users size={22} aria-hidden="true" />, to: '/gestao', tone: 'azul', icon: Users },
     ]} />
   );
 }

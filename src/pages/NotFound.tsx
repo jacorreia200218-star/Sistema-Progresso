@@ -6,7 +6,7 @@ export default function NotFound() {
     <>
       <PageTitle title="Página não encontrada" back="/" />
       <Empty title="Não encontrámos o que procuras.">
-        <p>Pode não existir ou não teres permissão para a ver.</p>
+        <p className="prose">Pode não existir ou não teres permissão para a ver.</p>
         <Link to="/" className="btn secondary">Ir para o Início</Link>
       </Empty>
     </>

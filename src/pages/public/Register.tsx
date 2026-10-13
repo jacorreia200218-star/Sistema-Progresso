@@ -42,9 +42,9 @@ export default function Register() {
       <PublicShell title="Confirma o teu email">
         <h1>Confirma o teu email</h1>
         <Notice kind="success">
-          <p>Enviámos uma mensagem para <strong>{email}</strong>. Abre o link para confirmar a conta e depois entra.</p>
+          <p className="prose">Enviámos uma mensagem para <strong>{email}</strong>. Abre o link para confirmar a conta e depois entra.</p>
         </Notice>
-        <p className="faint">Não chegou? Verifica a pasta de spam ou tenta de novo daqui a uns minutos.</p>
+        <p className="faint prose">Não chegou? Verifica a pasta de spam ou tenta de novo daqui a uns minutos.</p>
         <Link to="/entrar" className="btn secondary block">Ir para Entrar</Link>
       </PublicShell>
     );

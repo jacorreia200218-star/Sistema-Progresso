@@ -1,6 +1,6 @@
 // Navegação contextual e blocos compactos partilhados: migalhas (Início › Progresso
 // › Área › Trilho), cartões-resumo com hiperligação e painel lateral/folha.
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, X } from 'lucide-react';
 
@@ -25,11 +25,15 @@ export function Crumbs({ items }: { items: Crumb[] }) {
   );
 }
 
+export type StatTone = 'azul' | 'verde' | 'ambar' | 'lilas';
+
 export interface Stat {
   label: string;
   value: ReactNode;
   hint?: string;
   to: string;
+  tone: StatTone;
+  icon: ComponentType<{ size?: number; 'aria-hidden'?: boolean | 'true' }>;
 }
 
 /** Cartões-resumo: cada um é uma hiperligação real para a vista já filtrada. */
@@ -38,7 +42,8 @@ export function StatCards({ items, label }: { items: Stat[]; label: string }) {
     <ul className="stats" aria-label={label}>
       {items.map((s) => (
         <li key={s.label}>
-          <Link to={s.to} className="stat">
+          <Link to={s.to} className={`stat stat-${s.tone}`}>
+            <span className="stat-icon"><s.icon size={20} aria-hidden="true" /></span>
             <span className="stat-value">{s.value}</span>
             <span className="stat-label">{s.label}</span>
             {s.hint && <span className="stat-hint">{s.hint}</span>}

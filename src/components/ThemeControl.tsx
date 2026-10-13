@@ -22,7 +22,7 @@ export function ThemeControl() {
           </label>
         ))}
       </div>
-      <p className="faint" style={{ marginTop: 6 }}>«Sistema» segue a preferência do dispositivo. A escolha fica guardada neste dispositivo.</p>
+      <p className="faint prose" style={{ marginTop: 6 }}>«Sistema» segue a preferência do dispositivo. A escolha fica guardada neste dispositivo.</p>
     </fieldset>
   );
 }

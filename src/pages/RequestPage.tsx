@@ -56,7 +56,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
 
       {request.kind === 'negociacao' && (
         <Notice kind="info">
-          <p>A Equipa de Animação reconheceu, na negociação, que este trilho já tinha sido alcançado (Manual do Dirigente, p. 10). A fundamentação está no histórico.</p>
+          <p className="prose">A Equipa de Animação reconheceu, na negociação, que este trilho já tinha sido alcançado (Manual do Dirigente, p. 10). A fundamentação está no histórico.</p>
         </Notice>
       )}
       {request.kind !== 'negociacao' && (!isOwner || request.status !== 'rascunho') && <VersionContent version={current} attachments={attachments.filter((a) => a.version_id === current.id)} historic={historic} />}
@@ -68,8 +68,8 @@ function RequestView({ detail }: { detail: RequestDetail }) {
             <li key={v.id}>
               <strong>Versão {v.version_no}</strong>{' '}
               <span className="faint">
-                {v.submitted_at ? `submetida ${formatDateTime(v.submitted_at)}` : 'rascunho'}
-                {v.withdrawn_at ? ` · retirada ${formatDateTime(v.withdrawn_at)}` : ''}
+                {v.submitted_at ? `· Submetida em ${formatDateTime(v.submitted_at)}` : '· Rascunho'}
+                {v.withdrawn_at ? ` · Retirada em ${formatDateTime(v.withdrawn_at)}` : ''}
               </span>
               {v.version_no !== request.current_version && v.submitted_at && (
                 <details>
@@ -123,7 +123,7 @@ function ReviewerPanel({ detail, current }: { detail: RequestDetail; current: Re
         <section className="card">
           <h2>Registo da reunião de Equipa</h2>
           <Notice kind="info">
-            <p>
+            <p className="prose">
               Regista aqui a decisão tomada <strong>em reunião de Equipa</strong>. Este registo não substitui a reunião.
               {s.isDirigente && !isTeamGuia ? ' (Registo pela Equipa de Animação — ex.: pedido do próprio guia.)' : ''}
             </p>
@@ -213,7 +213,7 @@ function ReviewerPanel({ detail, current }: { detail: RequestDetail; current: Re
       {s.isDirigente && request.status === 'validado_equipa' && (
         <section className="card flat">
           <h3>Devolução fundamentada (Conselho de Guias)</h3>
-          <p className="faint">Usa apenas se o Conselho de Guias verificar que a validação foi manifestamente incoerente com a atitude demonstrada.</p>
+          <p className="faint prose">Usa apenas se o Conselho de Guias verificar que a validação foi manifestamente incoerente com a atitude demonstrada.</p>
           <CouncilReturn requestId={request.id} />
         </section>
       )}

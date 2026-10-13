@@ -96,10 +96,10 @@ export default function Trilhos() {
                           <span className="faint tree-count">{t.catalog_objectives.map((o) => o.code).join(' ')}</span>
                         </summary>
                         <div className="tree-body">
-                          <p className="faint"><Hl text={t.framing} q={q} /></p>
+                          <p className="faint prose"><Hl text={t.framing} q={q} /></p>
                           <ul className="tree-objectives">
                             {t.catalog_objectives.map((o) => (
-                              <li key={o.id}><span className="obj-code">{o.code}</span> <span><Hl text={o.text} q={q} /></span></li>
+                              <li key={o.id}><span className="obj-code">{o.code}</span> <span className="prose"><Hl text={o.text} q={q} /></span></li>
                             ))}
                           </ul>
                           {t.keywords.length > 0 && (
