@@ -157,7 +157,7 @@ export function ChoiceDecision({ choice, member, stage }: { choice: StageChoice;
       </p>
       <p>
         {choice.replaces_choice_id ? 'Troca para ' : 'Proposta: '}
-        <Link to={`/progresso/trilho/${trail?.key}`}>{trail?.name}</Link>
+        <Link to={`/meu-progresso/trilho/${trail?.key}`}>{trail?.name}</Link>
       </p>
       {choice.planned_opportunities && <div className="quote">{choice.planned_opportunities}</div>}
       <ErrorBox error={action.error} />

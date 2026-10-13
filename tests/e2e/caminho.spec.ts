@@ -2,7 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { emptyLeader, installMock, leader, pioneer } from './mock-api';
 
 async function noHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  // Compara com a largura configurada: em telemóvel um elemento largo alarga o viewport de layout (e a página fica reduzida).
+  const width = page.viewportSize()!.width;
+  const overflow = await page.evaluate((w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w, width);
   expect(overflow, 'sem deslocamento horizontal').toBeLessThanOrEqual(1);
 }
 
@@ -10,11 +12,13 @@ for (const theme of ['light', 'dark'] as const) {
   test(`caminho do pioneiro (${theme})`, async ({ page }, info) => {
     await page.emulateMedia({ colorScheme: theme });
     await installMock(page, pioneer());
-    await page.goto('/caminho');
-    await expect(page.getByRole('heading', { name: 'Caminho', exact: true })).toBeVisible();
+    await page.goto('/meu-progresso?vista=caminho');
+    await expect(page.getByRole('heading', { name: 'Meu progresso', exact: true })).toBeVisible();
     await expect(page.locator('.caminho-hero').getByRole('heading', { name: 'Conhecimento' })).toBeVisible();
-    // Marco atual selecionado com o que falta, por área
-    await expect(page.getByRole('heading', { name: 'Conhecimento', level: 2 }).last()).toBeVisible();
+    // Checklist da etapa com mensagens concretas por área
+    await expect(page.locator('.checklist .ck-row')).toHaveCount(8);
+    await expect(page.getByText('Falta escolher o trilho de Intelectual e Social.')).toBeVisible();
+    await expect(page.locator('#marco-titulo')).toHaveText('Conhecimento');
     await expect(page.getByText(/^Falta /).first()).toBeVisible();
     await expect(page.getByText('Requisitos educativos:').first()).toBeVisible();
     await expect(page.getByText('Decisão pedagógica:').first()).toBeVisible();
@@ -40,7 +44,7 @@ for (const theme of ['light', 'dark'] as const) {
 
 test('caminho da secção para o pioneiro: só contagens dos outros', async ({ page }) => {
   await installMock(page, pioneer());
-  await page.goto('/caminho?vista=seccao&marco=conhecimento');
+  await page.goto('/caminho?marco=conhecimento');
   await expect(page.getByText(/Vês quantos pioneiros estão em cada marco/)).toBeVisible();
   await expect(page.getByText('Pedro Teste (tu)')).toBeVisible();
   await expect(page.getByText('Diogo Fictício')).toHaveCount(0);
@@ -52,7 +56,6 @@ for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
     await installMock(page, leader());
     await page.goto('/caminho');
-    await expect(page.getByRole('tab')).toHaveCount(0); // dirigente: só a vista da secção
     await expect(page.locator('#marco-titulo')).toHaveText('Início de Pista');
     const map = page.locator('svg.trail-map:visible');
     await map.getByRole('button', { name: /^Conhecimento/ }).click();
@@ -75,7 +78,7 @@ test('início do dirigente e estado vazio sem pioneiros', async ({ page }, info)
   await installMock(page, leader());
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Distribuição por marco' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Caminho da secção/ })).toBeVisible();
+  await expect(page.locator('main').getByRole('link', { name: /Caminho da secção/ }).first()).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Atividade recente' })).toBeVisible();
   await expect(page.locator('nav').getByRole('link', { name: /Acompanhamento|Acompanhar/ }).first()).toBeVisible();
   await page.screenshot({ path: `test-results/inicio-dirigente-${info.project.name}.png`, fullPage: true });

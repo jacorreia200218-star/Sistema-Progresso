@@ -195,6 +195,16 @@ Para reconstruir a migração do catálogo depois de alterar o JSON: `npm run ca
 - **Caminho** (`docs/CAMINHO.md`): mapa do percurso com os marcos do manual (Sinais de Pista, Início de Pista,
   Promessa, Conhecimento, Vontade, Construção, Acampamento, Passagem), o ciclo de cada etapa e o que falta por
   área; vistas «O meu caminho» e «Caminho da secção» (por equipa, dentro das permissões), em mapa ou lista.
+- **Meu progresso** (`/meu-progresso`): três vistas ligadas — *Caminho* (posição, checklist das seis áreas
+  com «por concluir / submetido / precisa de revisão / validado», validação da etapa e reconhecimento),
+  *Áreas FACEIS* (seis cartões, filtros por estado que ficam no endereço) e *Pedidos* (estado, datas de
+  validação e feedback dos devolvidos com ação). Cada trilho tem página própria com explicação, objetivos,
+  palavras-chave, oportunidades escolhidas, vivências e o pedido de validação feito ali mesmo (área e trilho
+  já definidos, rascunho, confirmação; o servidor impede pedidos duplicados). Submeter não conclui o trilho.
+  Um dirigente sem percurso próprio consulta um pioneiro autorizado através de um seletor em «modo de
+  consulta», sem ações do pioneiro. Capturas em `docs/capturas/` (`CAPTURAS=1 npx playwright test capturas`).
+- **Símbolo:** a Rosa dos Ventos usada no cabeçalho, entrada, favicon e ícones da aplicação é o vetor
+  original do Manual do Dirigente (p. 41), copiado sem alterações para `src/assets/rosa-dos-ventos.svg`.
 - **Temas** Claro / Escuro / Sistema (Perfil › Aparência, ou o botão na barra superior).
 - **Notificações** dentro da aplicação para pedidos e decisões.
 - Detalhes de segurança e decisões em `docs/DECISOES.md`; catálogo em `catalog/RELATORIO_IMPORTACAO.md`.

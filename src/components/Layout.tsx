@@ -1,6 +1,8 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useLayoutEffect } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom';
+import rosaUrl from '../assets/rosa-dos-ventos.svg';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, ClipboardCheck, Compass, Home, Inbox, Route as RouteIcon, Settings, User, Users } from 'lucide-react';
+import { Bell, ClipboardCheck, Compass, Home, Route as RouteIcon, Settings, User, Users } from 'lucide-react';
 import { useSection } from '../lib/session';
 import { fetchNotifications, fetchPendingCounts } from '../lib/api';
 import { useProgress } from '../lib/hooks';
@@ -9,20 +11,15 @@ import { environmentLabel } from '../lib/supabase';
 import { ThemeToggle } from './ThemeControl';
 import { Avatar } from './ui';
 
-function Mark() {
-  return (
-    <svg className="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="14" fill="#1D4FA3" />
-      <circle cx="32" cy="32" r="17" fill="none" stroke="#F7F5F0" strokeWidth="3" />
-      <path d="M32 18 L37 32 L32 46 L27 32 Z" fill="#F7F5F0" />
-    </svg>
-  );
+/** Rosa dos Ventos — símbolo da III Secção, extraído do Manual do Dirigente (CNE), p. 41. */
+export function Rosa({ size = 30 }: { size?: number }) {
+  return <img src={rosaUrl} width={size} height={size} alt="" className="brand-mark" />;
 }
 
 export function Brand() {
   return (
     <Link to="/" className="brand">
-      <Mark /> <span className="brand-name">Pioneiros</span>
+      <Rosa /> <span className="brand-name">Pioneiros</span>
       {environmentLabel && <span className="env-label">{environmentLabel}</span>}
     </Link>
   );
@@ -35,7 +32,7 @@ function StageChip() {
   if (!s.isMember || !q.data || !s.catalog) return null;
   const pos = memberPosition(q.data, s.catalog);
   return (
-    <Link to="/caminho" className="stage-chip" title={STATE_LABEL[pos.state].label}>
+    <Link to="/meu-progresso?vista=caminho" className="stage-chip" title={STATE_LABEL[pos.state].label}>
       <RouteIcon size={16} aria-hidden="true" />
       <span className="sr-only">Etapa atual: </span>
       <span>{milestoneByKey[pos.milestone].short}</span>
@@ -44,8 +41,48 @@ function StageChip() {
   );
 }
 
+const SCROLL_KEY = 'pioneiros.scroll';
+
+/** Preserva a posição ao voltar (e começa no topo ao abrir uma página nova). */
+function useScrollRestoration() {
+  const location = useLocation();
+  const nav = useNavigationType();
+  useLayoutEffect(() => {
+    let saved: Record<string, number> = {};
+    try {
+      saved = JSON.parse(sessionStorage.getItem(SCROLL_KEY) ?? '{}');
+    } catch {
+      /* ignorar */
+    }
+    if (nav === 'POP' && saved[location.key] != null) window.scrollTo(0, saved[location.key]);
+    else if (nav !== 'REPLACE') window.scrollTo(0, 0);
+  }, [location.key, nav]);
+  useEffect(() => {
+    let t: number | undefined;
+    const onScroll = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(SCROLL_KEY) ?? '{}');
+          saved[location.key] = window.scrollY;
+          sessionStorage.setItem(SCROLL_KEY, JSON.stringify(saved));
+        } catch {
+          /* ignorar */
+        }
+      }, 120);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.clearTimeout(t);
+    };
+  }, [location.key]);
+}
+
 export default function Layout() {
   const s = useSection();
+  const location = useLocation();
+  useScrollRestoration();
   const notes = useQuery({ queryKey: ['notifications'], queryFn: fetchNotifications, refetchInterval: 60_000 });
   const counts = useQuery({
     queryKey: ['pending-counts', s.membership?.section_id],
@@ -58,10 +95,10 @@ export default function Layout() {
 
   const items = [
     { to: '/', label: 'Início', short: 'Início', icon: Home, end: true, show: true },
-    { to: '/caminho', label: 'Caminho', short: 'Caminho', icon: RouteIcon, show: true },
-    { to: '/progresso', label: 'Progresso', short: 'Progresso', icon: Compass, show: s.isMember },
-    { to: '/pedidos', label: 'Pedidos', short: 'Pedidos', icon: Inbox, show: s.isMember, count: c.pedidos, countLabel: 'precisam de ti' },
+    { to: '/meu-progresso', label: 'Meu progresso', short: 'Progresso', icon: Compass, show: s.isMember, count: c.pedidos, countLabel: 'pedidos precisam de ti' },
+    { to: '/caminho', label: 'Caminho da secção', short: 'Caminho', icon: RouteIcon, show: true },
     { to: '/equipa', label: 'Equipa', short: 'Equipa', icon: Users, show: s.isGuia, count: c.equipa, countLabel: 'para a reunião de Equipa' },
+    { to: '/meu-progresso', label: 'Progresso dos pioneiros', short: 'Progressos', icon: Compass, show: s.isDirigente && !s.isMember },
     { to: '/acompanhamento', label: 'Acompanhamento', short: 'Acompanhar', icon: ClipboardCheck, show: s.isDirigente, count: c.acompanhamento, countLabel: 'pendentes' },
     { to: '/gestao', label: 'Gestão', short: 'Gestão', icon: Settings, show: s.isAdmin, count: c.gestao, countLabel: 'pedidos de entrada' },
     { to: '/perfil', label: 'Perfil', short: 'Perfil', icon: User, show: true, desktopOnly: true },
@@ -102,7 +139,9 @@ export default function Layout() {
           {items.map((i) => link(i, false))}
         </nav>
         <main id="conteudo" className="main" tabIndex={-1}>
-          <Outlet />
+          <div key={location.pathname} className="page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Navegação principal">

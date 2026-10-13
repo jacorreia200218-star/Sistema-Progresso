@@ -78,11 +78,20 @@ export async function fetchMemberProgress(membershipId: string): Promise<MemberP
     supabase.from('stage_requests').select('*').eq('membership_id', membershipId).order('requested_at'),
     supabase.from('merit_awards').select('*').eq('membership_id', membershipId).maybeSingle(),
   ]);
+  const reqs = check(requests) as TrailRequest[];
+  let decisions: TrailDecision[] = [];
+  if (reqs.length) {
+    decisions = check(
+      await supabase.from('trail_decisions').select('*').in('request_id', reqs.map((r) => r.id))
+        .neq('kind', 'em_revisao').order('recorded_at', { ascending: false }),
+    ) as TrailDecision[];
+  }
   return {
+    decisions,
     adhesion: check(ad) as Adhesion | null,
     paths: check(paths) as StagePath[],
     choices: check(choices) as StageChoice[],
-    requests: check(requests) as TrailRequest[],
+    requests: reqs,
     stageRequests: check(stageReqs) as StageRequest[],
     merit: check(merit) as MeritAward | null,
   };

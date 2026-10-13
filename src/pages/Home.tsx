@@ -45,7 +45,7 @@ function MemberHome() {
         {action.to && <Link to={action.to} className="btn">Continuar <ArrowRight size={18} aria-hidden="true" /></Link>}
       </div>
 
-      <Link to="/caminho" className="card where-card">
+      <Link to="/meu-progresso?vista=caminho" className="card where-card">
         <span className="where-icon" aria-hidden="true"><RouteIcon size={24} /></span>
         <span className="grow">
           <span className="faint">Onde estou no caminho</span>
@@ -60,7 +60,7 @@ function MemberHome() {
       <section className="card" aria-labelledby="h-areas">
         <div className="row between">
           <h2 id="h-areas" style={{ margin: 0 }}>As seis áreas</h2>
-          <Link to="/progresso" className="btn ghost">Ver trilhos</Link>
+          <Link to="/meu-progresso?vista=areas" className="btn ghost">Ver áreas</Link>
         </div>
         <p className="faint">Trilhos validados por área. Cada etapa precisa de um trilho de cada área.</p>
         <AreaMarkers progress={p} catalog={catalog} />
@@ -69,7 +69,7 @@ function MemberHome() {
       <section className="card" aria-labelledby="h-pedidos">
         <div className="row between">
           <h2 id="h-pedidos" style={{ margin: 0 }}>Pedidos {pending.length > 0 && <span className="count">{pending.length}</span>}</h2>
-          <Link to="/pedidos" className="btn ghost">Todos</Link>
+          <Link to="/meu-progresso?vista=pedidos" className="btn ghost">Todos</Link>
         </div>
         {pending.length ? <RequestList requests={pending.slice(0, 4)} catalog={catalog} /> : <p className="faint">Sem pedidos em curso.</p>}
         {feedback.data && feedback.data.length > 0 && (
@@ -78,7 +78,7 @@ function MemberHome() {
             <ul className="list">
               {feedback.data.map((d) => (
                 <li key={d.id}>
-                  <Link to={`/pedidos/${d.request_id}`} className="list-item" style={{ alignItems: 'flex-start' }}>
+                  <Link to={`/meu-progresso/trilho/${p.requests.find((r) => r.id === d.request_id)?.trail_key}#pedido`} className="list-item" style={{ alignItems: 'flex-start' }}>
                     <MessageSquare size={18} aria-hidden="true" style={{ marginTop: 4 }} />
                     <span className="grow">
                       <strong>{trailName(d.request_id)}</strong> · {decisionLabel[d.kind]}

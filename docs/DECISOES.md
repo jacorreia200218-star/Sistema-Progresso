@@ -46,6 +46,13 @@ Enquanto não houver decisão, a recomendação é a segunda opção, com conhec
 - Ficheiros: buckets privados, limites de tamanho/tipo no servidor, URLs temporários, fotografias
   comprimidas no browser (o que também remove metadados como a localização).
 
+## Símbolo oficial (Rosa dos Ventos)
+
+O símbolo foi extraído como vetor do próprio Manual do Dirigente (p. 41, cor #009FE3), sem redesenho.
+O sítio oficial do CNE só disponibiliza uma versão bordada em baixa resolução. Se a Junta Regional ou o
+Agrupamento tiver o ficheiro oficial de identidade (SVG/PDF), substituir `src/assets/rosa-dos-ventos.svg`,
+`public/rosa-dos-ventos.svg` e os PNG em `public/icons/`.
+
 ## Fora do âmbito desta versão
 
 Outras secções, catálogo de especialidades, rankings, pagamentos, rede social, integração com o SIIE,

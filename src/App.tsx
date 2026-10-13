@@ -15,9 +15,8 @@ import ConfigMissing from './pages/public/ConfigMissing';
 import NoAccess from './pages/NoAccess';
 import Home from './pages/Home';
 
-const Progress = lazy(() => import('./pages/Progress'));
-const TrailDetail = lazy(() => import('./pages/TrailDetail'));
-const Requests = lazy(() => import('./pages/Requests'));
+const MeuProgresso = lazy(() => import('./pages/MeuProgresso'));
+const TrailPage = lazy(() => import('./pages/TrailPage'));
 const RequestPage = lazy(() => import('./pages/RequestPage'));
 const Historical = lazy(() => import('./pages/Historical'));
 const Experiences = lazy(() => import('./pages/Experiences'));
@@ -29,6 +28,11 @@ const MemberDetail = lazy(() => import('./pages/MemberDetail'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Caminho = lazy(() => import('./pages/Caminho'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+
+function LegacyTrail() {
+  const { key } = useParams();
+  return <Navigate to={`/meu-progresso/trilho/${key}`} replace />;
+}
 
 // Endereços antigos («Revisões» → «Acompanhamento»); notificações já guardadas usam-nos.
 function LegacyLeaders() {
@@ -51,11 +55,13 @@ function Authenticated() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="caminho" element={<Caminho />} />
-          <Route path="progresso" element={<Guard when={s.isMember}><Progress /></Guard>} />
-          <Route path="progresso/trilho/:key" element={<TrailDetail />} />
+          <Route path="meu-progresso" element={<Guard when={s.isMember || s.isDirigente}><MeuProgresso /></Guard>} />
+          <Route path="meu-progresso/trilho/:key" element={<TrailPage />} />
+          <Route path="progresso" element={<Navigate to="/meu-progresso?vista=areas" replace />} />
+          <Route path="progresso/trilho/:key" element={<LegacyTrail />} />
           <Route path="progresso-anterior" element={<Guard when={s.isMember}><Historical /></Guard>} />
           <Route path="vivencias" element={<Guard when={s.isMember}><Experiences /></Guard>} />
-          <Route path="pedidos" element={<Guard when={s.isMember}><Requests /></Guard>} />
+          <Route path="pedidos" element={<Navigate to="/meu-progresso?vista=pedidos" replace />} />
           <Route path="pedidos/:id" element={<RequestPage />} />
           <Route path="revisoes/pedido/:id" element={<RequestPage />} />
           <Route path="equipa" element={<Guard when={s.isGuia}><Team /></Guard>} />

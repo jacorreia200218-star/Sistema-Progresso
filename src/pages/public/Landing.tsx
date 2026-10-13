@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Compass, Leaf, Route as RouteIcon } from 'lucide-react';
 import PublicShell from './PublicShell';
+import rosaUrl from '../../assets/rosa-dos-ventos.svg';
 
 export default function Landing() {
   return (
     <PublicShell title="Bem-vindo">
       <section className="hero">
+        <img src={rosaUrl} alt="Rosa dos Ventos, símbolo da III Secção" className="hero-mark" />
         <h1>O teu caminho na III Secção</h1>
         <p className="lead">
           Um espaço para acompanhar o progresso pessoal dos Pioneiros: escolher trilhos, registar vivências, pedir a validação e

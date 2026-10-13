@@ -118,17 +118,17 @@ export function nextAction(catalog: Catalog, p: MemberProgress): NextAction {
   const name = (key: string) => catalog.trailByKey.get(key)?.name ?? 'trilho';
   const returned = p.requests.find((r) => r.status === 'devolvido');
   if (returned) {
-    return { title: `Rever o pedido de «${name(returned.trail_key)}»`, detail: 'Foi devolvido com comentários. Lê-os e prepara uma nova versão quando estiveres pronto.', to: `/pedidos/${returned.id}` };
+    return { title: `Rever o pedido de «${name(returned.trail_key)}»`, detail: 'Foi devolvido com comentários. Lê-os e prepara uma nova versão quando estiveres pronto.', to: `/meu-progresso/trilho/${returned.trail_key}#pedido` };
   }
   const draft = p.requests.find((r) => r.status === 'rascunho');
   if (draft) {
-    return { title: `Terminar o pedido de «${name(draft.trail_key)}»`, detail: 'Tens um rascunho guardado. Completa a reflexão e submete quando sentires que alcançaste o trilho.', to: `/pedidos/${draft.id}` };
+    return { title: `Terminar o pedido de «${name(draft.trail_key)}»`, detail: 'Tens um rascunho guardado. Completa a reflexão e submete quando sentires que alcançaste o trilho.', to: `/meu-progresso/trilho/${draft.trail_key}#pedido` };
   }
   if (!p.adhesion?.decided_on) {
-    return { title: 'Viver o Início de Pista', detail: 'Estás na adesão (etapa do Desprendimento). Conhece a tua Equipa, a Lei e a mística dos Pioneiros; quando estiveres pronto, diz que queres fazer a Promessa.', to: '/caminho' };
+    return { title: 'Viver o Início de Pista', detail: 'Estás na adesão (etapa do Desprendimento). Conhece a tua Equipa, a Lei e a mística dos Pioneiros; quando estiveres pronto, diz que queres fazer a Promessa.', to: '/meu-progresso?vista=caminho' };
   }
   if (!p.adhesion.commitment_on) {
-    return { title: 'Preparar a Promessa / Investidura', detail: 'A tua adesão foi decidida em Conselho de Guias. Prepara o momento da Promessa/Investidura com a tua Equipa.', to: '/caminho' };
+    return { title: 'Preparar a Promessa / Investidura', detail: 'A tua adesão foi decidida em Conselho de Guias. Prepara o momento da Promessa/Investidura com a tua Equipa.', to: '/meu-progresso?vista=caminho' };
   }
   const path = openPath(p.paths);
   if (!path) {
@@ -136,28 +136,28 @@ export function nextAction(catalog: Catalog, p: MemberProgress): NextAction {
     if (done >= catalog.stages.filter((s) => s.kind === 'progresso').length) {
       return p.merit
         ? { title: 'Continuar a crescer', detail: 'Concluíste as etapas da secção. Ajuda os teus companheiros no seu caminho.' }
-        : { title: 'Etapas concluídas', detail: 'A Equipa de Animação acompanha o reconhecimento final do teu percurso.', to: '/progresso' };
+        : { title: 'Etapas concluídas', detail: 'A Equipa de Animação acompanha o reconhecimento final do teu percurso.', to: '/meu-progresso?vista=caminho' };
     }
     return { title: 'Aguardar a próxima etapa', detail: 'A Equipa de Animação vai abrir contigo a próxima etapa e entregar a insígnia.' };
   }
   const s = stageSummary(path, catalog, p);
   if (s.openRequest) {
-    return { title: 'Etapa em validação', detail: 'O Conselho de Guias e a Equipa de Animação estão a acompanhar a validação da tua etapa.', to: '/progresso' };
+    return { title: 'Etapa em validação', detail: 'O Conselho de Guias e a Equipa de Animação estão a acompanhar a validação da tua etapa.', to: '/meu-progresso?vista=caminho' };
   }
   if (s.ready) {
-    return { title: 'Pedir a validação da etapa', detail: 'Tens um trilho validado em cada área. Podes pedir a validação da etapa ao Conselho de Guias.', to: '/progresso' };
+    return { title: 'Pedir a validação da etapa', detail: 'Tens um trilho validado em cada área. Podes pedir a validação da etapa ao Conselho de Guias.', to: '/meu-progresso?vista=caminho' };
   }
   const missing = s.slots.find((slot) => !slot.confirmed && !slot.proposed);
   if (missing) {
-    return { title: `Escolher um trilho de ${missing.area.name}`, detail: 'Lê os trilhos da área e propõe à Equipa de Animação aquele em que precisas de crescer.', to: `/progresso#area-${missing.area.code}` };
+    return { title: `Escolher um trilho de ${missing.area.name}`, detail: 'Lê os trilhos da área e propõe à Equipa de Animação aquele em que precisas de crescer.', to: `/meu-progresso?vista=areas&area=${missing.area.code}` };
   }
   const toWork = s.slots.find((slot) => slot.confirmed && !slot.validated && !activeRequest(p.requests, slot.confirmed.trail_key));
   if (toWork?.trail) {
-    return { title: `Caminhar no trilho «${toWork.trail.name}»`, detail: 'Vive as oportunidades que escolheste. Quando sentires que alcançaste os objetivos, pede a validação.', to: `/progresso/trilho/${toWork.trail.key}` };
+    return { title: `Caminhar no trilho «${toWork.trail.name}»`, detail: 'Vive as oportunidades que escolheste. Quando sentires que alcançaste os objetivos, pede a validação.', to: `/meu-progresso/trilho/${toWork.trail.key}` };
   }
   const waitingChoice = s.slots.find((slot) => slot.proposed);
   if (waitingChoice) {
-    return { title: 'Proposta em negociação', detail: 'A Equipa de Animação vai conversar contigo sobre a tua proposta de trilho.', to: '/progresso' };
+    return { title: 'Proposta em negociação', detail: 'A Equipa de Animação vai conversar contigo sobre a tua proposta de trilho.', to: '/meu-progresso?vista=caminho' };
   }
-  return { title: 'Pedidos em análise', detail: 'Os teus pedidos aguardam a reunião de Equipa.', to: '/pedidos' };
+  return { title: 'Pedidos em análise', detail: 'Os teus pedidos aguardam a reunião de Equipa.', to: '/meu-progresso?vista=pedidos' };
 }

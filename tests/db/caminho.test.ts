@@ -150,3 +150,17 @@ describe('caminho da secção e permissões no servidor', () => {
     expect(g.some((e) => e.membership_id === w.members.P1)).toBe(false);
   });
 });
+
+describe('pedido com contexto e evidência dos objetivos', () => {
+  it('guarda os novos campos, copia-os para nova versão e mantém a chamada antiga', async () => {
+    const req = await rpc<string>(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.E[1].id, p_kind: 'normal' });
+    // chamada antiga (sem os novos campos) continua a funcionar
+    await rpc(w.users.P2, 'save_request_draft', { p_request: req, p_reflection: 'Aprendi', p_experiences: 'Fiz', p_period_start: null, p_period_end: null, p_approximate_date: null });
+    await rpc(w.users.P2, 'save_request_draft', { p_request: req, p_reflection: 'Aprendi', p_experiences: 'Fiz', p_period_start: null, p_period_end: null, p_approximate_date: null, p_context: 'No acampamento de equipa', p_evidence: 'E4: rezei todos os dias' });
+    await rpc(w.users.P2, 'submit_trail_request', { p_request: req });
+    await rpc(w.users.P2, 'withdraw_trail_request', { p_request: req });
+    const v = await asUser(w.users.P2, `select version_no, context, evidence from public.trail_request_versions where request_id = $1 order by version_no`, [req]);
+    expect(v[1]).toEqual({ version_no: 2, context: 'No acampamento de equipa', evidence: 'E4: rezei todos os dias' });
+    await expectError(rpc(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.E[1].id, p_kind: 'normal' }), 'Já existe');
+  });
+});

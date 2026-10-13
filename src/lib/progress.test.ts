@@ -97,8 +97,8 @@ describe('percurso da etapa', () => {
 
 describe('próxima ação', () => {
   it('prioriza pedidos devolvidos e depois rascunhos', () => {
-    expect(nextAction(catalog, base({ requests: [request('F1', 'rascunho'), request('A1', 'devolvido')] })).to).toBe('/pedidos/r-A1-devolvido');
-    expect(nextAction(catalog, base({ requests: [request('F1', 'rascunho')] })).to).toBe('/pedidos/r-F1-rascunho');
+    expect(nextAction(catalog, base({ requests: [request('F1', 'rascunho'), request('A1', 'devolvido')] })).to).toBe('/meu-progresso/trilho/A1#pedido');
+    expect(nextAction(catalog, base({ requests: [request('F1', 'rascunho')] })).to).toBe('/meu-progresso/trilho/F1#pedido');
   });
   it('sem adesão, orienta para o Desprendimento', () => {
     expect(nextAction(catalog, base({ adhesion: null, paths: [] })).title).toContain('Início de Pista');

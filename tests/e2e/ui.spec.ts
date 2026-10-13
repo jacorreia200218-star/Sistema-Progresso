@@ -2,7 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { installMock, leader, pioneer } from './mock-api';
 
 async function noHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  // Compara com a largura configurada: em telemóvel um elemento largo alarga o viewport de layout (e a página fica reduzida).
+  const width = page.viewportSize()!.width;
+  const overflow = await page.evaluate((w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w, width);
   expect(overflow, 'sem deslocamento horizontal').toBeLessThanOrEqual(1);
 }
 
@@ -35,29 +37,32 @@ test('pioneiro: início, progresso, trilho e pedido', async ({ page }, info) => 
   await page.screenshot({ path: `test-results/inicio-${info.project.name}.png`, fullPage: true });
 
   await nav(page, 'Progresso');
-  await expect(page.getByRole('heading', { name: 'Progresso global' })).toHaveCount(0); // é um título de secção (h2 com classe)
-  for (const area of ['Físico', 'Afetivo', 'Caráter', 'Espiritual', 'Intelectual', 'Social']) {
-    await expect(page.getByRole('heading', { name: area, exact: true })).toBeVisible();
-  }
-  const trailLinks = page.locator('section[id^="area-"] a.list-item');
-  await expect(trailLinks).toHaveCount(18);
-  // Estados com texto (não só cor)
-  await expect(page.locator('section#area-F').getByText('Validado')).toBeVisible();
-  await expect(page.locator('section#area-A').getByText('Devolvido')).toBeVisible();
-  await expect(page.locator('section#area-S').getByText('Pendente')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Meu progresso' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Áreas FACEIS' }).click();
+  const cards = page.locator('.area-card');
+  await expect(cards).toHaveCount(6);
+  await expect(cards.filter({ hasText: 'Físico' })).toContainText('1 de 3 trilhos validados');
+  // Filtros: estados com texto (não só cor)
+  await page.getByText('Precisa de revisão', { exact: true }).click();
+  await expect(page.locator('.trail-row')).toHaveCount(1);
+  await expect(page.locator('.trail-row')).toContainText('Autoestima');
+  await page.getByText('A aguardar validação', { exact: true }).click();
+  await expect(page.locator('.trail-row')).toContainText('Interação e cooperação');
+  await page.getByText('Todos', { exact: true }).click();
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/progresso-${info.project.name}.png`, fullPage: true });
 
-  await page.locator('section#area-C').getByRole('link', { name: /Responsabilidade/ }).click();
-  await expect(page.getByRole('heading', { name: 'Responsabilidade' })).toBeVisible();
-  await expect(page.getByText('C4', { exact: true })).toBeVisible();
+  await cards.filter({ hasText: 'Caráter' }).click();
+  await page.locator('.trail-row', { hasText: 'Responsabilidade' }).click();
+  await expect(page.getByRole('heading', { name: 'Responsabilidade', level: 1 })).toBeVisible();
+  await expect(page.getByText('C4', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Pendente:').first()).toBeVisible(); // ambiguidade do catálogo assinalada
-  await expect(page.getByText(/exemplos, não uma lista fechada/)).toBeVisible();
+  await expect(page.getByText(/Sugestões do manual/)).toBeVisible();
   await noHorizontalScroll(page);
 
   // Rascunho: guardar só confirma depois do servidor responder
   await page.goto('/pedidos/r-draft');
-  await page.getByLabel('Reflexão').fill('Aprendi a fazer escolhas com consciência.');
+  await page.getByLabel('O que aprendi (obrigatório)').fill('Aprendi a fazer escolhas com consciência.');
   mock.failNext('save_request_draft', 'network');
   await page.getByRole('button', { name: 'Guardar rascunho' }).click();
   await expect(page.getByText(/Sem ligação ao servidor.*nada foi guardado/)).toBeVisible();

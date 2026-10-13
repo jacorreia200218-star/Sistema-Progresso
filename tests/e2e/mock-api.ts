@@ -215,6 +215,27 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
         return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'P0001', message: f.message ?? 'Erro de teste.' }) });
       }
       calls.push({ fn, body });
+      const T = persona.tables;
+      if (fn === 'create_trail_request') {
+        if ((T.trail_requests ?? []).some((r) => r.trail_id === body.p_trail && !['recusado', 'cancelado'].includes(r.status))) {
+          return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'P0001', message: 'Já existe um pedido ativo ou uma validação para este trilho.' }) });
+        }
+        const id = `r-novo-${(T.trail_requests ?? []).length}`;
+        const key = String(body.p_trail).replace(/^t-/, '');
+        T.trail_requests = [{ id, membership_id: body.p_membership, section_id: 'sec1', trail_id: body.p_trail, trail_key: key, kind: body.p_kind, status: 'rascunho', current_version: 1, approved_reference_date: null, created_at: now, updated_at: now }, ...(T.trail_requests ?? [])];
+        T.trail_request_versions = [...(T.trail_request_versions ?? []), { id: `v-${id}`, request_id: id, version_no: 1, reflection: '', experiences: '', context: '', evidence: '', period_start: null, period_end: null, approximate_date: null, created_at: now, updated_at: now, submitted_at: null, withdrawn_at: null }];
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(id) });
+      }
+      if (fn === 'save_request_draft') {
+        const v = (T.trail_request_versions ?? []).find((x) => x.request_id === body.p_request && !x.submitted_at);
+        if (v) Object.assign(v, { reflection: body.p_reflection, experiences: body.p_experiences, context: body.p_context ?? v.context, evidence: body.p_evidence ?? v.evidence });
+      }
+      if (fn === 'submit_trail_request') {
+        const r = (T.trail_requests ?? []).find((x) => x.id === body.p_request);
+        const v = (T.trail_request_versions ?? []).find((x) => x.request_id === body.p_request && !x.submitted_at);
+        if (r) r.status = 'submetido';
+        if (v) v.submitted_at = now;
+      }
       const result = persona.rpc && fn in persona.rpc ? persona.rpc[fn]
         : fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? 'codigo-de-teste' : null;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
@@ -223,7 +244,11 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
       const table = p.replace('/rest/v1/', '');
       const rows = (persona.tables[table] ?? []).filter((r) => matches(r, url.searchParams));
       if (req.method() !== 'GET') {
-        calls.push({ fn: `${req.method()} ${table}`, body: req.postDataJSON?.() ?? {} });
+        const posted = req.postDataJSON?.() ?? {};
+        calls.push({ fn: `${req.method()} ${table}`, body: posted });
+        if (req.method() === 'POST' && table === 'experiences') {
+          persona.tables.experiences = [...(persona.tables.experiences ?? []), { id: `e-${Date.now()}`, created_at: now, ...posted }];
+        }
         return route.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
       }
       const accept = req.headers()['accept'] ?? '';

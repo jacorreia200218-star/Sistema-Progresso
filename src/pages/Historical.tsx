@@ -24,12 +24,12 @@ export default function Historical() {
 
   async function create() {
     const res = await action.run(() => call<string>('create_trail_request', { p_membership: membership.id, p_trail: trail, p_kind: 'historico' }));
-    if (res.ok && res.value) navigate(`/pedidos/${res.value}`);
+    if (res.ok && res.value) navigate(`/meu-progresso/trilho/${catalog.trailById.get(trail)?.key}#pedido`);
   }
 
   return (
     <>
-      <PageTitle title="Progresso anterior" subtitle="Trilhos que já concluíste antes de usar a aplicação." back="/progresso" />
+      <PageTitle title="Progresso anterior" subtitle="Trilhos que já concluíste antes de usar a aplicação." back="/meu-progresso?vista=pedidos" />
       {enabled ? (
         <div className="card">
           <p>

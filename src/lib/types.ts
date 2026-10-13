@@ -185,6 +185,8 @@ export interface RequestVersion {
   version_no: number;
   reflection: string;
   experiences: string;
+  context?: string;
+  evidence?: string;
   period_start: string | null;
   period_end: string | null;
   approximate_date: string | null;
@@ -286,4 +288,6 @@ export interface MemberProgress {
   requests: TrailRequest[];
   stageRequests: StageRequest[];
   merit: MeritAward | null;
+  /** Decisões de resultado sobre os pedidos (datas e autoria da validação). */
+  decisions?: TrailDecision[];
 }

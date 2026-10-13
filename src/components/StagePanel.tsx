@@ -60,7 +60,7 @@ export function StagePanel({ summary, catalog, linkTrails = true }: { summary: S
             </>
           );
           return linkTrails && trail ? (
-            <Link key={slot.area.code} to={`/progresso/trilho/${trail.key}`} className="slot">
+            <Link key={slot.area.code} to={`/meu-progresso/trilho/${trail.key}`} className="slot">
               {content}
             </Link>
           ) : (

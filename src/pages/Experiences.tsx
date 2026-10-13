@@ -33,7 +33,7 @@ export default function Experiences() {
 
   return (
     <>
-      <PageTitle title="Vivências" subtitle="O teu diário de oportunidades educativas. Só tu o vês; usa-o para preparar os pedidos." back="/progresso" />
+      <PageTitle title="Vivências" subtitle="O teu diário de oportunidades educativas. Só tu o vês; usa-o para preparar os pedidos." back="/meu-progresso?vista=pedidos" />
       <form className="card" onSubmit={add}>
         <ErrorBox error={action.error} />
         {action.success && <Notice kind="success">{action.success}</Notice>}

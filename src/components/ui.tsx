@@ -21,11 +21,21 @@ export function Badge({ label, tone, icon }: { label: string; tone: Tone; icon?:
   );
 }
 
-export function Loading({ label = 'A carregar…' }: { label?: string }) {
+/** Carregamento com esqueletos de altura reservada (evita saltos de layout). */
+export function Loading({ label = 'A carregar…', rows = 3, compact }: { label?: string; rows?: number; compact?: boolean }) {
+  if (compact)
+    return (
+      <div className="loading" role="status" aria-live="polite">
+        <span className="spinner" aria-hidden="true" />
+        {label}
+      </div>
+    );
   return (
-    <div className="loading" role="status" aria-live="polite">
-      <span className="spinner" aria-hidden="true" />
-      {label}
+    <div className="skeleton-stack" role="status" aria-live="polite" aria-busy="true">
+      <span className="sr-only">{label}</span>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="skeleton" style={{ height: i === 0 ? 76 : 132 }} aria-hidden="true" />
+      ))}
     </div>
   );
 }
