@@ -1,0 +1,467 @@
+{
+  "version_key": "pioneiros-manual-v1",
+  "section_kind": "pioneiros",
+  "label": "III Secção — Manual do Dirigente, Sistema de Progresso (importação v1)",
+  "source": {
+    "file": "docs/fonte/Manual_do_Dirigente_Sistema_de_Progresso.pdf",
+    "sha256": "79114757a5e129de7f8405a7db396b344118dccad075ef54b42c789585a836d6",
+    "pages_note": "Numeração impressa do manual (coincide com a numeração do ficheiro PDF).",
+    "catalog_pages": "41-46",
+    "stages_pages": "9, 62-63",
+    "mechanics_pages": "4-15"
+  },
+  "stages": [
+    {
+      "key": "desprendimento",
+      "name": "Desprendimento",
+      "kind": "adesao",
+      "ordinal": 0,
+      "source_page": 6,
+      "summary": "Etapa de adesão (Início de Pista). A decisão sobre a adesão é tomada em Conselho de Guias, com a presença de toda a Equipa de Animação."
+    },
+    {
+      "key": "conhecimento",
+      "name": "Conhecimento",
+      "kind": "progresso",
+      "ordinal": 1,
+      "source_page": 9,
+      "summary": "1.ª etapa de progresso — Saber."
+    },
+    {
+      "key": "vontade",
+      "name": "Vontade",
+      "kind": "progresso",
+      "ordinal": 2,
+      "source_page": 9,
+      "summary": "2.ª etapa de progresso — Querer."
+    },
+    {
+      "key": "construcao",
+      "name": "Construção",
+      "kind": "progresso",
+      "ordinal": 3,
+      "source_page": 9,
+      "summary": "3.ª etapa de progresso — Agir."
+    }
+  ],
+  "areas": [
+    {
+      "code": "F",
+      "name": "Físico",
+      "full_name": "Desenvolvimento Físico",
+      "dimension": "o corpo",
+      "position": 1,
+      "source_page": 41,
+      "trails": [
+        {
+          "key": "fisico-desempenho",
+          "name": "Desempenho",
+          "position": 1,
+          "source_page": 41,
+          "framing": "Pretende-se que o Pioneiro tenha consciência dos cuidados a ter com o seu corpo, no que concerne à alimentação e ao esforço físico, praticando regularmente exercício físico.",
+          "keywords": ["Testar Limites", "Capacidade", "Destreza", "Desafio-me", "Sou capaz ou não", "Testo limites"],
+          "objectives": [
+            { "code": "F1", "text": "Tenho preocupação com o meu desempenho físico. Pratico atividades que contribuem para o meu desenvolvimento equilibrado." }
+          ],
+          "opportunities": [
+            "Programar e executar um raid para a sua Equipa e/ou Comunidade planeamento da gestão de esforço, descanso e alimentação em raid;",
+            "Promover uma palestra sobre atividade desportiva saúde e bem-estar;",
+            "Praticar atividade física regular e crio um plano de treino ou objetivos a atingir dentro dessa atividade;",
+            "Organização de torneio de provas desportivas;",
+            "Fazer uma avaliação das suas limitações físicas e organizar uma atividade de Equipa que o ajude a superar novos desafios;",
+            "Inscrever-se numa atividade nova, que nunca fez, que o faça sair da minha zona de conforto;"
+          ]
+        },
+        {
+          "key": "fisico-autoconhecimento",
+          "name": "Autoconhecimento",
+          "position": 2,
+          "source_page": 41,
+          "framing": "O Pioneiro deve aceitar-se como é, reconhecendo e respeitando as diferenças físicas. Deve também respeitar o sexo oposto, tendo consciência das diferenças hormonais existentes entre ambos.",
+          "keywords": ["Aceitação", "Respeito", "Corpo", "Aceito como sou", "Aceito como és"],
+          "objectives": [
+            { "code": "F2", "text": "Aceito-me como sou e respeito as diferenças físicas entre as pessoas." },
+            { "code": "F3", "text": "Reconheço e respeito as diferenças entre homens e mulheres e as necessidades de cada um, agindo sempre em conformidade." }
+          ],
+          "opportunities": [
+            "Na sua vida diária, tentar arranjar soluções para a inclusão de pessoas com deficiência (ex.: apoiar à dinamização da implementação de acessibilidades a pessoas de mobilidade reduzida, participação em ações e campanhas de sensibilização e apoio nos serviços de acessibilidades, promoção de sinalética sonora das vias, frequência de um curso de língua gestual, para auxiliar a tradução (cerimónias, eventos, celebrações);",
+            "Promover um debate/campanha de sensibilização/palestra/exposição sobre tipos de bullying de fragilidade humana/ etnia/ orientação sexual/ pessoa com deficiência/ obesidade, etc.;",
+            "Fazer uma pesquisa sobre a coeducação e aplicar os conhecimentos na preparação e realização de uma atividade;",
+            "Elaborar uma análise SWOT pessoal, das suas competências físicas, fraquezas, oportunidades e ameaças. Usar este plano para se desafiar e conhecer os seus limites;",
+            "Organizar a semana da mobilidade na sua escola, Agrupamento ou grupo de jovens;",
+            "Fazer um guião de campo que possa ser referência sobre as dificuldades que um Escuteiro com mobilidade reduzida possa ter em atividades escutistas e como superá-las;"
+          ]
+        },
+        {
+          "key": "fisico-bem-estar-fisico",
+          "name": "Bem-estar físico",
+          "position": 3,
+          "source_page": 41,
+          "framing": "Pretende-se que o Pioneiro faça escolhas de vida saudáveis (alimentação, hábitos de higiene, acompanhamento médico,…), tendo consciência dos malefícios físicos e psicológicos de uma alimentação excessiva ou insuficiente. Deve procurar estar informado dos riscos que corre com más escolhas e experiências, conhecendo as suas consequências para a saúde física e mental, evitando-os.",
+          "keywords": ["Escolhas saudáveis", "Atividade física", "Nutrição", "Escolho ser saudável", "Sou ativo"],
+          "objectives": [
+            { "code": "F4", "text": "Rejo-me por um estilo de vida saudável, preocupando-me com a minha apresentação, alimentação e repouso, evitando comportamentos e substâncias de risco." }
+          ],
+          "opportunities": [
+            "Praticar atividade física regular;",
+            "Planear e ser responsável pelas refeições de, pelo menos, um fim de semana de atividade, planeando-as tendo em conta a roda dos alimentos, com valores nutricionais adequados à atividade;",
+            "Elaborar um manual de boas práticas e alimentação saudável em campo;",
+            "Promover ações de sensibilização, debates/conferências/exposições/workshops que promovam a qualidade de vida: higiene diária (saúde oral, cuidados dermatológicos, higiene corporal...);",
+            "Promover ações de sensibilização, debates/conferências/exposições/workshops de prevenção de comportamentos de risco, na e para a comunidade, como por exemplo, Consumos aditivos (alcoolismo, drogas, ...);Uso abusivo (tecnologia); Perturbações alimentares (bulimia, anorexia, prevenção à obesidade);"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "A",
+      "name": "Afetivo",
+      "full_name": "Desenvolvimento Afetivo",
+      "dimension": "os sentimentos e as emoções",
+      "position": 2,
+      "source_page": 42,
+      "trails": [
+        {
+          "key": "afetivo-relacionamento-e-sensibilidade",
+          "name": "Relacionamento e sensibilidade",
+          "position": 1,
+          "source_page": 42,
+          "framing": "Pretende-se que o Pioneiro respeite os outros nas várias relações que tem na sua vida (família, amigos, colegas, namorada/o, …), encarando a família como o pilar da sua vida. Deve encarar o seu crescimento com naturalidade, respeitando-se a si próprio. Deve ter conhecimento de várias formas de expressão artística, transmitindo a sua opinião pessoal, respeitando as opiniões dos outros.",
+          "keywords": ["Gestão de Conflitos", "Valores", "Conheço-me", "Estou atento"],
+          "objectives": [
+            { "code": "A1", "text": "Reconheço o valor das minhas relações afetivas e da minha sexualidade, respeitando os outros." },
+            { "code": "A2", "text": "Reconheço o valor da família e comprometo-me com o bem-estar da mesma. Tenho presente a importância da mesma nas minhas opções de vida." },
+            { "code": "A3", "text": "Demonstro maturidade perante os conflitos e reconheço diferentes sensibilidades e gostos." }
+          ],
+          "opportunities": [
+            "Promover momentos de discussão na Comunidade de situações que conheça ou tenha assistido (violência no namoro, bullying, relação com os pais, autoestima, etc.), procurando, em conjunto, procurar respostas e auxílios;",
+            "Fazer um diário das suas vivências e o que sentiu ao vivê-las, procurando perceber e/ou procurar ajuda para perceber;",
+            "Convidar a sua família para momentos importantes da minha vida (escutista, escolar, desportiva, etc.);",
+            "Planear um momento de vivência e convívio aberto à família e/ou amigos;"
+          ]
+        },
+        {
+          "key": "afetivo-equilibrio-emocional",
+          "name": "Equilíbrio emocional",
+          "position": 2,
+          "source_page": 42,
+          "framing": "Pretende-se que o Pioneiro saiba gerir os sentimentos dos seus pares, respeitando-os, e que saiba autoavaliar-se, sabendo apontar onde erra de modo a que possa corrigir o seu comportamento.",
+          "keywords": ["Autocontrolo", "Otimismo/Pessimismo", "Maturidade", "Respeito-me", "Respeito-te"],
+          "objectives": [
+            { "code": "A4", "text": "Ajo de forma ponderada, respeitando o sentimento dos outros e esforço-me por corrigir quando me excedo." }
+          ],
+          "opportunities": [
+            "Escrever um diário de emoções e experiências do último mês, reflitir sobre o que sentiu, como atuou e adequar o seu comportamento de acordo com o que quer ser;",
+            "Organizar um momento de debate com a sua Equipa ou Comunidade. No final do debate, fazer uma análise da forma como lidou face a alguém que teve uma opinião diferente da sua;",
+            "Organizar uma atividade role play para a sua Equipa ou Comunidade, na qual se façam colidir propositadamente opiniões e situações. Avaliar, no final, a forma como reagiu e aceitou as situações que lhe forem impostas;",
+            "Criar pontos de esforço concretos durante um período de tempo que o façam avaliar as suas atitudes;"
+          ]
+        },
+        {
+          "key": "afetivo-autoestima",
+          "name": "Autoestima",
+          "position": 3,
+          "source_page": 42,
+          "framing": "O Pioneiro deve aceitar a sua personalidade, saber aceitar também as características menos positivas e demonstrar um trabalho pessoal contínuo na alteração destas.",
+          "keywords": ["Valorização Pessoal", "Eu Sou/Eu Não sou", "Eu Quero/Eu não Quero Ser", "Quero saber mais"],
+          "objectives": [
+            { "code": "A5", "text": "Reconheço as características da minha personalidade, trabalhando sempre para corrigir as menos positivas." },
+            { "code": "A6", "text": "Procuro desenvolver continuamente as minhas aptidões e esforço-me para melhorar as minhas limitações." }
+          ],
+          "opportunities": [
+            "Fazer o seu teste de personalidade e promover que a sua Equipa o faça. Dinamizar uma discussão sobre os tipos de personalidades diferentes e como lidar com cada um;",
+            "Fazer testes psicotécnicos e traçar um plano de formação que tenha em conta o que quer ser no futuro, e como deve trabalhar para isso;",
+            "Fazer uma autoavaliação dos seus conhecimentos técnicos e organizar um atelier para a Comunidade numa área importante para o momento do grupo;",
+            "Elaborar uma carta de compromisso de atitudes e valores que quero por em prática na minha vida, em momentos concretos;"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "C",
+      "name": "Caráter",
+      "full_name": "Desenvolvimento do Caráter",
+      "dimension": "a atitude",
+      "position": 3,
+      "source_page": 43,
+      "trails": [
+        {
+          "key": "carater-autonomia",
+          "name": "Autonomia",
+          "position": 1,
+          "source_page": 43,
+          "framing": "Pretende-se que o Pioneiro defina metas para o seu crescimento, estabelecendo para si padrões de vida, conhecendo as implicações/consequências das suas escolhas.",
+          "keywords": ["Independência", "Referências", "Opção", "Penso por mim", "Sei optar", "Crio prioridades"],
+          "objectives": [
+            { "code": "C1", "text": "Sou capaz de fazer opções, de acordo com as minha referência de valores fundamentais, aceitando as suas implicações." },
+            { "code": "C2", "text": "Estabeleço para mim, com regularidade, metas a atingir em várias áreas da minha vida." }
+          ],
+          "opportunities": [
+            "Participar ativamente na discussão do Empreendimento;",
+            "Definir um objetivo (especialidade, conhecimento técnico, estratégia para o seu cargo...) e traçar um plano para o cumprir;",
+            "Ser capaz de decidir uma área de estudos no seu percurso formativo;",
+            "Participar dentro da sua Equipa na eleição de um novo guia;",
+            "Fazer uma avaliação dos momentos da minha vida em que ainda dependo muito dos meus pais, e crio soluções para me tornar mais independente - por exemplo, boleias, semanadas e mesadas, tarefas de casa;"
+          ]
+        },
+        {
+          "key": "carater-responsabilidade",
+          "name": "Responsabilidade",
+          "position": 2,
+          "source_page": 43,
+          "framing": "O Pioneiro deve demonstrar responsabilidade no desempenho das suas tarefas, assumindo-as de forma consciente, encarando os resultados que advêm dessa responsabilidade. Deve ser persistente na resolução dos problemas, aprendendo com os mesmos.",
+          "keywords": ["Perseverança", "Compromisso", "Consequência", "Assumo decisões", "Aceito consequências", "Sou empenhado"],
+          "objectives": [
+            { "code": "C3", "text": "Reconheço a importância das tarefas que me foram atribuídas, estabeleço prioridades e respeito-as, correspondendo à confiança em mim depositada." },
+            { "code": "C4", "text": "Ajo cada dia de acordo com as minhas convicções de referências, tendo consciência que sou exemplo para os outros." },
+            { "code": "C5", "text": "Reconheço que as minhas ações/decisões têm influência nos grupos de que faço parte." }
+          ],
+          "opportunities": [
+            "Assumir as tarefas e criar momentos formativos relativos à fase de preparação do Empreendimento;",
+            "Organizar uma atividade sobre cargos ou um momento de partilha e aprendizagem para a sua Equipa ou Comunidade;",
+            "Como guia, assumir as consequências das suas decisões para a sua Equipa;",
+            "Criar 3 objetivos da sua vida pessoal que impliquem decisões. Por exemplo: decidir ir trabalhar no Verão, assumir uma nova tarefa em casa, ou um cargo novo na Equipa, etc.);",
+            "Assumir o cargo de delegado de turma;"
+          ]
+        },
+        {
+          "key": "carater-coerencia",
+          "name": "Coerência",
+          "position": 3,
+          "source_page": 43,
+          "framing": "Pretende-se que o Pioneiro seja coerente ao apresentar, de forma consciente, as suas ideias e valores, vivendo em conformidade com os mesmos.",
+          "keywords": ["Partilha de valores", "Defender Ideias", "Convicção", "Sou Exemplo", "Dou Testemunho"],
+          "objectives": [
+            { "code": "C6", "text": "Partilho e defendo aquilo em que acredito de forma serena e fundamentada." },
+            { "code": "C7", "text": "Ajo cada dia de acordo com as minhas convicções de referências, tendo consciência que sou exemplo para os outros." }
+          ],
+          "opportunities": [
+            "Criar pontos de esforço para o mês - boas-ações, momentos em que que afirma o que é e quem é - e põe-no em prática;",
+            "Dinamizar uma atividade sobre escutismo na escola ou junto de algum grupo em que esteja envolvido;",
+            "Organizar uma dinâmica que implique a reflexão sobre os valores de cada um e a sua ligação com os valores universais;",
+            "Identificar nas suas vivências 10 momentos (ou mais) em que mostrou viver a lei do escuta;",
+            "Partilhar com a minha família e amigos os valores que o definem - enquanto pessoa, enquanto Escuteiro, podendo partilhar nas redes sociais, fazer um vídeo ou um poster.",
+            "Pedir para participar num momento particular de avaliação do Agrupamento e trazer inputs importantes para esse momento;"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "E",
+      "name": "Espiritual",
+      "full_name": "Desenvolvimento Espiritual",
+      "dimension": "o sentido de Deus",
+      "position": 4,
+      "source_page": 44,
+      "trails": [
+        {
+          "key": "espiritual-descoberta",
+          "name": "Descoberta",
+          "position": 1,
+          "source_page": 44,
+          "framing": "O Pioneiro deverá conhecer o modo como Deus se deu a conhecer aos principais profetas, estabelecendo com eles uma relação de confiança. Deve compreender que Jesus formou uma Comunidade com os seus Apóstolos, a quem se revelou ao longo do tempo, e que essa Comunidade é o fundamento da Igreja dos dias de hoje. Pretende-se que seja membro ativo da Comunidade Paroquial, compreendendo a diversidade de carismas existentes.",
+          "keywords": ["Procurar", "Saber", "Viver", "Sou curioso", "Faço Perguntas", "Procuro Respostas"],
+          "objectives": [
+            { "code": "E1", "text": "Conheço e compreendo a vida dos principais profetas e a sua relação com Deus." },
+            { "code": "E2", "text": "Conheço a forma como Jesus se deu progressivamente a conhecer aos Apóstolos e a vivência deles em comunidade." },
+            { "code": "E3", "text": "Reconheço que na igreja todos os membros são diferentes e que, unidos nas diferenças, tornamos a comunidade mais rica." }
+          ],
+          "opportunities": [
+            "Organizar um raid com um imaginário bíblico;",
+            "Escolher ter EMRC na escola;",
+            "Organizar uma atividade de animação da fé para a Comunidade;",
+            "Ajudar a dinamizar a vivência de Advento ou Quaresma da sua Comunidade ou Agrupamento;",
+            "Organizar um ciclo de conversas sobre o que significa ser católico;"
+          ]
+        },
+        {
+          "key": "espiritual-aprofundamento",
+          "name": "Aprofundamento",
+          "position": 2,
+          "source_page": 44,
+          "framing": "Pretende-se que o Pioneiro compreenda a relação que estabelece com Deus na oração, procurando encontrar a sua forma pessoal de oração e participando conscientemente na Eucaristia, como expressão máxima da oração cristã. Deve conhecer a posição da Igreja sobre temas fundamentais e atuais, dialogando sobre os mesmos, à Luz do Evangelho.\n\nO Pioneiro deve ainda conhecer as diferentes religiões e confissões cristãs, aprofundando a escolha da fé católica.",
+          "keywords": ["Diálogo Inter-religioso", "Comunidade", "Testemunho", "Sei", "Escolho", "Participo"],
+          "objectives": [
+            { "code": "E4", "text": "Aprofundo os hábitos de oração diários e participo nas celebrações comunitárias." },
+            { "code": "E5", "text": "Conheço o ponto de vista da Igreja sobre os temas principais e que os mesmos estão fundamentados na Bíblia." },
+            { "code": "E6", "text": "Aprofundo a minha identidade católica no contacto com as outras religiões." }
+          ],
+          "opportunities": [
+            "Dinamizar uma discussão sobre a realidade ecuménica mundial;",
+            "Fazer o Crisma;",
+            "Ler uma homília do Papa e debatê-la na sua comunidade;",
+            "Ir à catequese ou dinamizar um grupo de jovens da Paróquia;",
+            "Organizar uma atividade de visita a locais de referência para outras religiões;"
+          ]
+        },
+        {
+          "key": "espiritual-servico",
+          "name": "Serviço",
+          "position": 3,
+          "source_page": 44,
+          "framing": "O Pioneiro deve reconhecer a riqueza que Deus nos deu de sermos responsáveis pela Criação, não atentando contra Ela, nem contra si próprio. Deve ser veículo de consciência global contra os atentados da vida humana (fome, guerra, escravatura, pena de morte, eutanásia, aborto, …). Deve, ainda, assumir-se como cristão em todos os grupos onde se insere.",
+          "keywords": ["Dar mais", "Construir", "Evangelização", "Tenho Valor", "Reconheço o valor do/no outro"],
+          "objectives": [
+            { "code": "E7", "text": "Protejo a Natureza e a vida humana como obra de Deus, defendendo a última como valor absoluto." },
+            { "code": "E8", "text": "Ponho-me ao serviço dos outros, marcando positivamente, como cristão, todos os grupos onde me insiro." }
+          ],
+          "opportunities": [
+            "Ser catequista; ser leitor da comunidade; ser acólito;",
+            "Participar na passagem da Luz da Paz de Belém na minha localidade;",
+            "Dinamizar uma atividade de animação espiritual junto de uma comunidade isolada;",
+            "Sendo o seu corpo uma dádiva de Deus, organizar um workshop sobre os malefícios do consumo de álcool e drogas;",
+            "Dinamizar ações concretas para diminuir a pegada ecológica da minha sede;"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "I",
+      "name": "Intelectual",
+      "full_name": "Desenvolvimento Intelectual",
+      "dimension": "a inteligência",
+      "position": 5,
+      "source_page": 45,
+      "trails": [
+        {
+          "key": "intelectual-procura-do-conhecimento",
+          "name": "Procura do conhecimento",
+          "position": 1,
+          "source_page": 45,
+          "framing": "Pretende-se que o Pioneiro invista na sua formação, demonstrando uma maior aquisição de conhecimentos, partilhando com os outros as suas ideias. Como consequência, deve saber adequar as suas aptidões a atividades/dinâmicas em que se sente à vontade e que domine.",
+          "keywords": ["Autoaprendizagem", "Iniciativa", "Procura", "Quero Aprender mais", "Quero saber mais", "Sou Capaz"],
+          "objectives": [
+            { "code": "I1", "text": "Procuro sempre aumentar os meus conhecimentos, sabendo utilizar as várias ferramentas de informação que tenho ao meu dispor." },
+            { "code": "I2", "text": "Reconheço as minhas aptidões e faço as minhas opções na área profissional ou de estudos." }
+          ],
+          "opportunities": [
+            "Dinamizar uma oficina e dar formação;",
+            "Fazer um folheto com informação sobre a área profissional que sonha seguir;",
+            "Desafiar a sua Comunidade a organizar uma feira de artes/ofícios;",
+            "Procurar participar em atividades que o colocam à prova em novas áreas técnicas;",
+            "Inscrever-se numa formação para jovens que o seu município ou freguesia disponibilizem (ou ao qual tenha acesso de outra forma);",
+            "Criar uma plataforma informática interativa de preparação para o Empreendimento;"
+          ]
+        },
+        {
+          "key": "intelectual-resolucao-de-problemas",
+          "name": "Resolução de problemas",
+          "position": 2,
+          "source_page": 45,
+          "framing": "O Pioneiro deve procurar e utilizar novos conhecimentos, experiências e realidades, de forma a conseguir fazer comparações e saber escolher o seu percurso. Deve desenvolver capacidade crítica pessoal e externa de forma construtiva, contribuindo sempre para o bem comum.",
+          "keywords": ["Capacidade de análise", "Uso de recursos", "Capacidade de síntese", "Desenrasco-me", "Sou versátil"],
+          "objectives": [
+            { "code": "I3", "text": "Sei avaliar as experiências que vivo e utiliza-as de forma criativa nas novas situações que me apresentam." },
+            { "code": "I4", "text": "Consigo analisar problemas, propor soluções e escolher a mais adequada." }
+          ],
+          "opportunities": [
+            "Assumir uma função que nunca teve para a preparação do próximo Empreendimento;",
+            "Criar um momento de avaliação criativo e dinâmico para uma atividade de Comunidade;",
+            "Dinamizar uma atividade em Comunidade de brainstorming de soluções para atingir os objetivos de desenvolvimento sustentável dentro do meu Agrupamento.",
+            "Identificar 5 ou mais melhorias que a sua sede pode sofrer e colocá-las em prática, procurando ajuda para tal;",
+            "Organizar atividades de manutenção de material de campo - aprender como reparar material e partilhar com a Comunidade;",
+            "Criar um plano de emergência para a sua Sede e organizar um simulacro;"
+          ]
+        },
+        {
+          "key": "intelectual-criatividade-e-expressao",
+          "name": "Criatividade e expressão",
+          "position": 3,
+          "source_page": 45,
+          "framing": "Pretende-se que o Pioneiro crie novas propostas para a sua vivência, aplicando técnicas de apresentação e comunicação.",
+          "keywords": ["Inovação", "Criar ideias", "Projetos", "Penso Diferente", "Exploro novos meios", "Chego-me à frente"],
+          "objectives": [
+            { "code": "I5", "text": "Desafio-me a criar ideias e projetos inovadores, de acordo com os meus conhecimentos e gostos." },
+            { "code": "I6", "text": "Exploro diferentes técnicas, ideias e meios e apresento-as de forma criativa e adequada aos outros." }
+          ],
+          "opportunities": [
+            "Organizar uma exposição fotográfica ou artística na sua sede;",
+            "Dinamizar o Livro de Ouro da Equipa ou o painel de Empreendimento;",
+            "Fazer o plano da construção, uma maquete, para o próximo acampamento;",
+            "Preparar uma peça de Fogo de Conselho ou animar o Fogo de Conselho de Comunidade;",
+            "Dinamizar novos momentos de oração dentro da Comunidade;",
+            "Participar sozinho ou com a sua Equipa num concurso para insígnia ou inovação no CNE;"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "S",
+      "name": "Social",
+      "full_name": "Desenvolvimento Social",
+      "dimension": "a integração social",
+      "position": 6,
+      "source_page": 46,
+      "trails": [
+        {
+          "key": "social-exercer-ativamente-cidadania",
+          "name": "Exercer ativamente cidadania",
+          "position": 1,
+          "source_page": 46,
+          "framing": "O Pioneiro deve conhecer os seus direitos e deveres em todos os espaços onde se insere, dinamizando projetos de interesse comum. Deve ser motivado a ter um papel ativo na sua comunidade.\n\nPretende-se, ainda, que respeite as posições tomadas pelo grupo, tomando-as como suas.",
+          "keywords": ["Democracia", "Direitos", "Deveres", "Sou/estou na comunidade", "Promotor de causas"],
+          "objectives": [
+            { "code": "S1", "text": "Promovo ativamente o conhecimento dos meus deveres e direitos por todos os que me rodeiam." },
+            { "code": "S2", "text": "Participo ativamente nas comunidades em que me inseres intervindo na promoção de causas comuns." },
+            { "code": "S3", "text": "Aceito a decisão de uma votação e ainda que perca, trabalho no sentido do todo." }
+          ],
+          "opportunities": [
+            "Participar ativamente na associação de estudantes ou momento de cidadania participativa local;",
+            "Estar atento ao OP jovem e procurar formas de se envolver ativamente num projeto;",
+            "Fazer voluntariado numa instituição local;",
+            "Desenvolver uma campanha de sensibilização sobre uma situação emergente da atualidade;"
+          ]
+        },
+        {
+          "key": "social-solidariedade-e-tolerancia",
+          "name": "Solidariedade e tolerância",
+          "position": 2,
+          "source_page": 46,
+          "framing": "Pretende-se que o Pioneiro esteja atento ao mundo que o rodeia, a sua comunidade, de modo a identificar situações onde pode ser útil. O Pioneiro deve ser interventivo, capaz de ter voz ativa, expondo as suas ideias.",
+          "keywords": ["Aceitação", "Respeito pela diferença", "Interajuda", "Sou tolerante", "Sou Útil", "Participo"],
+          "objectives": [
+            { "code": "S4", "text": "Identifico situações em que posso ser útil (sozinho ou em Equipa), na resolução ou minimização de um problema social." },
+            { "code": "S5", "text": "Sei expor as minhas ideias, mantendo um diálogo de respeito para com as ideias dos outros." }
+          ],
+          "opportunities": [
+            "Dinamizar uma atividade de impacto na comunidade;",
+            "Identificar 3 situações de exclusão social na sua comunidade e construir pontes para diminuir estas situações;",
+            "Dinamizar um fórum de partilha de ideias e diversidade social;",
+            "Organizar uma exposição para a sua sede ou escola sobre o que fazer em situações de bullying, exclusão social ou racismo;"
+          ]
+        },
+        {
+          "key": "social-interacao-e-cooperacao",
+          "name": "Interação e cooperação",
+          "position": 3,
+          "source_page": 46,
+          "framing": "Pretende-se que o Pioneiro esteja atento ao mundo que o rodeia, a sua comunidade, de modo a identificar situações onde pode ser útil. O Pioneiro deve ser interventivo, capaz de ter voz ativa, expondo as suas ideias.",
+          "keywords": ["Espírito de Equipa", "Desempenho tarefas", "Assertividade", "Sou confiável", "Trabalho para/Trabalho com"],
+          "objectives": [
+            { "code": "S6", "text": "Reconheço a importância das diferentes funções num grupo e desempenho o melhor possível aquelas que me são confiadas." },
+            { "code": "S7", "text": "Trabalho para e com o grupo respeitando as suas necessidades não sobrepondo a minha própria vontade." }
+          ],
+          "opportunities": [
+            "Escolher objetivos sustentáveis para o desenvolvimento, aplicáveis na minha comunidade, e ativar ações para ajudar a colmatá-los;",
+            "Desempenhar a função para o Empreendimento que lhe é atribuída com responsabilidade e energia;",
+            "Desempenhar o seu cargo de Equipa e criar objetivos concretos para a sua execução;",
+            "Reconhecer que a sua família também é uma Equipa e identificar os seus papéis, tarefas e responsabilidades, que assume no seu seio., criando objetivos e ações para os cumprir;"
+          ]
+        }
+      ]
+    }
+  ],
+  "pending_items": [
+    {
+      "id": "P1",
+      "where": "Caráter › Responsabilidade (C4) e Caráter › Coerência (C7), p. 43",
+      "issue": "O texto impresso de C4 e de C7 é idêntico. Pode tratar-se de uma gralha no manual (C4 em falta). Importado tal como está; aguarda confirmação por fonte oficial.",
+      "affects": ["C4", "C7"]
+    },
+    {
+      "id": "P2",
+      "where": "Social › Solidariedade e tolerância e Social › Interação e cooperação, p. 46",
+      "issue": "O enquadramento impresso dos dois trilhos é idêntico. Importado tal como está; aguarda confirmação por fonte oficial.",
+      "affects": ["social-solidariedade-e-tolerancia", "social-interacao-e-cooperacao"]
+    }
+  ]
+}
