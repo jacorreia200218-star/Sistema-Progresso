@@ -57,22 +57,29 @@ export const memberStatusLabel: Record<MemberStatus, string> = {
   saiu: 'Saiu da secção',
 };
 
-/** Data curta para listas (ex.: «13 out. 2026»). */
-export function formatShortDate(d: string | null | undefined): string {
-  if (!d) return '—';
-  const date = d.length === 10 ? new Date(`${d}T12:00:00`) : new Date(d);
-  return date.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+// Datas: sempre DD/MM/AAAA. As datas sem hora («2026-10-10») não passam por Date,
+// para não mudarem de dia com o fuso horário; os instantes usam a hora local.
+const pad = (n: number) => String(n).padStart(2, '0');
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export function formatDate(d: string | null | undefined): string {
   if (!d) return '—';
-  const date = d.length === 10 ? new Date(`${d}T12:00:00`) : new Date(d);
-  return date.toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+  const m = DATE_ONLY.exec(d);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return '—';
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 }
+
+/** Igual a formatDate (mantido para as listas). */
+export const formatShortDate = formatDate;
 
 export function formatDateTime(d: string | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (DATE_ONLY.test(d)) return formatDate(d);
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return '—';
+  return `${formatDate(d)}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export const todayIso = () => {

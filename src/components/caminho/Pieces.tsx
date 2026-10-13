@@ -1,16 +1,13 @@
 // Peças da tab Caminho: marcos por área, ciclo da etapa, estado pessoal num
 // marco, lista de pessoas e resumo de um pioneiro.
-import { Link } from 'react-router-dom';
-import { ArrowRight, Check, CircleDashed, Clock } from 'lucide-react';
+import { Check, CircleDashed, Clock } from 'lucide-react';
 import type { Catalog, MemberProgress } from '../../lib/types';
-import type { PathMember } from '../../lib/api';
 import {
-  areaMarkers, memberPosition, milestoneByKey, stageCycle, stageNeeds, stageStatusFor, STATE_LABEL, STAGE_KEYS,
+  areaMarkers, memberPosition, stageCycle, stageNeeds, stageStatusFor, STATE_LABEL, STAGE_KEYS,
   type MilestoneKey, type Phase, type PositionState,
 } from '../../lib/caminho';
-import { nextAction } from '../../lib/progress';
 import { formatDate } from '../../lib/labels';
-import { Avatar, Badge } from '../ui';
+import { Badge } from '../ui';
 
 export function stateBadge(state: string) {
   const s = STATE_LABEL[state as PositionState];
@@ -94,11 +91,11 @@ export function PersonalAtMilestone({ k, progress, catalog, self }: { k: Milesto
         <ul className="tri-state">
           <li className={a?.profile_traced_on ? 'tri-ok' : 'tri-no'}>
             <span aria-hidden="true">{a?.profile_traced_on ? <Check size={16} /> : <CircleDashed size={16} />}</span>
-            <span><strong>Perfil traçado pela Equipa de Animação:</strong> {a?.profile_traced_on ? formatDate(a.profile_traced_on) : 'por registar'}</span>
+            <span><strong>Perfil traçado pela Equipa de Animação:</strong> {a?.profile_traced_on ? formatDate(a.profile_traced_on) : 'Por registar'}</span>
           </li>
           <li className={a?.decided_on ? 'tri-ok' : 'tri-no'}>
             <span aria-hidden="true">{a?.decided_on ? <Check size={16} /> : <CircleDashed size={16} />}</span>
-            <span><strong>Decisão sobre a adesão (Conselho de Guias):</strong> {a?.decided_on ? formatDate(a.decided_on) : 'pendente'}</span>
+            <span><strong>Decisão sobre a adesão (Conselho de Guias):</strong> {a?.decided_on ? formatDate(a.decided_on) : 'Pendente'}</span>
           </li>
         </ul>
       </div>
@@ -112,7 +109,7 @@ export function PersonalAtMilestone({ k, progress, catalog, self }: { k: Milesto
         <ul className="tri-state">
           <li className={a?.commitment_on ? 'tri-ok' : 'tri-no'}>
             <span aria-hidden="true">{a?.commitment_on ? <Check size={16} /> : <CircleDashed size={16} />}</span>
-            <span><strong>Promessa / Investidura:</strong> {a?.commitment_on ? formatDate(a.commitment_on) : 'por registar'}</span>
+            <span><strong>Promessa / Investidura:</strong> {a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</span>
           </li>
         </ul>
         {pos.state === 'aguarda_etapa' && <p className="faint">A Equipa de Animação abre contigo a etapa do Conhecimento, na primeira negociação, e entrega a insígnia.</p>}
@@ -147,7 +144,7 @@ export function PersonalAtMilestone({ k, progress, catalog, self }: { k: Milesto
         {concluded ? (self ? 'Concluíste esta etapa' : 'Etapa concluída') : `${you} nesta etapa`} · {stateBadge(st.state)}
       </p>
       <p className="faint">
-        Insígnia entregue: {s.path.insignia_delivered_on ? formatDate(s.path.insignia_delivered_on) : 'por registar'}
+        Insígnia entregue: {s.path.insignia_delivered_on ? formatDate(s.path.insignia_delivered_on) : 'Por registar'}
         {s.path.completed_on && ` · Concluída: ${formatDate(s.path.completed_on)}${s.path.completion_kind === 'historico' ? ' (registo anterior)' : ''}`}
       </p>
       <TriState
@@ -163,71 +160,6 @@ export function PersonalAtMilestone({ k, progress, catalog, self }: { k: Milesto
         </div>
       )}
       {needs.done.length > 0 && <p className="faint">Validados nesta etapa: {needs.done.join(', ')}.</p>}
-    </div>
-  );
-}
-
-/** Lista de pessoas num marco, agrupadas pelo estado. */
-export function PeopleAtMilestone({ people, hidden, onPick, teamName }: {
-  people: PathMember[]; hidden: number; onPick: (id: string) => void; teamName: (id: string | null) => string;
-}) {
-  if (!people.length && !hidden) return <p className="faint">Ninguém neste momento.</p>;
-  const groups = new Map<string, PathMember[]>();
-  for (const p of people) groups.set(p.state, [...(groups.get(p.state) ?? []), p]);
-  return (
-    <div className="stack">
-      {[...groups.entries()].map(([state, list]) => (
-        <div key={state}>
-          <div style={{ marginBottom: 6 }}>{stateBadge(state)}</div>
-          <ul className="people-list">
-            {list.map((p) => (
-              <li key={p.membership_id}>
-                <button type="button" className="person" onClick={() => onPick(p.membership_id)}>
-                  <Avatar name={p.full_name} photoPath={p.photo_path} />
-                  <span className="grow">
-                    <strong>{p.full_name}{p.is_me ? ' (tu)' : ''}</strong>
-                    <br />
-                    <span className="faint">{teamName(p.team_id)}{p.function === 'guia' ? ' · Guia' : ''}</span>
-                  </span>
-                  <ArrowRight size={18} aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-      {hidden > 0 && (
-        <p className="faint">
-          {people.length ? 'E mais' : 'Estão aqui'} {hidden} pioneiro{hidden === 1 ? '' : 's'} da secção. Os nomes só aparecem a quem já acompanha o seu percurso.
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Resumo do percurso de um pioneiro (dados limitados pelas permissões no servidor). */
-export function PersonSummary({ member, progress, catalog, canOpen, self }: {
-  member: PathMember; progress: MemberProgress; catalog: Catalog; canOpen: boolean; self: boolean;
-}) {
-  const pos = memberPosition(progress, catalog);
-  const m = milestoneByKey[pos.milestone];
-  const action = self ? nextAction(catalog, progress) : null;
-  return (
-    <div className="stack">
-      <div className="row">
-        <Avatar name={member.full_name} photoPath={member.photo_path} size="lg" />
-        <div className="grow">
-          <h3 style={{ margin: 0 }}>{member.full_name}</h3>
-          {member.totem && <p className="muted" style={{ margin: 0 }}>{member.totem}</p>}
-          <p style={{ margin: '4px 0 0' }}><strong>{m.name}</strong> · {stateBadge(pos.state)}</p>
-        </div>
-      </div>
-      <AreaMarkers progress={progress} catalog={catalog} />
-      <PersonalAtMilestone k={pos.milestone} progress={progress} catalog={catalog} self={self} />
-      {action?.to && (
-        <Link to={action.to} className="btn">{action.title} <ArrowRight size={18} aria-hidden="true" /></Link>
-      )}
-      {canOpen && <Link to={`/membros/${member.membership_id}`} className="btn secondary">Abrir percurso completo</Link>}
     </div>
   );
 }

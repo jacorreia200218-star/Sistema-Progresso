@@ -180,6 +180,17 @@ export function pendingUser(): Persona {
   };
 }
 
+/** Secção grande: muitos pioneiros no mesmo marco (para o «+N»). */
+export function bigLeader(): Persona {
+  const p = leader();
+  const extra = Array.from({ length: 9 }, (_, i) => ({
+    membership_id: `m-x${i}`, full_name: `Zé Extra ${String.fromCharCode(65 + i)}`, totem: null, photo_path: null, team_id: i % 2 ? 'teamA' : 'teamB',
+    function: 'pioneiro', milestone: 'conhecimento', state: 'em_curso', is_me: false,
+  }));
+  const members = [...pathMembers, ...extra];
+  return { ...p, rpc: { ...p.rpc, section_path: { scope: 'seccao', total: members.length, counts: { ...counts, conhecimento: (counts.conhecimento ?? 0) + extra.length }, members } } };
+}
+
 export function emptyLeader(): Persona {
   const p = leader();
   return { ...p, rpc: { ...p.rpc, section_path: { scope: 'seccao', total: 0, counts: {}, members: [] }, section_activity: [] } };

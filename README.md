@@ -192,9 +192,17 @@ Para reconstruir a migração do catálogo depois de alterar o JSON: `npm run ca
   Desligar bloqueia novas submissões no servidor, sem afetar pedidos já submetidos nem aprovações.
 - **Anilha de mérito:** elegibilidade calculada (18 trilhos + Construção concluída) mostrada à parte da
   atribuição registada por um dirigente, com data.
-- **Caminho** (`docs/CAMINHO.md`): mapa do percurso com os marcos do manual (Sinais de Pista, Início de Pista,
-  Promessa, Conhecimento, Vontade, Construção, Acampamento, Passagem), o ciclo de cada etapa e o que falta por
-  área; vistas «O meu caminho» e «Caminho da secção» (por equipa, dentro das permissões), em mapa ou lista.
+- **Caminho da secção** (`/caminho`): os marcos do manual numa linha simples, com as pessoas (avatares iguais,
+  por ordem alfabética) no marco onde estão; «+N» abre a lista completa; pesquisa por nome e filtro por equipa
+  ficam no endereço. Tocar numa pessoa abre um painel (lateral no computador, folha no telemóvel) com equipa,
+  etapa atual, as seis áreas FACEIS e o próximo passo. Sem rankings nem arrastar: a posição resulta do progresso
+  validado. Regras em `docs/CAMINHO.md`.
+- **Início:** cartões-resumo por papel (dirigente: Pioneiros, Equipas, Pedidos pendentes, Etapas por validar;
+  pioneiro: Etapa atual, Trilhos em desenvolvimento, Pedidos em validação, Trilhos validados), cada um com ligação
+  para a vista já filtrada; distribuição por marcos; três entradas de atividade e «Ver atividade».
+- **Histórico reconhecido vs. etapa atual:** a etapa só conta os trilhos confirmados para ela na negociação
+  (regra do servidor); trilhos já validados ou reconhecidos e ainda não associados aparecem à parte.
+- **Datas** sempre em DD/MM/AAAA (`formatDate` em `src/lib/labels.ts`; datas sem hora não mudam com o fuso).
 - **Meu progresso** (`/meu-progresso`): três vistas ligadas — *Caminho* (posição, checklist das seis áreas
   com «por concluir / submetido / precisa de revisão / validado», validação da etapa e reconhecimento),
   *Áreas FACEIS* (seis cartões, filtros por estado que ficam no endereço) e *Pedidos* (estado, datas de

@@ -144,3 +144,38 @@ export function stageChecklist(catalog: Catalog, p: MemberProgress): StageCheckl
   }
   return { summary: s, rows, stageValidation, recognition, headline, details };
 }
+
+export interface ProgressCounts {
+  /** Trilhos validados ou reconhecidos, em qualquer etapa (histórico reconhecido). */
+  validated: number;
+  /** Dos validados, os que vieram de progresso anterior ou de reconhecimento na negociação. */
+  recognized: number;
+  /** Validados que ainda não estão associados a nenhuma etapa (podem ser propostos na negociação). */
+  unassigned: CatalogTrail[];
+  inDevelopment: number;
+  inValidation: number;
+  /** Etapa atual: trilhos confirmados e validados nesta etapa (um por área). */
+  stage: { name: string; validated: number; confirmed: number; areas: number } | null;
+}
+
+/**
+ * Contadores do resumo. A etapa só conta os trilhos confirmados para ela na
+ * negociação (regra do servidor: request_stage_validation); por isso o histórico
+ * reconhecido e a etapa atual são números diferentes e mostram-se separados.
+ */
+export function progressCounts(catalog: Catalog, p: MemberProgress): ProgressCounts {
+  const trails = catalog.areas.flatMap((a) => a.catalog_trails);
+  const cats = trails.map((t) => trailCategory(t, p));
+  const validatedReqs = p.requests.filter(isValidated);
+  const assigned = new Set(p.choices.filter((c) => c.status === 'confirmada').map((c) => c.trail_key));
+  const path = openPath(p.paths);
+  const s = path ? stageSummary(path, catalog, p) : null;
+  return {
+    validated: cats.filter((c) => c === 'validado').length,
+    recognized: validatedReqs.filter((r) => r.kind === 'historico' || r.kind === 'negociacao').length,
+    unassigned: trails.filter((t) => validatedReqs.some((r) => r.trail_key === t.key) && !assigned.has(t.key)),
+    inDevelopment: cats.filter((c) => c === 'em_desenvolvimento').length,
+    inValidation: cats.filter((c) => c === 'aguarda').length,
+    stage: path && s ? { name: catalog.stages.find((x) => x.key === path.stage_key)?.name ?? path.stage_key, validated: s.validatedCount, confirmed: s.confirmedCount, areas: catalog.areas.length } : null,
+  };
+}

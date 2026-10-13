@@ -28,6 +28,7 @@ const MemberDetail = lazy(() => import('./pages/MemberDetail'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Caminho = lazy(() => import('./pages/Caminho'));
 const Trilhos = lazy(() => import('./pages/Trilhos'));
+const Atividade = lazy(() => import('./pages/Atividade'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function LegacyTrail() {
@@ -57,6 +58,7 @@ function Authenticated() {
           <Route index element={<Home />} />
           <Route path="caminho" element={<Caminho />} />
           <Route path="trilhos" element={<Trilhos />} />
+          <Route path="atividade" element={<Guard when={s.isDirigente}><Atividade /></Guard>} />
           <Route path="meu-progresso" element={<Guard when={s.isMember || s.isDirigente}><MeuProgresso /></Guard>} />
           <Route path="meu-progresso/trilho/:key" element={<TrailPage />} />
           <Route path="progresso" element={<Navigate to="/meu-progresso?vista=areas" replace />} />

@@ -11,14 +11,14 @@ for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
     await installMock(page, pioneer());
     await page.goto('/meu-progresso?vista=caminho');
-    await page.locator('.map-card').waitFor();
-    await page.screenshot({ path: `docs/capturas/caminho-meu-${dev}-${t}.png`, fullPage: dev === 'computador' });
-    if (dev === 'telemovel') {
-      await page.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; }' });
-      await page.locator('.map-card').screenshot({ path: `docs/capturas/caminho-meu-mapa-${dev}-${t}.png` });
-      await page.locator('.milestone-panel').screenshot({ path: `docs/capturas/caminho-meu-painel-${dev}-${t}.png` });
-    }
+    await page.locator('.summary').waitFor();
+    await page.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; }' });
+    await page.screenshot({ path: `docs/capturas/caminho-meu-${dev}-${t}.png`, fullPage: true });
     const full = { fullPage: true };
+    await page.goto('/');
+    await page.locator('.stats').waitFor();
+    await page.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; }' });
+    await page.screenshot({ path: `docs/capturas/inicio-pioneiro-${dev}-${t}.png`, ...full });
     // Em capturas de página inteira, a barra fixa do telemóvel ficaria a meio da imagem.
     const flat = (pg: typeof page) => pg.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; }' });
     await page.goto('/meu-progresso?vista=areas');
@@ -53,15 +53,23 @@ for (const theme of ['light', 'dark'] as const) {
     await p3.emulateMedia({ colorScheme: theme });
     await installMock(p3, leader());
     await p3.goto('/meu-progresso?pioneiro=m-p1');
-    await p3.locator('.checklist').waitFor();
+    await p3.locator('.summary').waitFor();
     await flat(p3);
     await p3.screenshot({ path: `docs/capturas/consulta-dirigente-${dev}-${t}.png`, ...full });
 
     const p2 = await page.context().newPage();
     await p2.emulateMedia({ colorScheme: theme });
     await installMock(p2, leader());
-    await p2.goto('/caminho?marco=conhecimento');
-    await p2.locator('.map-card').waitFor();
-    await p2.screenshot({ path: `docs/capturas/caminho-seccao-${dev}-${t}.png`, fullPage: dev === 'computador' });
+    await p2.goto('/caminho');
+    await p2.locator('.track').waitFor();
+    await p2.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; }' });
+    await p2.screenshot({ path: `docs/capturas/caminho-seccao-${dev}-${t}.png`, fullPage: true });
+    await p2.goto('/caminho?pessoa=m-p1');
+    await p2.locator('.side-panel .faceis-row').first().waitFor();
+    await p2.screenshot({ path: `docs/capturas/caminho-painel-${dev}-${t}.png` });
+    await p2.goto('/');
+    await p2.locator('.stats').waitFor();
+    await p2.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; }' });
+    await p2.screenshot({ path: `docs/capturas/inicio-dirigente-${dev}-${t}.png`, fullPage: true });
   });
 }

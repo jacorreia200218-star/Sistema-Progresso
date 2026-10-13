@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Lightbulb, MessageSquare, NotebookPen, Trash2 } from 'lucide-react';
+import { AlertTriangle, MessageSquare, NotebookPen, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useSubject } from '../components/meu/useSubject';
 import { call, fetchRequest } from '../lib/api';
@@ -13,13 +13,18 @@ import { activeRequest, openPath } from '../lib/progress';
 import { activeChoice, CATEGORY_LABEL, lastFeedback, trailCategory, validationInfo } from '../lib/meuprogresso';
 import { decisionLabel, formatDate, formatDateTime, requestKindLabel, requestStatusLabel, todayIso } from '../lib/labels';
 import type { CatalogTrail, MemberProgress } from '../lib/types';
-import { Badge, Back, ConfirmButton, ErrorBox, Field, Loading, Notice } from '../components/ui';
+import { Badge, ConfirmButton, ErrorBox, Field, Loading, Notice } from '../components/ui';
+import { Crumbs } from '../components/nav';
 import { OwnerRequestPanel, VersionContent } from '../components/RequestEditor';
 import { stageName } from '../components/StagePanel';
 import NotFound from './NotFound';
 
 type Subj = ReturnType<typeof useSubject>;
 
+/**
+ * Próximo passo do trilho. Para o próprio, com a ação disponível; em modo de
+ * consulta, descrito na terceira pessoa e sem convites a ações indisponíveis.
+ */
 function nextStep(trail: CatalogTrail, p: MemberProgress, subject: Subj, expCount: number): { text: string; target?: string; label?: string } {
   const cat = trailCategory(trail, p, { [trail.key]: expCount });
   const r = activeRequest(p.requests, trail.key);
@@ -28,24 +33,30 @@ function nextStep(trail: CatalogTrail, p: MemberProgress, subject: Subj, expCoun
   const self = subject.isSelf;
   switch (cat) {
     case 'validado':
-      return { text: 'Trilho validado. Continua a viver estes objetivos no dia a dia.' };
+      return { text: self ? 'Trilho validado. Continua a viver estes objetivos no dia a dia.' : 'Trilho validado.' };
     case 'aguarda':
-      return { text: r?.kind === 'historico' ? 'O pedido aguarda a decisão dos dirigentes.' : 'O pedido aguarda a decisão da próxima reunião de Equipa. Submeter não é concluir: só fica validado depois da decisão.' };
+      return { text: r?.kind === 'historico' ? 'O pedido aguarda a decisão dos dirigentes.' : 'O pedido aguarda a decisão da reunião de Equipa. Submeter não é concluir: o trilho só fica validado depois da decisão.' };
     case 'revisao':
-      return { text: 'O pedido foi devolvido para continuar a trabalhar. Lê o feedback e prepara uma nova versão.', target: 'pedido', label: self ? 'Corrigir o pedido' : undefined };
+      return self
+        ? { text: 'O pedido foi devolvido. Lê o feedback e prepara uma nova versão.', target: 'pedido', label: 'Corrigir o pedido' }
+        : { text: 'O pedido foi devolvido; o pioneiro prepara uma nova versão a partir do feedback.' };
     case 'em_desenvolvimento':
-      if (r?.status === 'rascunho') return { text: 'Tens um pedido em rascunho. Completa-o e submete quando sentires que alcançaste os objetivos.', target: 'pedido', label: self ? 'Continuar o pedido' : undefined };
-      return {
-        text: choice?.status === 'proposta'
-          ? 'A tua proposta aguarda negociação com a Equipa de Animação. Entretanto, vive as oportunidades e regista as vivências.'
-          : 'Vive as oportunidades educativas e regista as vivências. Quando sentires que alcançaste os objetivos, pede a validação.',
-        target: 'pedido', label: self ? 'Pedir validação' : undefined,
-      };
-    default:
-      if (path && !choice && !p.choices.some((c) => c.stage_path_id === path.id && c.area_code === subject.catalog.areaById.get(trail.area_id)?.code && (c.status === 'confirmada' || c.status === 'proposta'))) {
-        return { text: `Podes propor este trilho para a etapa ${stageName(subject.catalog, path.stage_key)}, ou registar uma vivência relacionada.`, target: 'escolha', label: self ? 'Propor para a etapa' : undefined };
+      if (r?.status === 'rascunho') {
+        return self ? { text: 'Tens um pedido em rascunho. Completa-o e submete quando tiveres alcançado os objetivos.', target: 'pedido', label: 'Continuar o pedido' } : { text: 'O pioneiro tem um pedido em rascunho, ainda não submetido.' };
       }
-      return { text: 'Ainda não começaste este trilho. Regista uma vivência quando viveres uma oportunidade relacionada.', target: 'vivencias', label: self ? 'Registar vivência' : undefined };
+      if (choice?.status === 'proposta') {
+        return { text: self ? 'A tua proposta aguarda negociação com a Equipa de Animação. Entretanto, podes registar vivências.' : 'A proposta aguarda negociação com a Equipa de Animação.', target: self ? 'vivencias' : undefined, label: self ? 'Registar vivência' : undefined };
+      }
+      return self
+        ? { text: 'Vive as oportunidades e regista as vivências. Quando tiveres alcançado os objetivos, pede a validação.', target: 'pedido', label: 'Pedir validação' }
+        : { text: 'Trilho em desenvolvimento; ainda sem pedido de validação.' };
+    default: {
+      const areaCode = subject.catalog.areaById.get(trail.area_id)?.code;
+      const areaFree = path && !choice && !p.choices.some((c) => c.stage_path_id === path.id && c.area_code === areaCode && (c.status === 'confirmada' || c.status === 'proposta'));
+      if (!self) return { text: areaFree ? `Trilho por iniciar. A área ainda não tem trilho escolhido para a etapa ${stageName(subject.catalog, path!.stage_key)}.` : 'Trilho por iniciar.' };
+      if (areaFree) return { text: `Podes propor este trilho para a etapa ${stageName(subject.catalog, path!.stage_key)}.`, target: 'escolha', label: 'Propor para a etapa' };
+      return { text: 'Ainda não começaste este trilho. Regista uma vivência quando viveres uma oportunidade relacionada.', target: 'vivencias', label: 'Registar vivência' };
+    }
   }
 }
 
@@ -67,15 +78,28 @@ export default function TrailPage() {
   if (!trail) return <NotFound />;
   const area = catalog.areaById.get(trail.area_id)!;
   const q = subject.q ? `?${subject.q}` : '';
-  const back = `/meu-progresso?vista=areas&area=${area.code}${subject.q ? `&${subject.q}` : ''}`;
+  const filtro = new URLSearchParams(location.search).get('filtro');
+  const extra = `${filtro ? `&filtro=${filtro}` : ''}${subject.q ? `&${subject.q}` : ''}`;
+  const areaTo = `/meu-progresso?vista=areas&area=${area.code}${extra}`;
+  const percursoTo = `/meu-progresso?vista=caminho${subject.q ? `&${subject.q}` : ''}`;
+  const crumbs = (
+    <Crumbs items={[
+      { label: 'Início', to: '/' },
+      { label: subject.consulted ? `Progresso de ${subject.consulted.full_name.split(' ')[0]}` : 'Progresso', to: percursoTo },
+      { label: area.name, to: areaTo },
+      { label: trail.name },
+    ]} />
+  );
 
   if (subject.progress.isLoading || subject.pathLoading) return <Loading />;
   if (!p) {
     return (
       <>
-        <Back to={back} />
-        <TrailContent trail={trail} />
-        <p className="faint">Para ver o estado e pedir validação, abre este trilho a partir de «Meu progresso».</p>
+        {crumbs}
+        <h1>{trail.name}</h1>
+        <Objectives trail={trail} />
+        <TrailMore trail={trail} />
+        <p className="faint">Para ver o estado e pedir validação, abre este trilho a partir de «Progresso».</p>
       </>
     );
   }
@@ -88,44 +112,33 @@ export default function TrailPage() {
 
   return (
     <div className="trail-page">
-      <Back to={back} label={`Área ${area.name}`} />
+      {crumbs}
       <header className="trail-head">
         <span className="area-code" aria-hidden="true">{area.code}</span>
-        <div className="grow">
-          <p className="faint" style={{ margin: 0 }}>{area.full_name} · trilho</p>
-          <h1 style={{ margin: 0 }}>{trail.name}</h1>
-        </div>
+        <h1 className="grow" style={{ margin: 0 }}>{trail.name}</h1>
         <Badge {...CATEGORY_LABEL[cat]} />
       </header>
-      {subject.consulted && <p className="consult-note">Modo de consulta: percurso de {subject.consulted.full_name}.</p>}
+      {subject.consulted && <p className="consult-note">Modo de consulta · {subject.consulted.full_name}</p>}
+
+      <Objectives trail={trail} />
 
       <section className="card next-step" aria-labelledby="h-next">
-        <h2 id="h-next" className="faint" style={{ fontSize: '0.8rem', margin: 0 }}>O QUE FALTA E O PRÓXIMO PASSO</h2>
-        <p style={{ margin: '4px 0 8px', fontWeight: 600 }}>{step.text}</p>
-        {v && <p className="faint" style={{ margin: 0 }}>{v.label} em {formatDate(v.date)}{r?.kind !== 'normal' && requestKindLabel[r?.kind ?? ''] ? '' : ''}.</p>}
+        <h2 id="h-next" className="faint-title">{subject.isSelf ? 'Próximo passo' : 'Próximo passo do pioneiro'}</h2>
+        <p className="next-title">{step.text}</p>
+        {v && <p className="faint" style={{ margin: '0 0 6px' }}>{v.label} em {formatDate(v.date)}.</p>}
         {step.label && step.target && (
           <a href={`#${step.target}`} className="btn" onClick={(e) => { e.preventDefault(); document.getElementById(step.target!)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>{step.label}</a>
         )}
       </section>
 
-      <TrailContent trail={trail} />
-
       <ChoiceSection subject={subject} trail={trail} progress={p} />
 
-      <section className="card" aria-labelledby="h-op">
-        <div className="card-title"><Lightbulb size={18} aria-hidden="true" color="var(--green-ink)" /><h2 id="h-op" style={{ margin: 0 }}>Oportunidades educativas</h2></div>
-        {choice?.planned_opportunities ? (
-          <>
-            <p className="label">Escolhidas na negociação</p>
-            <div className="quote">{choice.planned_opportunities}</div>
-          </>
-        ) : <p className="faint">Ainda não há oportunidades escolhidas para este trilho.</p>}
-        <details style={{ marginTop: 8 }}>
-          <summary className="faint">Sugestões do manual (exemplos, não obrigatórias)</summary>
-          <ul className="tight" style={{ marginTop: 6 }}>{trail.opportunities.map((o, i) => <li key={i}>{o}</li>)}</ul>
-        </details>
-        <p className="faint" style={{ marginTop: 6 }}>Realizar uma oportunidade não valida o trilho por si (Manual, p. 11).</p>
-      </section>
+      {choice?.planned_opportunities && (
+        <section className="card" aria-labelledby="h-op">
+          <h2 id="h-op">Oportunidades escolhidas</h2>
+          <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{choice.planned_opportunities}</p>
+        </section>
+      )}
 
       {subject.isSelf && <ExperiencesSection trail={trail} membershipId={subject.membership.id} items={exps} />}
 
@@ -151,39 +164,58 @@ export default function TrailPage() {
           </>
         )}
       </section>
-      <p className="faint">Fonte: Manual do Dirigente, p. {trail.source_page}. <Link to={`/meu-progresso?vista=pedidos${q ? `&${subject.q}` : ''}`}>Ver todos os pedidos</Link></p>
+
+      <TrailMore trail={trail} />
+
+      <nav className="row page-links" aria-label="Navegação">
+        <Link to={areaTo} className="btn ghost">Voltar à área</Link>
+        <Link to={percursoTo} className="btn ghost">Voltar ao percurso</Link>
+        <Link to="/" className="btn ghost">Ir para o início</Link>
+        <Link to={`/meu-progresso?vista=pedidos${q ? `&${subject.q}` : ''}`} className="btn ghost">Ver pedidos</Link>
+      </nav>
     </div>
   );
 }
 
-function TrailContent({ trail }: { trail: CatalogTrail }) {
+function Objectives({ trail }: { trail: CatalogTrail }) {
   return (
-    <>
-      <section className="card" aria-labelledby="h-obj">
-        <h2 id="h-obj">Objetivos educativos que tenho de atingir</h2>
-        <p className="faint">A validação é do trilho como um todo, a partir destes objetivos.</p>
-        {trail.catalog_objectives.map((o) => (
-          <div key={o.id} className="objective">
-            <span className="code">{o.code}</span>
-            <div>
-              <p style={{ margin: 0 }}>{o.text}</p>
-              {o.pending_note && <p className="faint" style={{ margin: '4px 0 0' }}><AlertTriangle size={13} aria-hidden="true" /> Pendente: {o.pending_note}</p>}
-            </div>
+    <section className="card" aria-labelledby="h-obj">
+      <h2 id="h-obj">Objetivos</h2>
+      {trail.catalog_objectives.map((o) => (
+        <div key={o.id} className="objective">
+          <span className="code">{o.code}</span>
+          <div>
+            <p style={{ margin: 0 }}>{o.text}</p>
+            {o.pending_note && <p className="faint" style={{ margin: '4px 0 0' }}><AlertTriangle size={13} aria-hidden="true" /> Pendente: {o.pending_note}</p>}
           </div>
-        ))}
-      </section>
-      <section className="card" aria-labelledby="h-exp">
-        <h2 id="h-exp">Explicação</h2>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** Explicação, palavras-chave, exemplos e referência ao manual: só quando se abrem. */
+function TrailMore({ trail }: { trail: CatalogTrail }) {
+  return (
+    <div className="card">
+      <details className="more-inner" style={{ borderTop: 0 }}>
+        <summary>Explicação e palavras-chave</summary>
         <p style={{ whiteSpace: 'pre-line' }}>{trail.framing}</p>
         {trail.pending_note && <Notice kind="warn"><p><strong>Ponto pendente de confirmação.</strong> {trail.pending_note}</p></Notice>}
-        {trail.keywords.length > 0 && (
-          <>
-            <p className="label">Palavras-chave</p>
-            <div className="chips">{trail.keywords.map((k) => <span key={k} className="chip">{k}</span>)}</div>
-          </>
-        )}
-      </section>
-    </>
+        {trail.keywords.length > 0 && <p className="faint">{trail.keywords.join(' · ')}</p>}
+      </details>
+      {trail.opportunities.length > 0 && (
+        <details className="more-inner">
+          <summary>Ver exemplos</summary>
+          <p className="faint">Sugestões de oportunidades educativas do manual (exemplos, não obrigatórias). Realizar uma oportunidade não valida o trilho por si.</p>
+          <ul className="tight">{trail.opportunities.map((o, i) => <li key={i}>{o}</li>)}</ul>
+        </details>
+      )}
+      <details className="more-inner">
+        <summary>Referência</summary>
+        <p className="faint">Manual do Dirigente — Sistema de Progresso, p. {trail.source_page}.</p>
+      </details>
+    </div>
   );
 }
 
@@ -255,11 +287,11 @@ function ChoiceSection({ subject, trail, progress }: { subject: Subj; trail: Cat
           <strong>{stageName(catalog, progress.paths.find((x) => x.id === choiceHere.stage_path_id)?.stage_key ?? '')}</strong>.
         </p>
       ) : areaConfirmed ? (
-        <p className="faint">Nesta etapa, a área {area.name} tem «{catalog.trailById.get(areaConfirmed.trail_id)?.name}» confirmado. Podes propor uma troca, negociada com a Equipa de Animação.</p>
+        <p className="faint">Nesta etapa, a área {area.name} tem «{catalog.trailById.get(areaConfirmed.trail_id)?.name}» confirmado.{subject.isSelf ? ' Podes propor uma troca, negociada com a Equipa de Animação.' : ''}</p>
       ) : areaProposed ? (
-        <p className="faint">Já tens uma proposta pendente nesta área.</p>
+        <p className="faint">{subject.isSelf ? 'Já tens uma proposta pendente nesta área.' : 'Há uma proposta pendente nesta área.'}</p>
       ) : (
-        <p className="faint">Cada etapa tem um trilho de cada área, escolhido e negociado com a Equipa de Animação.</p>
+        <p className="faint">Ainda sem trilho escolhido nesta área para a etapa.</p>
       )}
       {choiceHere?.status === 'proposta' && subject.isSelf && (
         <button type="button" className="btn secondary" disabled={action.busy} onClick={() => action.run(() => call('withdraw_choice', { p_choice: choiceHere.id }), 'Proposta retirada.')}>Retirar proposta</button>
@@ -292,7 +324,7 @@ function ExperiencesSection({ trail, membershipId, items }: { trail: CatalogTrai
   return (
     <section className="card" id="vivencias" aria-labelledby="h-viv">
       <div className="card-title"><NotebookPen size={18} aria-hidden="true" color="var(--green-ink)" /><h2 id="h-viv" style={{ margin: 0 }}>Vivências e reflexões registadas</h2></div>
-      <p className="faint">Só tu vês este diário. Usa-o para preparar o pedido; registar uma vivência não valida o trilho.</p>
+      <p className="faint">Só tu vês estas vivências. Registar uma atividade não valida o trilho: a validação é feita pelo pedido.</p>
       {items.length > 0 ? (
         <ul className="list">
           {items.map((x) => (

@@ -1,33 +1,33 @@
 // Peças do Caminho partilhadas entre a tab Caminho e o Meu progresso.
 import {
-  ADHESION_KNOWLEDGE, memberPosition, MILESTONES, milestoneByKey, stageCycle, stageStatusFor, STATE_LABEL,
+  ADHESION_KNOWLEDGE, memberPosition, MILESTONES, milestoneByKey, stageStatusFor, STATE_LABEL,
   type MilestoneKey, type PositionState,
 } from '../../lib/caminho';
 import type { Catalog, MemberProgress } from '../../lib/types';
-import type { MapNode } from './TrailMap';
+import type { TrackStep } from './Track';
 
 const KEYS = MILESTONES.map((m) => m.key);
 
 export function shortState(state: PositionState): string {
   const map: Partial<Record<PositionState, string>> = {
-    em_adesao: 'em adesão', perfil_tracado: 'perfil traçado', aguarda_promessa: 'aguarda Promessa', aguarda_etapa: 'Promessa feita',
-    em_curso: 'em curso', requisitos_cumpridos: 'requisitos cumpridos', em_validacao: 'em validação',
-    concluida: 'concluída', reconhecida: 'reconhecida', etapas_concluidas: 'etapas concluídas', anilha_atribuida: 'anilha atribuída',
+    em_adesao: 'Em adesão', perfil_tracado: 'Perfil traçado', aguarda_promessa: 'Aguarda Promessa', aguarda_etapa: 'Promessa feita',
+    em_curso: 'Em curso', requisitos_cumpridos: 'Requisitos cumpridos', em_validacao: 'Em validação',
+    concluida: 'Concluída', reconhecida: 'Reconhecida', etapas_concluidas: 'Etapas concluídas', anilha_atribuida: 'Anilha atribuída',
   };
   return map[state] ?? STATE_LABEL[state].label;
 }
 
-export function personalNodes(p: MemberProgress, catalog: Catalog): Record<MilestoneKey, MapNode> {
+/** Estado de cada marco no percurso de uma pessoa (concluído, atual, por vir). */
+export function personalSteps(p: MemberProgress, catalog: Catalog, self: boolean): Record<MilestoneKey, TrackStep> {
   const pos = memberPosition(p, catalog);
   const idx = KEYS.indexOf(pos.milestone);
-  const out = {} as Record<MilestoneKey, MapNode>;
+  const out = {} as Record<MilestoneKey, TrackStep>;
   MILESTONES.forEach((m, i) => {
     const stage = ['conhecimento', 'vontade', 'construcao'].includes(m.key) ? stageStatusFor(m.key, p, catalog) : null;
-    const phases = stage ? stageCycle(stage.summary, catalog.areas.length) : undefined;
-    if (!m.tracked) out[m.key] = { status: 'info', caption: m.key === 'passagem' ? 'idade e maturidade' : 'antes de entrar' };
-    else if (i === idx) out[m.key] = { status: 'atual', caption: `estás aqui · ${shortState(pos.state)}`, phases };
-    else if (i < idx) out[m.key] = { status: 'feito', caption: stage && stage.state !== 'nao_iniciada' ? shortState(stage.state as PositionState) : 'feito', phases };
-    else out[m.key] = { status: 'por_vir', phases };
+    if (!m.tracked) out[m.key] = { status: 'info', caption: m.key === 'passagem' ? 'Idade e maturidade' : 'Antes de entrar' };
+    else if (i === idx) out[m.key] = { status: 'atual', caption: `${self ? 'Estás aqui' : 'Está aqui'} · ${shortState(pos.state)}` };
+    else if (i < idx) out[m.key] = { status: 'feito', caption: stage && stage.state !== 'nao_iniciada' ? shortState(stage.state as PositionState) : 'Feito' };
+    else out[m.key] = { status: 'por_vir', caption: 'Por vir' };
   });
   return out;
 }

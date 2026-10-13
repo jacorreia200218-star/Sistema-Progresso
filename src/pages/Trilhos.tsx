@@ -25,7 +25,7 @@ function Hl({ text, q }: { text: string; q: string }) {
 
 function trailMatches(t: CatalogTrail, a: CatalogArea, q: string) {
   if (!q) return true;
-  return [a.name, a.full_name, t.name, t.framing, ...t.keywords, ...t.catalog_objectives.flatMap((o) => [o.code, o.text])].some((x) => norm(x).includes(q));
+  return [a.name, a.full_name, t.name, t.framing, ...t.keywords, ...t.opportunities, ...t.catalog_objectives.flatMap((o) => [o.code, o.text])].some((x) => norm(x).includes(q));
 }
 
 /**
@@ -60,7 +60,7 @@ export default function Trilhos() {
 
   return (
     <>
-      <PageTitle title="Trilhos" subtitle={`As 6 áreas FACEIS, os ${total} trilhos e os ${objectives} objetivos educativos da III Secção, numa só vista.`} />
+      <PageTitle title="Trilhos" subtitle={`6 áreas FACEIS · ${total} trilhos · ${objectives} objetivos`} />
 
       <div className="tree-tools">
         <label className="search-field grow">
@@ -105,6 +105,12 @@ export default function Trilhos() {
                           {t.keywords.length > 0 && (
                             <p className="tree-keywords">{t.keywords.map((k, i) => <span key={k}>{i > 0 && ' · '}<Hl text={k} q={q} /></span>)}</p>
                           )}
+                          {t.opportunities.length > 0 && (
+                            <details className="more-inner">
+                              <summary>Ver exemplos</summary>
+                              <ul className="tight">{t.opportunities.map((o, i) => <li key={i}><Hl text={o} q={q} /></li>)}</ul>
+                            </details>
+                          )}
                           {(s.isMember || s.isDirigente) && (
                             <Link to={`/meu-progresso/trilho/${t.key}`} className="tree-link">Abrir o trilho →</Link>
                           )}
@@ -119,26 +125,6 @@ export default function Trilhos() {
         ))}
       </ul>
 
-      {!q && (
-        <section className="tree-examples" aria-labelledby="h-exemplos">
-          <h2 id="h-exemplos">Exemplos</h2>
-          <p className="faint">
-            Sugestões de oportunidades educativas do manual, uma por trilho de cada área. São exemplos, não obrigações: a forma de
-            atingir os objetivos escolhe-se na negociação com a Equipa de Animação.
-          </p>
-          <dl className="examples">
-            {catalog.areas.map((a) => (
-              <div key={a.id}>
-                <dt><span className="area-code" aria-hidden="true">{a.code}</span> {a.name}</dt>
-                {a.catalog_trails.filter((t) => t.opportunities.length).map((t) => (
-                  <dd key={t.id}><span className="faint">{t.name}:</span> {t.opportunities[0].replace(/[;.]\s*$/, '')}.</dd>
-                ))}
-              </div>
-            ))}
-          </dl>
-          <p className="faint">Fonte: Manual do Dirigente — Sistema de Progresso, pp. 41–46.</p>
-        </section>
-      )}
     </>
   );
 }

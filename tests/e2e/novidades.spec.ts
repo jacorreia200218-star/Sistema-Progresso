@@ -49,16 +49,18 @@ for (const theme of ['light', 'dark'] as const) {
     await installMock(page, pioneer());
     await page.goto('/trilhos');
     await expect(page.locator('.tree > li')).toHaveCount(6);
-    await expect(page.getByRole('heading', { name: 'Exemplos' })).toBeVisible();
     await page.getByRole('button', { name: 'Abrir tudo' }).click();
     await expect(page.locator('.tree-trail[open]')).toHaveCount(0); // trilhos continuam fechados; abrem-se as áreas
     await expect(page.locator('.tree-area[open]')).toHaveCount(6);
     await expect(page.locator('.tree-trail > summary', { hasText: /^Desempenho/ })).toContainText('Validado');
     await page.getByPlaceholder('Procurar trilho, objetivo ou palavra-chave').fill('oracao');
-    await expect(page.getByText('1 trilho(s) encontrado(s).')).toBeVisible();
+    await expect(page.getByText(/trilho\(s\) encontrado\(s\)\./)).toBeVisible(); // objetivos, explicações e exemplos
     await expect(page.locator('.tree mark').first()).toHaveText('oração');
     await expect(page.getByText(/Aprofundo os hábitos de/)).toBeVisible();
     await expect(page).toHaveURL(/q=oracao/);
+    // Exemplos dentro do respetivo trilho
+    await page.locator('.tree-trail', { hasText: 'Aprofundamento' }).getByText('Ver exemplos').click();
+    await expect(page.locator('.tree-trail', { hasText: 'Aprofundamento' }).locator('.more-inner[open] li').first()).toBeVisible();
     const overflow = await page.evaluate((w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w, page.viewportSize()!.width);
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: `test-results/trilhos-${info.project.name}-${theme}.png`, fullPage: true });

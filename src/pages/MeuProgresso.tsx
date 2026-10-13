@@ -9,6 +9,7 @@ import { CaminhoView } from '../components/meu/CaminhoView';
 import { AreasView } from '../components/meu/AreasView';
 import { PedidosView } from '../components/meu/PedidosView';
 import { ErrorBox, Loading, PageTitle } from '../components/ui';
+import { Crumbs, type Crumb } from '../components/nav';
 
 const VIEWS = [
   { key: 'caminho', label: 'Caminho' },
@@ -41,9 +42,15 @@ export default function MeuProgresso() {
   const needsAction = p ? p.requests.filter((r) => r.status === 'rascunho' || r.status === 'devolvido').length : 0;
   const title = subject.consulted ? `Progresso de ${subject.consulted.full_name.split(' ')[0]}` : subject.isMember ? 'Meu progresso' : 'Progresso dos pioneiros';
 
+  const area = vista === 'areas' ? subject.catalog.areas.find((a) => a.code === params.get('area')) : undefined;
+  const progressTo = `/meu-progresso?vista=${vista}${subject.q ? `&${subject.q}` : ''}`;
+  const crumbs: Crumb[] = [{ label: 'Início', to: '/' }, { label: subject.consulted ? title : 'Progresso', to: progressTo }];
+  if (area) crumbs.push({ label: area.name });
+
   return (
     <>
-      <PageTitle title={title} subtitle={subject.isSelf ? 'O teu caminho, as áreas FACEIS e os teus pedidos de validação.' : undefined} />
+      <Crumbs items={crumbs} />
+      <PageTitle title={area ? `${title} · ${area.name}` : title} />
 
       {canConsult && (
         <div className={`consult-bar ${subject.consulted ? 'active' : ''}`}>
@@ -62,8 +69,8 @@ export default function MeuProgresso() {
       )}
       {subject.consulted && (
         <p className="consult-note" role="note">
-          <strong>Modo de consulta.</strong> Estás a ver o percurso de {subject.consulted.full_name}; as ações do pioneiro não estão disponíveis aqui.
-          {subject.isDirigente && <> As decisões registam-se em <Link to={`/membros/${subject.consulted.membership_id}`}>percurso do membro</Link> e em Acompanhamento.</>}
+          <strong>Modo de consulta</strong> · {subject.consulted.full_name}. As ações do pioneiro não estão disponíveis.
+          {subject.isDirigente && <> Decisões: <Link to={`/membros/${subject.consulted.membership_id}`}>percurso do membro</Link>.</>}
         </p>
       )}
 

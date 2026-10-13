@@ -30,9 +30,12 @@ test('pioneiro: início, progresso, trilho e pedido', async ({ page }, info) => 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Olá, Pedro' })).toBeVisible();
   // Próxima ação concreta: o pedido devolvido tem prioridade
-  await expect(page.getByRole('heading', { name: /Rever o pedido de «Autoestima»/ })).toBeVisible();
-  await expect(page.getByText('Onde estou no caminho')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'As seis áreas' })).toBeVisible();
+  await expect(page.locator('.next-step')).toContainText('Rever o pedido de «Autoestima»');
+  const stats = page.getByRole('list', { name: 'Resumo do meu progresso' });
+  await expect(stats.getByRole('link', { name: /Etapa atual/ })).toContainText('Conhecimento');
+  await expect(stats.getByRole('link', { name: /Trilhos validados/ })).toHaveAttribute('href', '/meu-progresso?vista=areas&filtro=validado');
+  await expect(stats.getByRole('link', { name: /Pedidos em validação/ })).toHaveAttribute('href', '/meu-progresso?vista=pedidos&pfiltro=aguarda');
+  await expect(stats.getByRole('link', { name: /Trilhos em desenvolvimento/ })).toHaveAttribute('href', '/meu-progresso?vista=areas&filtro=em_desenvolvimento');
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/inicio-${info.project.name}.png`, fullPage: true });
 
@@ -41,14 +44,14 @@ test('pioneiro: início, progresso, trilho e pedido', async ({ page }, info) => 
   await page.getByRole('tab', { name: 'Áreas FACEIS' }).click();
   const cards = page.locator('.area-card');
   await expect(cards).toHaveCount(6);
-  await expect(cards.filter({ hasText: 'Físico' })).toContainText('1 de 3 trilhos validados');
+  await expect(cards.filter({ hasText: 'Físico' })).toContainText('1 de 3 validados');
   // Filtros: estados com texto (não só cor)
-  await page.getByText('Precisa de revisão', { exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Filtrar trilhos' }).getByText('Precisa de revisão', { exact: true }).click();
   await expect(page.locator('.trail-row')).toHaveCount(1);
   await expect(page.locator('.trail-row')).toContainText('Autoestima');
-  await page.getByText('A aguardar validação', { exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Filtrar trilhos' }).getByText('A aguardar validação', { exact: true }).click();
   await expect(page.locator('.trail-row')).toContainText('Interação e cooperação');
-  await page.getByText('Todos', { exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Filtrar trilhos' }).getByText('Todos', { exact: true }).click();
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/progresso-${info.project.name}.png`, fullPage: true });
 
@@ -57,7 +60,7 @@ test('pioneiro: início, progresso, trilho e pedido', async ({ page }, info) => 
   await expect(page.getByRole('heading', { name: 'Responsabilidade', level: 1 })).toBeVisible();
   await expect(page.getByText('C4', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Pendente:').first()).toBeVisible(); // ambiguidade do catálogo assinalada
-  await expect(page.getByText(/Sugestões do manual/)).toBeVisible();
+  await expect(page.getByText('Ver exemplos')).toBeVisible(); // exemplos do manual dentro do trilho
   await noHorizontalScroll(page);
 
   // Rascunho: guardar só confirma depois do servidor responder
@@ -98,8 +101,8 @@ test('pioneiro não vê ecrãs de gestão', async ({ page }) => {
 test('dirigente e administração', async ({ page }, info) => {
   const mock = await installMock(page, leader());
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Pendentes' })).toBeVisible();
-  await expect(page.getByText(/pedido\(s\) de entrada por confirmar/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Outros pendentes' })).toBeVisible();
+  await expect(page.getByText('Pedidos de entrada por confirmar')).toBeVisible();
   await noHorizontalScroll(page);
 
   await page.goto('/dirigentes/negociacao');

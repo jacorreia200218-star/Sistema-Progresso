@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stageChecklist, trailCategory, validationInfo } from './meuprogresso';
+import { progressCounts, stageChecklist, trailCategory, validationInfo } from './meuprogresso';
 import type { Catalog, CatalogArea, MemberProgress, StageChoice, StagePath, StageRequest, TrailDecision, TrailRequest } from './types';
 
 const names: Record<string, string> = { F: 'Físico', A: 'Afetivo', C: 'Caráter', E: 'Espiritual', I: 'Intelectual', S: 'Social' };
@@ -82,5 +82,27 @@ describe('checklist da etapa com mensagens concretas', () => {
     const c = stageChecklist(catalog, prog({ choices: [choice('F1')], requests: ['F1', 'F2', 'F3', 'A1', 'A2', 'A3'].map((k) => req(k, 'validado_equipa')) }))!;
     expect(c.stageValidation).toBe('nao_disponivel');
     expect(c.rows.filter((r) => r.status === 'validado')).toHaveLength(1);
+  });
+});
+
+describe('histórico reconhecido vs. etapa atual', () => {
+  it('seis trilhos reconhecidos antes, nenhum associado à etapa: contadores separados e explicáveis', () => {
+    const hist = codes.map((c) => req(`${c}2`, 'aprovado', 'historico'));
+    const c = progressCounts(catalog, prog({ requests: hist }));
+    expect(c.validated).toBe(6);
+    expect(c.recognized).toBe(6);
+    expect(c.unassigned.map((t) => t.key)).toEqual(codes.map((x) => `${x}2`));
+    expect(c.stage).toMatchObject({ validated: 0, confirmed: 0, areas: 6 }); // a etapa só conta os trilhos confirmados nela
+  });
+  it('depois de confirmados na negociação, passam a contar na etapa e deixam de estar por associar', () => {
+    const hist = codes.map((c) => req(`${c}2`, 'aprovado', 'historico'));
+    const c = progressCounts(catalog, prog({ requests: hist, choices: codes.map((x) => choice(`${x}2`)) }));
+    expect(c.unassigned).toHaveLength(0);
+    expect(c.stage).toMatchObject({ validated: 6, confirmed: 6 });
+  });
+  it('em desenvolvimento e em validação', () => {
+    const c = progressCounts(catalog, prog({ choices: [choice('F1'), choice('A1')], requests: [req('A1', 'submetido'), req('C1', 'devolvido')] }));
+    expect(c.inDevelopment).toBe(1); // F1 escolhido (C1 devolvido conta como «precisa de revisão»)
+    expect(c.inValidation).toBe(1);
   });
 });

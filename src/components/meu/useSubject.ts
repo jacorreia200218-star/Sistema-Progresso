@@ -13,7 +13,7 @@ export function useSubject() {
   const [params] = useSearchParams();
   const requested = params.get('pioneiro');
   const path = useQuery({ queryKey: ['section-path', s.membership.section_id], queryFn: () => fetchSectionPath(s.membership.section_id) });
-  const authorized = (path.data?.members ?? []).filter((m) => !m.is_me || s.isMember);
+  const authorized = (path.data?.members ?? []).filter((m) => !m.is_me || s.isMember).sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' }));
   const consulted = requested && requested !== s.membership.id ? authorized.find((m) => m.membership_id === requested) : undefined;
   const subjectId = consulted ? consulted.membership_id : s.isMember ? s.membership.id : null;
   const isSelf = !!subjectId && subjectId === s.membership.id;

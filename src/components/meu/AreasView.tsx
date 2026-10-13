@@ -10,13 +10,14 @@ import { Badge, Empty } from '../ui';
 import { stageName } from '../StagePanel';
 import type { Subject } from './useSubject';
 
-function TrailRow({ trail, progress, subject, expCount }: { trail: CatalogTrail; progress: MemberProgress; subject: Subject; expCount: Record<string, number> }) {
+function TrailRow({ trail, progress, subject, expCount, filtro }: { trail: CatalogTrail; progress: MemberProgress; subject: Subject; expCount: Record<string, number>; filtro: string }) {
   const cat = trailCategory(trail, progress, expCount);
   const r = activeRequest(progress.requests, trail.key);
   const v = validationInfo(r, progress.decisions);
   const fb = cat === 'revisao' ? lastFeedback(r, progress.decisions) : undefined;
   const choice = activeChoice(progress, trail.key);
-  const href = `/meu-progresso/trilho/${trail.key}${subject.q ? `?${subject.q}` : ''}`;
+  const qs = [subject.q, filtro !== 'todos' ? `filtro=${filtro}` : ''].filter(Boolean).join('&');
+  const href = `/meu-progresso/trilho/${trail.key}${qs ? `?${qs}` : ''}`;
   return (
     <li>
       <Link to={href} className="trail-row">
@@ -41,38 +42,23 @@ function TrailRow({ trail, progress, subject, expCount }: { trail: CatalogTrail;
 }
 
 function AreaCard({ area, progress, subject, expCount }: { area: CatalogArea; progress: MemberProgress; subject: Subject; expCount: Record<string, number> }) {
-  const cats = area.catalog_trails.map((t) => trailCategory(t, progress, expCount));
-  const validated = cats.filter((c) => c === 'validado').length;
-  const pending = cats.filter((c) => c === 'aguarda').length;
-  const review = cats.filter((c) => c === 'revisao').length;
+  const validated = area.catalog_trails.filter((t) => trailCategory(t, progress, expCount) === 'validado').length;
   const path = openPath(progress.paths);
   const current = path ? progress.choices.find((c) => c.stage_path_id === path.id && c.area_code === area.code && (c.status === 'confirmada' || c.status === 'proposta')) : undefined;
   const currentTrail = current ? subject.catalog.trailById.get(current.trail_id) : undefined;
+  const cat = currentTrail ? trailCategory(currentTrail, progress, expCount) : null;
   return (
     <li>
       <Link to={`?vista=areas&area=${area.code}${subject.q ? `&${subject.q}` : ''}`} className="area-card">
         <span className="ac-head">
           <span className="area-code" aria-hidden="true">{area.code}</span>
-          <span className="grow">
-            <strong>{area.name}</strong>
-            <br />
-            <span className="faint">{area.dimension}</span>
-          </span>
-          <ArrowRight size={16} aria-hidden="true" className="row-arrow" />
-        </span>
-        <span className="ac-count">
-          <span className="pips" aria-hidden="true">{[0, 1, 2].map((i) => <span key={i} className={i < validated ? 'pip on' : 'pip'} />)}</span>
-          <span><strong>{validated}</strong> de 3 trilhos validados</span>
+          <strong className="grow">{area.name}</strong>
+          <span className="faint">{validated} de 3 validados</span>
         </span>
         <span className="ac-line">
-          {path ? (
-            <>Etapa {stageName(subject.catalog, path.stage_key)}: <strong>{currentTrail?.name ?? 'trilho por escolher'}</strong>{current?.status === 'proposta' ? ' (proposta)' : ''}</>
-          ) : 'Sem etapa em curso'}
+          {currentTrail ? <>{currentTrail.name}{current?.status === 'proposta' ? ' (proposta)' : ''}</> : <span className="faint">{path ? 'Trilho por escolher' : 'Sem etapa em curso'}</span>}
         </span>
-        <span className="ac-line faint">
-          {pending ? `${pending} pedido(s) a aguardar validação` : 'Sem pedidos pendentes'}
-          {review ? ` · ${review} a precisar de revisão` : ''}
-        </span>
+        {cat && <span><Badge {...(current?.status === 'proposta' ? { label: 'Em negociação', tone: 'neutral' as const, icon: 'clock' } : CATEGORY_LABEL[cat])} /></span>}
       </Link>
     </li>
   );
@@ -135,7 +121,7 @@ export function AreasView({ subject, progress }: { subject: Subject; progress: M
                 </div>
               </div>
               {trails.length ? (
-                <ul className="list">{trails.map((t) => <TrailRow key={t.id} trail={t} progress={progress} subject={subject} expCount={expCount} />)}</ul>
+                <ul className="list">{trails.map((t) => <TrailRow key={t.id} trail={t} progress={progress} subject={subject} expCount={expCount} filtro={filtro} />)}</ul>
               ) : <p className="faint">Nenhum trilho desta área neste filtro.</p>}
             </section>
           );
