@@ -599,7 +599,7 @@ a.ck-row:hover { background: var(--surface-2); }
   .trail-map { height: 640px; }
   .map-wide { display: block; }
   .map-narrow { display: none; }
-  .track-step { left: calc(var(--xw) - 12%); right: auto; width: 24%; top: var(--yw); text-align: center; }
+  .track-step { left: calc(var(--xw) - 15%); right: auto; width: 30%; top: var(--yw); text-align: center; }
   .track-dot { left: 50%; }
   .track-main { margin: 26px 0 0; }
   .track-head { justify-content: center; flex-direction: column; align-items: center; }

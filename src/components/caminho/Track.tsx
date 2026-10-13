@@ -19,14 +19,18 @@ export interface TrackStep {
 
 type Pt = [number, number];
 
-// Computador: duas filas (ida e volta), em percentagem da largura/altura do mapa.
-const WIDE: Pt[] = [[13, 9], [38, 13], [62, 9], [86, 13], [86, 60], [62, 56], [38, 60], [13, 56]];
-const WIDE_TURN: Pt = [97, 35];
+// Só os marcos vividos na secção (Sinais de Pista e Passagem ficam fora do mapa:
+// acontecem antes de entrar ou ao sair, e não são registados na aplicação).
+const MAP = MILESTONES.filter((m) => m.tracked);
+// Computador: duas filas de três (ida e volta), em percentagem da largura/altura do mapa.
+const WIDE: Pt[] = [[18, 10], [50, 14], [82, 10], [82, 58], [50, 54], [18, 58]];
+const WIDE_TURN: Pt = [96, 34];
+const TURN_AFTER = 3;
 // Telemóvel: trilho vertical com curvas suaves; x em %, y em px (STEP px por marco).
 const STEP = 150;
-const NARROW_X = [10, 22, 10, 22, 10, 22, 10, 22];
+const NARROW_X = [10, 22, 10, 22, 10, 22];
 const narrow = (i: number): Pt => [NARROW_X[i], 34 + i * STEP];
-export const NARROW_HEIGHT = 34 + 7 * STEP + 120;
+export const NARROW_HEIGHT = 34 + (MAP.length - 1) * STEP + 120;
 
 /** Curva suave que passa pelos pontos (Catmull-Rom → Bézier cúbicas). */
 function smooth(pts: Pt[], segments = pts.length - 1): string {
@@ -54,17 +58,17 @@ function MapPath({ d, viewBox, className, done }: { d: string; viewBox: string; 
 }
 
 export function Track({ steps, label }: { steps: Record<MilestoneKey, TrackStep>; label: string }) {
-  const keys = MILESTONES.map((m) => m.key);
+  const keys = MAP.map((m) => m.key);
   const current = keys.findIndex((k) => steps[k].status === 'atual');
   // Parte do trilho já percorrida (só no percurso pessoal, onde há marcos «feitos»).
   const hasDone = keys.some((k) => steps[k].status === 'feito');
-  const wide = [...WIDE.slice(0, 4), WIDE_TURN, ...WIDE.slice(4)];
+  const wide = [...WIDE.slice(0, TURN_AFTER), WIDE_TURN, ...WIDE.slice(TURN_AFTER)];
   const narrowPts = keys.map((_, i) => narrow(i));
   const walked = hasDone && current > 0;
   // Os segmentos percorridos são os mesmos da curva completa (mesmos pontos de controlo).
-  const widePts: Pt[] = [[0, 11], ...wide, [0, 56]];
+  const widePts: Pt[] = [[0, 12], ...wide, [0, 57]];
   const narrowAll: Pt[] = [[16, 0], ...narrowPts, [16, NARROW_HEIGHT]];
-  const wideDone = walked ? smooth(widePts, current + 1 + (current >= 4 ? 1 : 0)) : undefined;
+  const wideDone = walked ? smooth(widePts, current + 1 + (current >= TURN_AFTER ? 1 : 0)) : undefined;
   const narrowDone = walked ? smooth(narrowAll, current + 1) : undefined;
   return (
     <div className="trail-map" style={{ '--nh': `${NARROW_HEIGHT}px` } as CSSProperties}>
@@ -72,7 +76,7 @@ export function Track({ steps, label }: { steps: Record<MilestoneKey, TrackStep>
       <MapPath className="map-narrow" viewBox={`0 0 100 ${NARROW_HEIGHT}`} d={smooth(narrowAll)} done={narrowDone} />
       <MapDoodles narrow={narrowSpots(STEP, 34, NARROW_HEIGHT)} />
       <ol className="track" aria-label={label}>
-        {MILESTONES.map((m, i) => {
+        {MAP.map((m, i) => {
           const s = steps[m.key];
           const [xw, yw] = WIDE[i];
           const [xn, yn] = narrow(i);

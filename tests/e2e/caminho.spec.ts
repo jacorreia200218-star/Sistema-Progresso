@@ -23,7 +23,7 @@ for (const theme of ['light', 'dark'] as const) {
     // O mapa e as explicações estão fechados até se abrirem
     await expect(page.locator('.track')).toBeHidden();
     await page.getByText('Ver o mapa do caminho').click();
-    await expect(page.locator('.track > li')).toHaveCount(8);
+    await expect(page.locator('.track > li')).toHaveCount(6); // só os marcos vividos na secção
     await expect(page.locator('.track [aria-current="step"]')).toContainText('Conhecimento');
     await noHorizontalScroll(page);
     await page.screenshot({ path: `test-results/caminho-meu-${info.project.name}-${theme}.png`, fullPage: true });

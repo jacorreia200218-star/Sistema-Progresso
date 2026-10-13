@@ -125,7 +125,7 @@ export default function Caminho() {
             </section>
             <details className="more">
               <summary>Sobre os marcos do caminho</summary>
-              {MILESTONES.map((m) => (
+              {MILESTONES.filter((m) => m.tracked).map((m) => (
                 <details key={m.key} className="more-inner">
                   <summary>{m.name}</summary>
                   <MilestoneInfo k={m.key} />

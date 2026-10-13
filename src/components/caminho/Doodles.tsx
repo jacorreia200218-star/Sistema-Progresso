@@ -94,9 +94,9 @@ const WIDE_SPOTS: DoodleSpot[] = [
   { kind: 'cloud', at: ['22%', '1%'], delay: 100 },
   { kind: 'birds', at: ['47%', '2%'], delay: 250 },
   { kind: 'cloud', at: ['70%', '0.5%'], scale: 0.8, delay: 400 },
-  { kind: 'pine', at: ['24.5%', '47%'], scale: 0.8, delay: 300 },
-  { kind: 'tree', at: ['48.6%', '46%'], scale: 0.8, delay: 450 },
-  { kind: 'pine', at: ['72.6%', '47%'], scale: 0.85, delay: 600 },
+  { kind: 'pine', at: ['32.6%', '45%'], scale: 0.8, delay: 300 },
+  { kind: 'tree', at: ['34.6%', '47%'], scale: 0.7, delay: 450 },
+  { kind: 'pine', at: ['65.2%', '46%'], scale: 0.85, delay: 600 },
   { kind: 'pine', at: ['4%', '89%'], delay: 500 },
   { kind: 'tree', at: ['9%', '88%'], scale: 0.9, delay: 600 },
   { kind: 'grass', at: ['30%', '95%'], delay: 700 },
@@ -109,7 +109,7 @@ const WIDE_SPOTS: DoodleSpot[] = [
 // Telemóvel: pinheiros à esquerda do trilho quando ele faz curva para a direita,
 // nuvens em cima e o acampamento no fim.
 export function narrowSpots(step: number, top: number, height: number): DoodleSpot[] {
-  const trees: DoodleSpot[] = [1, 3, 5].map((i, n) => ({ kind: n % 2 ? 'tree' : 'pine', at: ['1%', `${top + i * step - 12}px`], scale: 0.7, delay: 200 + n * 150 }));
+  const trees: DoodleSpot[] = [1, 3, 5].filter((i) => top + i * step < height - 100).map((i, n) => ({ kind: n % 2 ? 'tree' : 'pine', at: ['1%', `${top + i * step - 12}px`], scale: 0.7, delay: 200 + n * 150 }));
   return [
     { kind: 'cloud', at: ['58%', '2px'], scale: 0.7, delay: 100 },
     { kind: 'birds', at: ['80%', '10px'], scale: 0.8, delay: 250 },
