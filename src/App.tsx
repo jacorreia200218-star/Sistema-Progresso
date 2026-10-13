@@ -1,4 +1,5 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
+import { lazyPage, RouteBoundary } from './components/RouteBoundary';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { isConfigured } from './lib/supabase';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
@@ -15,21 +16,21 @@ import ConfigMissing from './pages/public/ConfigMissing';
 import NoAccess from './pages/NoAccess';
 import Home from './pages/Home';
 
-const MeuProgresso = lazy(() => import('./pages/MeuProgresso'));
-const TrailPage = lazy(() => import('./pages/TrailPage'));
-const RequestPage = lazy(() => import('./pages/RequestPage'));
-const Historical = lazy(() => import('./pages/Historical'));
-const Experiences = lazy(() => import('./pages/Experiences'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Notifications = lazy(() => import('./pages/Notifications'));
-const Team = lazy(() => import('./pages/Team'));
-const Leaders = lazy(() => import('./pages/Leaders'));
-const MemberDetail = lazy(() => import('./pages/MemberDetail'));
-const Admin = lazy(() => import('./pages/Admin'));
-const Caminho = lazy(() => import('./pages/Caminho'));
-const Trilhos = lazy(() => import('./pages/Trilhos'));
-const Atividade = lazy(() => import('./pages/Atividade'));
-const NotFound = lazy(() => import('./pages/NotFound'));
+const MeuProgresso = lazyPage(() => import('./pages/MeuProgresso'));
+const TrailPage = lazyPage(() => import('./pages/TrailPage'));
+const RequestPage = lazyPage(() => import('./pages/RequestPage'));
+const Historical = lazyPage(() => import('./pages/Historical'));
+const Experiences = lazyPage(() => import('./pages/Experiences'));
+const Profile = lazyPage(() => import('./pages/Profile'));
+const Notifications = lazyPage(() => import('./pages/Notifications'));
+const Team = lazyPage(() => import('./pages/Team'));
+const Leaders = lazyPage(() => import('./pages/Leaders'));
+const MemberDetail = lazyPage(() => import('./pages/MemberDetail'));
+const Admin = lazyPage(() => import('./pages/Admin'));
+const Caminho = lazyPage(() => import('./pages/Caminho'));
+const Trilhos = lazyPage(() => import('./pages/Trilhos'));
+const Atividade = lazyPage(() => import('./pages/Atividade'));
+const NotFound = lazyPage(() => import('./pages/NotFound'));
 
 function LegacyTrail() {
   const { key } = useParams();
@@ -52,7 +53,7 @@ function Authenticated() {
   if (s.error) return <div className="public"><ErrorBox error={s.error} retry={s.refetch} /></div>;
   if (!s.membership || !s.catalog) return <NoAccess />;
   return (
-    <Suspense fallback={<Loading />}>
+    <RouteBoundary>
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
@@ -82,7 +83,7 @@ function Authenticated() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
-    </Suspense>
+    </RouteBoundary>
   );
 }
 
@@ -96,6 +97,8 @@ function Root() {
       <Route path="/recuperar" element={<Forgot />} />
       <Route path="/nova-palavra-passe" element={<ResetPassword />} />
       <Route path="/convite" element={<InviteLanding />} />
+      <Route path="/c" element={<InviteLanding />} />
+      <Route path="/c/:code" element={<InviteLanding />} />
       <Route
         path="/*"
         element={

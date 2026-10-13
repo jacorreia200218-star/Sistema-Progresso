@@ -79,12 +79,13 @@ export interface StageChecklist {
   details: string[];
 }
 
-const STATUS_TEXT: Record<ChecklistStatus, string> = {
+/** Estados de um trilho na etapa: os mesmos textos no mapa, resumo, áreas e página do membro. */
+export const STATUS_TEXT: Record<ChecklistStatus, string> = {
   por_escolher: 'Por escolher',
-  em_negociacao: 'Proposta em negociação',
-  por_concluir: 'Por concluir',
-  submetido: 'Submetido · aguarda a reunião de Equipa',
-  revisao: 'Devolvido · precisa de revisão',
+  em_negociacao: 'Em negociação',
+  por_concluir: 'Em desenvolvimento',
+  submetido: 'A aguardar validação',
+  revisao: 'Precisa de revisão',
   validado: 'Validado',
 };
 

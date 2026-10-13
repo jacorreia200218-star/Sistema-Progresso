@@ -1,29 +1,36 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthProvider';
-import { storeInviteCode } from '../../lib/invite';
+import { formatInviteCode, normalizeInviteCode, storeInviteCode } from '../../lib/invite';
 import { Notice } from '../../components/ui';
 import PublicShell from './PublicShell';
 
 export default function InviteLanding() {
   const { session } = useAuth();
-  const [stored, setStored] = useState(false);
+  const params = useParams();
+  // Ligação curta /c#AB7K-9M2P (ou /c/AB7K9M2P); /convite#… dos convites antigos.
+  // Lido uma só vez (o efeito pode correr duas vezes em desenvolvimento).
+  const [initial] = useState(() => {
+    const raw = decodeURIComponent(params.code ?? window.location.hash.replace(/^#/, '')).trim();
+    return raw ? normalizeInviteCode(raw) : '';
+  });
+  const [stored, setStored] = useState<string | null>(null);
   useEffect(() => {
-    const code = decodeURIComponent(window.location.hash.replace(/^#/, '')).trim();
-    if (code) storeInviteCode(code);
+    if (initial) storeInviteCode(initial);
     // Remove o código da barra de endereço.
     window.history.replaceState(null, '', '/convite');
-    setStored(true);
-  }, []);
-  if (!stored) return null;
+    setStored(initial);
+  }, [initial]);
+  if (stored === null) return null;
   if (session) return <Navigate to="/" replace />;
   return (
     <PublicShell title="Convite">
       <h1>Foste convidado para a secção</h1>
+      {stored && <p>Código do convite: <strong className="invite-code">{formatInviteCode(stored)}</strong></p>}
       <Notice kind="info">
         <p>
-          O convite não substitui a tua conta: cria a tua conta individual (ou entra, se já tiveres) e o pedido de entrada fica a
-          aguardar confirmação da administração.
+          Cria a tua conta individual (ou entra, se já tiveres). Antes de confirmares, vês a secção e a equipa de destino; depois o
+          pedido fica a aguardar a confirmação da administração.
         </p>
       </Notice>
       <div className="btn-row">

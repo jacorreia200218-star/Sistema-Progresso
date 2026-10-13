@@ -567,47 +567,49 @@ a.ck-row:hover { background: var(--surface-2); }
 .stat-label { font-size: 0.86rem; color: var(--ink-soft); }
 .stat-hint { font-size: 0.8rem; color: var(--accent-ink); }
 
-/* Mapa do caminho: trilho desenhado + marcos e pessoas por cima (HTML real) */
+/* Mapa do caminho: marcos numa grelha normal; o trilho é desenhado pelas posições medidas */
 .map-card { padding: 8px; overflow: hidden; }
-.trail-map { position: relative; height: var(--nh); } /* no telemóvel a altura tem de coincidir com o SVG */
-.map-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.map-wide { display: none; }
-.map-path-bg { fill: none; stroke: var(--surface-3); stroke-width: 22px; stroke-linecap: round; stroke-linejoin: round; }
-.map-path { fill: none; stroke: var(--path-edge); stroke-width: 2px; stroke-dasharray: 1.2 1.6; stroke-linecap: round; }
+.trail-map { position: relative; padding: 30px 0 58px; }
+.map-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.map-path-bg { fill: none; stroke: var(--surface-3); stroke-width: 20px; stroke-linecap: round; stroke-linejoin: round; }
+.map-path { fill: none; stroke: var(--path-edge); stroke-width: 2px; stroke-dasharray: 2 7; stroke-linecap: round; }
 .map-path-done { fill: none; stroke: var(--accent); stroke-width: 4px; stroke-linecap: round; opacity: 0.85; }
 @media (prefers-reduced-motion: no-preference) {
-  .map-path-done { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: map-draw 900ms var(--ease) 120ms forwards; }
+  .map-path-done { stroke-dasharray: 4000; stroke-dashoffset: 4000; animation: map-draw 900ms var(--ease) 120ms forwards; }
   .track-step { animation: map-pop 260ms var(--ease) both; animation-delay: calc(var(--i) * 45ms); }
 }
 @keyframes map-draw { to { stroke-dashoffset: 0; } }
 @keyframes map-pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.track { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; }
-.track-step { position: absolute; left: var(--xn); right: 6px; top: var(--yn); }
-.track-dot { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); z-index: 1; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; background: var(--card); border: 2px solid var(--path-edge); color: var(--ink-soft); box-shadow: 0 0 0 4px var(--card); }
+/* Telemóvel: uma coluna; o marco à esquerda, com curvas suaves alternadas */
+.track { list-style: none; margin: 0; padding: 0; position: relative; display: grid; gap: 22px; }
+.track-step { position: relative; padding-left: 66px; min-height: 40px; }
+.track-step:nth-child(even) { padding-left: 86px; }
+.track-dot { position: absolute; left: 30px; top: 10px; transform: translate(-50%, -50%); z-index: 1; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; background: var(--card); border: 2px solid var(--path-edge); color: var(--ink-soft); box-shadow: 0 0 0 4px var(--card); }
+.track-step:nth-child(even) .track-dot { left: 50px; }
 .st-feito .track-dot { background: var(--green-tint); border-color: var(--green-ink); color: var(--green-ink); }
 .st-atual .track-dot { background: var(--accent); border-color: var(--accent); color: var(--on-accent); width: 36px; height: 36px; box-shadow: 0 0 0 5px var(--accent-tint); }
 .st-ocupado .track-dot { border-color: var(--accent); color: var(--accent-ink); }
-.st-info .track-dot { border-style: dashed; width: 24px; height: 24px; font-size: 0.72rem; }
 .st-por_vir .track-dot { border-style: dotted; }
-.track-main { margin: -12px 0 0 28px; min-width: 0; }
-.track-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.track-main { min-width: 0; }
+.track-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-height: 20px; }
 .track-head strong { font-size: 0.95rem; }
 .track-caption { font-size: 0.82rem; color: var(--ink-soft); }
 .st-atual .track-caption, .st-ocupado .track-caption { color: var(--accent-ink); }
-.st-info .track-head strong { font-weight: 400; color: var(--ink-soft); }
+.track-step .people-row { margin-top: 4px; }
+/* Computador: duas filas de três (ida e volta); a 2.ª fila lê-se da direita para a esquerda */
 @media (min-width: 760px) {
-  .trail-map { height: 640px; }
-  .map-wide { display: block; }
-  .map-narrow { display: none; }
-  .track-step { left: calc(var(--xw) - 15%); right: auto; width: 30%; top: var(--yw); text-align: center; }
-  .track-dot { left: 50%; }
-  .track-main { margin: 26px 0 0; }
+  .track { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; row-gap: 46px; }
+  .track-step, .track-step:nth-child(even) { padding: 46px 6px 0; text-align: center; }
+  .track-dot, .track-step:nth-child(even) .track-dot { left: 50%; top: 18px; }
+  .track-step:nth-child(2), .track-step:nth-child(5) { margin-top: 14px; }
+  .track-step:nth-child(4) { grid-column: 3; grid-row: 2; }
+  .track-step:nth-child(5) { grid-column: 2; grid-row: 2; }
+  .track-step:nth-child(6) { grid-column: 1; grid-row: 2; }
   .track-head { justify-content: center; flex-direction: column; align-items: center; }
   .track-step .people-row { justify-content: center; }
 }
-/* Percurso pessoal (dentro de «Ver o mapa do caminho»): mais baixo, só marcos */
+/* Percurso pessoal (em «Ver o mapa do caminho»): só marcos, mais compacto */
 details.more .trail-map { margin: 4px 0 8px; }
-@media (min-width: 760px) { details.more .trail-map { height: 360px; } }
 .people-row { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 6px; margin: 8px 0 2px; padding: 0; align-items: flex-start; }
 .avatar-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px; padding: 2px; background: none; border: 0; border-radius: 10px; cursor: pointer; font: inherit; color: inherit; }
 .avatar-btn .avatar { width: 40px; height: 40px; font-size: 0.85rem; }
@@ -674,7 +676,6 @@ details.more-inner > summary { font-weight: 600; color: var(--ink); }
 /* Frases curtas (objetivos oficiais, estados, próximos passos) não se justificam: evita espaços largos no telemóvel. */
 .main .objective p, .main .next-title, .main .next-line p, .main .list-item p, .main .consult-note, .main .summary p, .main .side-panel p { text-align: left; }
 @media (min-width: 760px) {
-  .trail-map { height: 580px; }
   .track-step .avatar-btn { width: 50px; }
   .track-step .people-row { gap: 6px 2px; }
 }
@@ -692,10 +693,9 @@ details.more-inner > summary { font-weight: 600; color: var(--ink); }
 .doodle .fill-card { fill: var(--card); }
 .doodle .fill-tint { fill: var(--accent-tint); }
 .doodle .fill-amber { fill: var(--amber-tint); }
-.only-wide { display: none; }
-@media (min-width: 760px) { .only-wide { display: block; } .only-narrow { display: none; } .trail-map { height: 620px; } details.more .trail-map { height: 380px; } }
-.here-flag { position: absolute; left: 4px; top: -44px; width: 26px; height: 34px; z-index: 2; }
-@media (min-width: 760px) { .here-flag { left: calc(50% + 6px); } }
+.here-flag { position: absolute; left: 34px; top: -24px; width: 26px; height: 34px; z-index: 2; }
+.track-step:nth-child(even) .here-flag { left: 54px; }
+@media (min-width: 760px) { .here-flag, .track-step:nth-child(even) .here-flag { left: calc(50% + 4px); top: -16px; } }
 .sway, .drift, .flap, .flicker, .wave { transform-box: fill-box; }
 .sway { transform-origin: 50% 100%; }
 .flicker { transform-origin: 50% 100%; }
@@ -719,3 +719,35 @@ details.more-inner > summary { font-weight: 600; color: var(--ink); }
 @keyframes glide { from { translate: -12px 0; } to { translate: 20px -4px; } }
 @keyframes flicker { from { transform: scale(0.94, 0.9); opacity: 0.85; } to { transform: scale(1.04, 1.06); opacity: 1; } }
 @keyframes wave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-5deg) scaleX(0.94); } }
+/* Indicador discreto de carregamento de página */
+.route-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 40; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: route-progress 1s linear infinite; }
+@keyframes route-progress { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+/* Convites */
+.invite-code { font-family: ui-monospace, 'Courier New', monospace; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.08em; }
+.invite-item { padding: 10px 2px; }
+.invite-item + .invite-item { border-top: 1px solid var(--line); }
+.invite-share { margin-top: 8px; }
+.invite-qr { margin-top: 8px; border-radius: 8px; background: #fff; padding: 6px; }
+.invite-dest { font-size: 1.05rem; margin: 2px 0 8px; text-align: left !important; }
+.member-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+/* Vista por equipa */
+.team-table-wrap { overflow-x: auto; padding: 4px 8px; }
+.team-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.team-table th, .team-table td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: center; }
+.team-table thead th { font-size: 0.8rem; color: var(--ink-soft); font-weight: 700; }
+.team-table thead th:first-child, .team-table tbody th { text-align: left; }
+.team-table tbody th { font-weight: 400; }
+.team-table abbr { text-decoration: none; }
+.team-sub { display: block; font-size: 0.78rem; }
+.team-table .cell svg { vertical-align: middle; }
+.cell-empty { color: var(--ink-faint); }
+.link-btn { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; text-align: left; }
+.link-btn:hover { color: var(--accent-ink); text-decoration: underline; }
+.team-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 2px; padding: 0; font-size: 0.8rem; }
+.team-legend li { display: inline-flex; align-items: center; gap: 4px; }
+.fs-por_concluir { color: var(--accent-ink); }
+.fs-por_escolher { color: var(--ink-faint); }
+.person-line { width: 100%; background: none; border: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.team-groups .card { margin-bottom: 8px; }
+.track-tools .segmented { flex: none; }
+.team-table .team-row th { text-align: left; background: var(--surface-2); font-weight: 700; font-size: 0.84rem; padding: 6px 8px; }

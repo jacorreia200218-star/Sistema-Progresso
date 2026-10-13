@@ -109,55 +109,84 @@ export function stageSummary(path: StagePath, catalog: Catalog, p: MemberProgres
 }
 
 export interface NextAction {
+  /** Frase curta, no infinitivo, válida para o próprio e para quem acompanha. */
   title: string;
-  detail: string;
+  detail?: string;
   to?: string;
+  /** Texto do botão, quando há uma ação disponível para quem está a ver. */
+  label?: string;
 }
 
-export function nextAction(catalog: Catalog, p: MemberProgress): NextAction {
+/** Quem está a ver: o próprio pioneiro, um dirigente, o guia da equipa ou outra pessoa. */
+export type Viewer = { kind: 'self' } | { kind: 'dirigente' | 'guia' | 'outro'; membershipId: string };
+
+function joinPt(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
+}
+
+/**
+ * Próximo passo, calculado a partir dos registos reais. Nunca associa nem valida
+ * nada: só indica a ação seguinte e, quando existe, o caminho para a fazer, de
+ * acordo com o papel de quem está a ver (negociação e validação mantêm-se).
+ */
+export function nextAction(catalog: Catalog, p: MemberProgress, viewer: Viewer = { kind: 'self' }): NextAction {
+  const self = viewer.kind === 'self';
+  const leader = viewer.kind === 'dirigente';
+  const memberTo = (tab: string) => (viewer.kind === 'self' ? undefined : `/membros/${viewer.membershipId}?separador=${tab}`);
+  const q = viewer.kind === 'self' ? '' : `pioneiro=${viewer.membershipId}`;
+  const progress = (vista: string, extra = '') => `/meu-progresso?vista=${vista}${extra}${q ? `&${q}` : ''}`;
+  const trailTo = (key: string, hash = '') => `/meu-progresso/trilho/${key}${q ? `?${q}` : ''}${hash}`;
   const name = (key: string) => catalog.trailByKey.get(key)?.name ?? 'trilho';
+
   const returned = p.requests.find((r) => r.status === 'devolvido');
-  if (returned) {
-    return { title: `Rever o pedido de «${name(returned.trail_key)}»`, detail: 'Foi devolvido com comentários. Lê-os e prepara uma nova versão quando estiveres pronto.', to: `/meu-progresso/trilho/${returned.trail_key}#pedido` };
-  }
+  if (returned) return { title: `Rever o pedido de «${name(returned.trail_key)}»`, to: trailTo(returned.trail_key, '#pedido'), label: self ? 'Rever pedido' : 'Ver pedido' };
   const draft = p.requests.find((r) => r.status === 'rascunho');
-  if (draft) {
-    return { title: `Terminar o pedido de «${name(draft.trail_key)}»`, detail: 'Tens um rascunho guardado. Completa a reflexão e submete quando sentires que alcançaste o trilho.', to: `/meu-progresso/trilho/${draft.trail_key}#pedido` };
-  }
-  if (!p.adhesion?.decided_on) {
-    return { title: 'Viver o Início de Pista', detail: 'Estás na adesão (etapa do Desprendimento). Conhece a tua Equipa, a Lei e a mística dos Pioneiros; quando estiveres pronto, diz que queres fazer a Promessa.', to: '/meu-progresso?vista=caminho' };
-  }
-  if (!p.adhesion.commitment_on) {
-    return { title: 'Preparar a Promessa / Investidura', detail: 'A tua adesão foi decidida em Conselho de Guias. Prepara o momento da Promessa/Investidura com a tua Equipa.', to: '/meu-progresso?vista=caminho' };
-  }
+  if (draft) return { title: `Terminar o pedido de «${name(draft.trail_key)}»`, to: trailTo(draft.trail_key, '#pedido'), label: self ? 'Continuar' : 'Ver pedido' };
+  if (!p.adhesion?.decided_on) return { title: 'Viver o Início de Pista', to: leader ? memberTo('historico') : progress('caminho'), label: leader ? 'Registar adesão' : undefined };
+  if (!p.adhesion.commitment_on) return { title: 'Preparar a Promessa / Investidura', to: leader ? memberTo('historico') : progress('caminho'), label: leader ? 'Registar Promessa' : undefined };
+
   const path = openPath(p.paths);
   if (!path) {
     const done = p.paths.filter((x) => x.status === 'concluida').length;
-    if (done >= catalog.stages.filter((s) => s.kind === 'progresso').length) {
-      return p.merit
-        ? { title: 'Continuar a crescer', detail: 'Concluíste as etapas da secção. Ajuda os teus companheiros no seu caminho.' }
-        : { title: 'Etapas concluídas', detail: 'A Equipa de Animação acompanha o reconhecimento final do teu percurso.', to: '/meu-progresso?vista=caminho' };
+    if (done >= catalog.stages.filter((st) => st.kind === 'progresso').length) {
+      return p.merit ? { title: 'Continuar a crescer e ajudar os outros' } : { title: 'Etapas concluídas · falta o reconhecimento final', to: leader ? memberTo('historico') : undefined };
     }
-    return { title: 'Aguardar a próxima etapa', detail: 'A Equipa de Animação vai abrir contigo a próxima etapa e entregar a insígnia.' };
+    return { title: 'Abrir a próxima etapa', detail: 'A Equipa de Animação abre a etapa e entrega a insígnia.', to: leader ? memberTo('etapa') : undefined, label: leader ? 'Abrir etapa' : undefined };
   }
   const s = stageSummary(path, catalog, p);
-  if (s.openRequest) {
-    return { title: 'Etapa em validação', detail: 'O Conselho de Guias e a Equipa de Animação estão a acompanhar a validação da tua etapa.', to: '/meu-progresso?vista=caminho' };
+  if (s.openRequest) return { title: s.openRequest.status === 'submetido' ? 'Etapa no Conselho de Guias' : 'Etapa a aguardar a opinião final', to: leader ? '/acompanhamento/conselho' : undefined, label: leader ? 'Acompanhar' : undefined };
+  if (s.ready) return { title: 'Pedir a validação da etapa', to: leader ? memberTo('etapa') : progress('caminho'), label: 'Pedir validação' };
+
+  // Trilhos já validados/reconhecidos que ainda não estão em nenhuma etapa e que
+  // podem ocupar uma área sem escolha: só contam depois de negociados.
+  const assigned = new Set(p.choices.filter((c) => c.status === 'confirmada' || c.status === 'proposta').map((c) => c.trail_key));
+  const openAreas = new Set(s.slots.filter((slot) => !slot.confirmed && !slot.proposed).map((slot) => slot.area.code));
+  const usable = p.requests.filter(isValidated).map((r) => catalog.trailByKey.get(r.trail_key)).filter((t): t is CatalogTrail => !!t && !assigned.has(t.key))
+    .filter((t) => openAreas.has(catalog.areaById.get(t.area_id)?.code ?? ''));
+  if (usable.length) {
+    return {
+      title: usable.length === 1 ? `Associar «${usable[0].name}» à etapa` : `Associar ${usable.length} trilhos reconhecidos à etapa`,
+      detail: 'Já estão validados mas ainda não contam para a etapa: a associação faz-se na negociação com a Equipa de Animação.',
+      to: leader ? memberTo('etapa') : self ? progress('areas', '&filtro=validado') : undefined,
+      label: leader ? 'Rever e propor' : self ? 'Ver trilhos reconhecidos' : undefined,
+    };
   }
-  if (s.ready) {
-    return { title: 'Pedir a validação da etapa', detail: 'Tens um trilho validado em cada área. Podes pedir a validação da etapa ao Conselho de Guias.', to: '/meu-progresso?vista=caminho' };
+
+  const missing = s.slots.filter((slot) => !slot.confirmed && !slot.proposed);
+  if (missing.length) {
+    return {
+      title: missing.length === catalog.areas.length ? 'Escolher um trilho em cada área' : `Escolher trilho em ${joinPt(missing.map((m) => m.area.name))}`,
+      to: progress('areas', missing.length === 1 ? `&area=${missing[0].area.code}` : ''),
+      label: 'Ver áreas',
+    };
   }
-  const missing = s.slots.find((slot) => !slot.confirmed && !slot.proposed);
-  if (missing) {
-    return { title: `Escolher um trilho de ${missing.area.name}`, detail: 'Lê os trilhos da área e propõe à Equipa de Animação aquele em que precisas de crescer.', to: `/meu-progresso?vista=areas&area=${missing.area.code}` };
-  }
-  const toWork = s.slots.find((slot) => slot.confirmed && !slot.validated && !activeRequest(p.requests, slot.confirmed.trail_key));
-  if (toWork?.trail) {
-    return { title: `Caminhar no trilho «${toWork.trail.name}»`, detail: 'Vive as oportunidades que escolheste. Quando sentires que alcançaste os objetivos, pede a validação.', to: `/meu-progresso/trilho/${toWork.trail.key}` };
-  }
-  const waitingChoice = s.slots.find((slot) => slot.proposed);
-  if (waitingChoice) {
-    return { title: 'Proposta em negociação', detail: 'A Equipa de Animação vai conversar contigo sobre a tua proposta de trilho.', to: '/meu-progresso?vista=caminho' };
-  }
-  return { title: 'Pedidos em análise', detail: 'Os teus pedidos aguardam a reunião de Equipa.', to: '/meu-progresso?vista=pedidos' };
+  const proposed = s.slots.filter((slot) => slot.proposed && !slot.confirmed);
+  if (proposed.length) return { title: 'Negociar as propostas de trilho', to: leader ? '/acompanhamento/negociacao' : undefined, label: leader ? 'Negociar' : undefined };
+  const revise = s.slots.find((slot) => slot.state === 'devolvido');
+  if (revise?.trail) return { title: `Rever o pedido de «${revise.trail.name}»`, to: trailTo(revise.trail.key, '#pedido'), label: 'Ver pedido' };
+  const toWork = s.slots.filter((slot) => slot.confirmed && !slot.validated && !activeRequest(p.requests, slot.confirmed.trail_key));
+  if (toWork.length === 1 && toWork[0].trail) return { title: `Caminhar no trilho «${toWork[0].trail.name}»`, to: trailTo(toWork[0].trail.key), label: 'Abrir trilho' };
+  if (toWork.length > 1) return { title: `Caminhar nos trilhos de ${joinPt(toWork.map((x) => x.area.name))}`, to: progress('areas', '&filtro=em_desenvolvimento'), label: 'Ver trilhos' };
+  return { title: 'Aguardar a reunião de Equipa', to: progress('pedidos', '&pfiltro=aguarda'), label: 'Ver pedidos' };
 }

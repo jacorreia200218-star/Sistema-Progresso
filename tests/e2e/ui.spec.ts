@@ -138,7 +138,7 @@ test('dirigente e administração', async ({ page }, info) => {
   expect(mock.calls.find((c) => c.fn === 'set_historical_progress')?.body).toMatchObject({ p_enabled: false });
   await page.screenshot({ path: `test-results/gestao-${info.project.name}.png`, fullPage: true });
 
-  await page.goto('/membros/m-p1');
+  await page.goto('/membros/m-p1?separador=historico');
   await expect(page.getByRole('heading', { name: 'Início de Pista e Promessa' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Anilha de mérito' })).toBeVisible();
   await expect(page.getByText('Ainda não elegível').first()).toBeVisible();

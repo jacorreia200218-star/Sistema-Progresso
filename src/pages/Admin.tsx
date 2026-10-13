@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Copy } from 'lucide-react';
 import { useActiveSection } from '../lib/session';
 import { useMembers, useTeams } from '../lib/hooks';
 import { call, fetchInvites, fetchMembershipHistory, fetchSettingsHistory, type MemberRow } from '../lib/api';
 import { useAction } from '../lib/useAction';
-import { inviteLink } from '../lib/invite';
 import { formatDate, formatDateTime, functionLabel, memberStatusLabel } from '../lib/labels';
 import type { MemberFunction, Team } from '../lib/types';
 import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
+import { InviteShare } from '../components/InviteShare';
 
 const TABS = [
   ['membros', 'Membros'],
@@ -262,64 +261,71 @@ function Teams() {
 function Invites() {
   const { membership } = useActiveSection();
   const q = useQuery({ queryKey: ['invites', membership.section_id], queryFn: () => fetchInvites(membership.section_id) });
+  const teams = useTeams(membership.section_id);
   const action = useAction();
   const [label, setLabel] = useState('');
   const [days, setDays] = useState(14);
   const [uses, setUses] = useState(10);
-  const [created, setCreated] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [team, setTeam] = useState('');
+  const teamName = (id: string | null) => (id ? teams.data?.find((t) => t.id === id)?.name ?? 'Equipa' : null);
 
   async function create() {
-    setCreated(null);
-    setCopied(false);
     const expires = new Date(Date.now() + days * 86400_000).toISOString();
-    const r = await action.run(() => call<string>('create_invite', { p_section: membership.section_id, p_label: label, p_expires_at: expires, p_max_uses: uses }), 'Convite criado.');
-    if (r.ok && r.value) setCreated(r.value);
+    await action.run(() => call<string>('create_invite', { p_section: membership.section_id, p_label: label, p_expires_at: expires, p_max_uses: uses, p_team: team || null }), 'Convite criado.');
   }
 
   return (
     <>
-      <div className="card">
-        <h2>Novo convite</h2>
-        <p className="faint">O convite permite pedir entrada; não substitui a conta individual e cada pedido continua a precisar da tua confirmação.</p>
+      <details className="card">
+        <summary className="row" style={{ cursor: 'pointer' }}><strong>Novo convite</strong></summary>
+        <p className="faint" style={{ marginTop: 8 }}>O convite permite pedir entrada; cada pessoa usa a sua conta e o pedido continua a precisar da tua confirmação. Nunca dá funções de dirigente nem de administração.</p>
         <ErrorBox error={action.error} />
+        {action.success && <Notice kind="success">{action.success}</Notice>}
         <Field label="Descrição (para ti)" htmlFor="il"><input id="il" type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex.: Pioneiros 2026/27" /></Field>
+        <Field label="Destino" htmlFor="it">
+          <select id="it" value={team} onChange={(e) => setTeam(e.target.value)}>
+            <option value="">Secção (a pessoa indica a equipa)</option>
+            {(teams.data ?? []).filter((t) => !t.archived_at).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </Field>
         <div className="grid-2">
           <Field label="Validade (dias)" htmlFor="id"><input id="id" type="number" min={1} max={180} value={days} onChange={(e) => setDays(Number(e.target.value))} /></Field>
-          <Field label="Limite de usos" htmlFor="iu"><input id="iu" type="number" min={1} max={500} value={uses} onChange={(e) => setUses(Number(e.target.value))} /></Field>
+          <Field label="Limite de utilizações" htmlFor="iu"><input id="iu" type="number" min={1} max={500} value={uses} onChange={(e) => setUses(Number(e.target.value))} /></Field>
         </div>
         <button type="button" className="btn" disabled={action.busy || days < 1 || uses < 1} onClick={create}>Criar convite</button>
-        {created && (
-          <Notice kind="success">
-            <p><strong>Copia agora:</strong> por segurança, o código só é mostrado uma vez.</p>
-            <p style={{ wordBreak: 'break-all' }}><code>{inviteLink(created)}</code></p>
-            <p>Código: <code>{created}</code></p>
-            <button type="button" className="btn secondary" onClick={() => navigator.clipboard?.writeText(inviteLink(created)).then(() => setCopied(true))}>
-              <Copy size={18} aria-hidden="true" /> {copied ? 'Copiado' : 'Copiar link'}
-            </button>
-          </Notice>
-        )}
-      </div>
+      </details>
       <h2 className="section-title">Convites</h2>
       <div className="card">
         {q.isLoading ? <Loading /> : !(q.data ?? []).length ? <Empty title="Ainda não criaste convites." /> : (
           <ul className="list">
             {(q.data ?? []).map((i) => {
               const expired = new Date(i.expires_at) <= new Date();
-              const state = i.revoked_at ? 'Revogado' : expired ? 'Expirado' : i.use_count >= i.max_uses ? 'Esgotado' : 'Ativo';
+              const state = i.revoked_at ? (i.replaced_by ? 'Substituído' : 'Revogado') : expired ? 'Expirado' : i.use_count >= i.max_uses ? 'Esgotado' : 'Ativo';
+              const active = state === 'Ativo';
               return (
-                <li key={i.id} className="list-item">
-                  <span className="grow">
-                    <strong>{i.label || 'Convite'}</strong>
-                    <br />
-                    <span className="faint">{i.use_count}/{i.max_uses} usos · válido até {formatDateTime(i.expires_at)}</span>
-                  </span>
-                  <Badge label={state} tone={state === 'Ativo' ? 'ok' : 'muted'} icon={state === 'Ativo' ? 'check' : 'x'} />
-                  {state === 'Ativo' && (
-                    <ConfirmButton className="btn ghost" confirmLabel="Revogar" onConfirm={() => action.run(() => call('revoke_invite', { p_invite: i.id }), 'Convite revogado.')}>
-                      Revogar
-                    </ConfirmButton>
-                  )}
+                <li key={i.id} className="invite-item">
+                  <div className="row between">
+                    <span className="grow">
+                      <strong>{i.label || 'Convite'}</strong>
+                      <br />
+                      <span className="faint">{teamName(i.team_id) ?? 'Secção'} · {i.use_count}/{i.max_uses} utilizações · válido até {formatDate(i.expires_at)}</span>
+                    </span>
+                    <Badge label={state} tone={active ? 'ok' : 'muted'} icon={active ? 'check' : 'x'} />
+                  </div>
+                  {active && (i.code ? <InviteShare code={i.code} /> : <p className="faint">Convite antigo (código longo, mostrado só na criação). Gera um novo para teres um código curto.</p>)}
+                  <div className="btn-row">
+                    {(active || state === 'Esgotado' || state === 'Expirado') && (
+                      <ConfirmButton className="btn ghost" confirmLabel="Gerar novo" description="Cria um código novo com as mesmas condições e revoga este."
+                        onConfirm={() => action.run(() => call('regenerate_invite', { p_invite: i.id }), 'Novo convite gerado; o anterior foi revogado.')}>
+                        Gerar novo
+                      </ConfirmButton>
+                    )}
+                    {active && (
+                      <ConfirmButton className="btn ghost" confirmLabel="Revogar" onConfirm={() => action.run(() => call('revoke_invite', { p_invite: i.id }), 'Convite revogado.')}>
+                        Revogar
+                      </ConfirmButton>
+                    )}
+                  </div>
                 </li>
               );
             })}

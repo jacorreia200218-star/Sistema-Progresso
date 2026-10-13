@@ -50,7 +50,8 @@ function MemberHome() {
       <section className="card next-step" aria-labelledby="h-next">
         <h2 id="h-next" className="faint-title">Próximo passo</h2>
         <p className="next-title">{action.title}</p>
-        {action.to && <Link to={action.to} className="btn">Continuar <ArrowRight size={16} aria-hidden="true" /></Link>}
+        {action.detail && <p className="faint">{action.detail}</p>}
+        {action.to && <Link to={action.to} className="btn">{action.label ?? 'Continuar'} <ArrowRight size={16} aria-hidden="true" /></Link>}
       </section>
 
       {isGuia && (

@@ -142,7 +142,7 @@ export function leader(): Persona {
       section_settings: [{ section_id: 'sec1', historical_progress_enabled: true, updated_by: null, updated_at: now }],
       settings_history: [],
       membership_history: [],
-      invites: [{ id: 'i1', label: 'Pioneiros 2026/27', expires_at: new Date(Date.now() + 864e6).toISOString(), max_uses: 20, use_count: 3, revoked_at: null, created_at: now }],
+      invites: [{ id: 'i1', section_id: 'sec1', code: 'AB7K9M2P', team_id: null, replaced_by: null, label: 'Pioneiros 2026/27', expires_at: new Date(Date.now() + 864e6).toISOString(), max_uses: 20, use_count: 3, revoked_at: null, created_at: now }],
       catalog_versions: [c.version],
       catalog_areas: c.areas,
       catalog_stages: c.stages,
@@ -157,6 +157,19 @@ export function leader(): Persona {
         { at: now, kind: 'validado_equipa', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Desempenho', ref: 'r-ok' },
         { at: now, kind: 'etapa_aberta', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Conhecimento', ref: 'path1' },
       ],
+    },
+  };
+}
+
+/** Conta criada, ainda sem secção (vai usar um convite). */
+export function newUser(): Persona {
+  const c = buildCatalog();
+  return {
+    userId: 'u-novo',
+    tables: { profiles: [profiles.novo], memberships: [], catalog_versions: [c.version], catalog_areas: c.areas, catalog_stages: c.stages, notifications: [] },
+    rpc: {
+      invite_preview: { ok: true, section: 'Pioneiros (teste)', group: 'Agrupamento de teste', team: 'Equipa Bússola', already: false },
+      join_section: { ok: true, membership_id: 'm-novo' },
     },
   };
 }

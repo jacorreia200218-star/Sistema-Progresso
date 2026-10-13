@@ -1,66 +1,151 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { memberPosition, milestoneByKey, STATE_LABEL } from '../lib/caminho';
 import { useQuery } from '@tanstack/react-query';
 import { useActiveSection } from '../lib/session';
 import { useMembers, useProgress, useTeams } from '../lib/hooks';
 import { call, fetchMeritStatus, type MemberRow } from '../lib/api';
 import { useAction } from '../lib/useAction';
-import { openPath, stageSummary, trailState } from '../lib/progress';
-import { formatDate, functionLabel, todayIso, trailStateLabel } from '../lib/labels';
+import { nextAction, openPath, stageSummary } from '../lib/progress';
+import { CATEGORY_LABEL, progressCounts, trailCategory } from '../lib/meuprogresso';
+import { formatDate, functionLabel, todayIso } from '../lib/labels';
 import type { MemberProgress, StagePath } from '../lib/types';
-import { Avatar, Badge, ConfirmButton, ErrorBox, Field, Loading, Meter, Notice, PageTitle } from '../components/ui';
+import { Avatar, Badge, ConfirmButton, ErrorBox, Field, Loading, Meter, Notice } from '../components/ui';
+import { Crumbs } from '../components/nav';
+import { FaceisSummary } from '../components/caminho/Faceis';
 import { StagePanel, stageName } from '../components/StagePanel';
 import { RequestList } from '../components/RequestList';
 import { ChoiceDecision } from './Leaders';
 import NotFound from './NotFound';
 import { TrailPicker } from '../components/TrailPicker';
 
+const TABS = [
+  { key: 'resumo', label: 'Resumo' },
+  { key: 'etapa', label: 'Etapa' },
+  { key: 'trilhos', label: 'Trilhos' },
+  { key: 'historico', label: 'Histórico' },
+] as const;
+type TabKey = (typeof TABS)[number]['key'];
+
 export default function MemberDetail() {
   const { id } = useParams();
   const s = useActiveSection();
+  const [params, setParams] = useSearchParams();
   const members = useMembers(s.membership.section_id);
   const teams = useTeams(s.membership.section_id);
   const q = useProgress(id);
+  const tab = (TABS.find((t) => t.key === params.get('separador'))?.key ?? 'resumo') as TabKey;
   if (members.isLoading || q.isLoading) return <Loading />;
   const member = members.data?.find((m) => m.id === id);
   if (!member || q.error || !q.data) return q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : <NotFound />;
   const p = q.data;
   const team = teams.data?.find((t) => t.id === member.team_id);
-  const summaries = [...p.paths].sort((a, b) => a.stage_ordinal - b.stage_ordinal).map((x) => stageSummary(x, s.catalog, p));
-  const open = openPath(p.paths);
-  const proposals = p.choices.filter((c) => c.status === 'proposta');
+  const pos = memberPosition(p, s.catalog);
+  const name = member.profiles?.full_name ?? 'Membro';
+  const setTab = (k: TabKey) => {
+    const next = new URLSearchParams(params);
+    next.set('separador', k);
+    setParams(next, { replace: true });
+  };
 
   return (
     <>
-      <PageTitle title={member.profiles?.full_name ?? 'Membro'} back={true} />
-      <div className="card row">
-        <Avatar name={member.profiles?.full_name ?? '?'} photoPath={member.profiles?.photo_path} size="lg" />
+      <Crumbs items={[{ label: 'Início', to: '/' }, { label: 'Caminho da secção', to: '/caminho' }, { label: name }]} />
+      <header className="member-head">
+        <Avatar name={name} photoPath={member.profiles?.photo_path} size="lg" />
         <div className="grow">
-          {member.profiles?.totem && <p style={{ margin: 0 }}>{member.profiles.totem}</p>}
-          <p className="faint" style={{ margin: 0 }}>{member.function ? functionLabel[member.function] : ''}{team ? ` · ${team.name}` : ''}</p>
-          {(() => {
-            const pos = memberPosition(p, s.catalog);
-            return (
-              <Link to={`/caminho?vista=seccao&marco=${pos.milestone}&pessoa=${member.id}`} className="stage-chip" style={{ marginTop: 6 }}>
-                {milestoneByKey[pos.milestone].short} · {STATE_LABEL[pos.state].label}
-              </Link>
-            );
-          })()}
+          <h1 style={{ margin: 0 }}>{name}</h1>
+          <p className="faint" style={{ margin: 0 }}>
+            {[member.profiles?.totem, member.function ? functionLabel[member.function] : null, team?.name].filter(Boolean).join(' · ')}
+          </p>
+          <Link to={`/caminho?pessoa=${member.id}`} className="stage-chip" style={{ marginTop: 6 }}>
+            {milestoneByKey[pos.milestone].short} · {STATE_LABEL[pos.state].label}
+          </Link>
+        </div>
+      </header>
+
+      <div className="tabs" role="tablist" aria-label="Separadores do percurso">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" role="tab" className="tab" id={`sep-${t.key}`} aria-controls="sep-painel" aria-selected={tab === t.key} onClick={() => setTab(t.key)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id="sep-painel" aria-labelledby={`sep-${tab}`}>
+        {tab === 'resumo' && <SummaryTab member={member} progress={p} />}
+        {tab === 'etapa' && <StageTab member={member} progress={p} />}
+        {tab === 'trilhos' && <TrailsTab member={member} progress={p} />}
+        {tab === 'historico' && <HistoryTab member={member} progress={p} />}
+      </div>
+    </>
+  );
+}
+
+/** Resumo: etapa atual, seis áreas e próximo passo (o resto está nos outros separadores). */
+function SummaryTab({ member, progress }: { member: MemberRow; progress: MemberProgress }) {
+  const s = useActiveSection();
+  const counts = progressCounts(s.catalog, progress);
+  const next = nextAction(s.catalog, progress, { kind: s.isDirigente ? 'dirigente' : 'guia', membershipId: member.id });
+  return (
+    <section className="card summary">
+      <div className="summary-cols">
+        <div>
+          <h2>Etapa atual</h2>
+          <p className="summary-main">{counts.stage?.name ?? 'Sem etapa aberta'}</p>
+          {counts.stage && <p className="faint">{counts.stage.validated} de {counts.stage.areas} áreas com trilho validado nesta etapa</p>}
+        </div>
+        <div>
+          <h2>Histórico reconhecido</h2>
+          <p className="summary-main">{counts.validated} {counts.validated === 1 ? 'trilho validado' : 'trilhos validados'}</p>
+          {counts.unassigned.length > 0 && <p className="faint">{counts.unassigned.length} sem etapa associada</p>}
         </div>
       </div>
+      <h3 className="summary-sub">Áreas FACEIS</h3>
+      <FaceisSummary catalog={s.catalog} progress={progress} trailHref={(k) => `/meu-progresso/trilho/${k}?pioneiro=${member.id}`} />
+      <div className="next-line">
+        <span className="faint">Próximo passo do pioneiro</span>
+        <p style={{ margin: 0 }}><strong>{next.title}</strong></p>
+        {next.detail && <p className="faint" style={{ margin: '2px 0 0' }}>{next.detail}</p>}
+        {next.to && next.label && <Link to={next.to} className="btn" style={{ marginTop: 6 }}>{next.label}</Link>}
+      </div>
+    </section>
+  );
+}
 
-      <AdhesionCard member={member} progress={p} />
-
-      {summaries.map((sum) => (
-        <div key={sum.path.id}>
+/** Etapa em curso: escolhas, negociação, trilhos reconhecidos por associar e ações. */
+function StageTab({ member, progress: p }: { member: MemberRow; progress: MemberProgress }) {
+  const s = useActiveSection();
+  const open = openPath(p.paths);
+  const sum = open ? stageSummary(open, s.catalog, p) : null;
+  const proposals = p.choices.filter((c) => c.status === 'proposta');
+  const counts = progressCounts(s.catalog, p);
+  return (
+    <>
+      {sum ? (
+        <>
           <StagePanel summary={sum} catalog={s.catalog} />
           {s.isDirigente && <StageActions path={sum.path} />}
           {sum.ready && (s.isDirigente || s.isGuia) && <RequestStage pathId={sum.path.id} />}
-        </div>
-      ))}
+        </>
+      ) : (
+        <div className="card"><p className="faint" style={{ margin: 0 }}>Sem etapa em curso.</p></div>
+      )}
       {s.isDirigente && member.status === 'ativo' && !open && p.adhesion?.decided_on && p.adhesion.commitment_on && <OpenStage member={member} progress={p} />}
-      {s.isDirigente && member.status === 'ativo' && p.adhesion?.commitment_on && <RecognizeInNegotiation member={member} progress={p} />}
+
+      {open && counts.unassigned.length > 0 && (
+        <section className="card" aria-labelledby="h-sem-etapa">
+          <h2 id="h-sem-etapa">Trilhos reconhecidos sem etapa</h2>
+          <p className="faint">Já estão validados mas só contam para a etapa depois de propostos e confirmados na negociação. Nada é associado automaticamente.</p>
+          <ul className="list">
+            {counts.unassigned.map((t) => (
+              <li key={t.id} className="list-item">
+                <span className="grow">{t.name} <span className="faint">· {s.catalog.areaById.get(t.area_id)?.name}</span></span>
+                {s.isDirigente && <ProposeOne pathId={open.id} trailId={t.id} progress={p} areaCode={s.catalog.areaById.get(t.area_id)?.code ?? ''} />}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {s.isDirigente && proposals.length > 0 && (
         <>
@@ -71,32 +156,72 @@ export default function MemberDetail() {
         </>
       )}
       {s.isDirigente && open && <ProposeForMember pathId={open.id} progress={p} />}
+      {s.isDirigente && member.status === 'ativo' && p.adhesion?.commitment_on && <RecognizeInNegotiation member={member} progress={p} />}
+    </>
+  );
+}
 
-      <h2 className="section-title">Trilhos</h2>
-      <div className="card">
-        {s.catalog.areas.map((a) => (
-          <div key={a.id} style={{ marginBottom: 10 }}>
-            <strong>{a.name}</strong>
-            <ul className="list">
-              {a.catalog_trails.map((t) => {
-                const st = trailState(t, p);
-                return (
-                  <li key={t.id} className="list-item" style={{ minHeight: 44 }}>
+/** Proposta direta de um trilho já reconhecido para a etapa (fica a aguardar a negociação). */
+function ProposeOne({ pathId, trailId, progress, areaCode }: { pathId: string; trailId: string; progress: MemberProgress; areaCode: string }) {
+  const action = useAction();
+  const areaTaken = progress.choices.some((c) => c.stage_path_id === pathId && c.area_code === areaCode && (c.status === 'confirmada' || c.status === 'proposta'));
+  if (action.success) return <span className="faint">Proposto</span>;
+  if (areaTaken) return <span className="faint">Área já com trilho</span>;
+  return (
+    <>
+      {action.error && <span className="faint" role="alert">{String(action.error)}</span>}
+      <button type="button" className="btn secondary" disabled={action.busy}
+        onClick={() => action.run(() => call('propose_choice', { p_stage_path: pathId, p_trail: trailId, p_planned: null, p_replaces: null }), 'Proposto.')}>
+        Propor para a etapa
+      </button>
+    </>
+  );
+}
+
+/** Catálogo pessoal: os 18 trilhos com o estado de cada um. */
+function TrailsTab({ member, progress }: { member: MemberRow; progress: MemberProgress }) {
+  const s = useActiveSection();
+  return (
+    <div className="card">
+      {s.catalog.areas.map((a) => (
+        <div key={a.id} style={{ marginBottom: 8 }}>
+          <h3 className="row" style={{ margin: '6px 0 0' }}><span className="area-code" aria-hidden="true">{a.code}</span> {a.name}</h3>
+          <ul className="list">
+            {a.catalog_trails.map((t) => {
+              const cat = trailCategory(t, progress);
+              return (
+                <li key={t.id}>
+                  <Link to={`/meu-progresso/trilho/${t.key}?pioneiro=${member.id}`} className="list-item">
                     <span className="grow">{t.name}</span>
-                    <Badge {...trailStateLabel[st.state]} />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </div>
+                    <Badge {...CATEGORY_LABEL[cat]} />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
+/** Histórico: adesão, Promessa, etapas concluídas, pedidos, reconhecimentos e mérito. */
+function HistoryTab({ member, progress: p }: { member: MemberRow; progress: MemberProgress }) {
+  const s = useActiveSection();
+  const done = [...p.paths].filter((x) => x.status === 'concluida').sort((a, b) => a.stage_ordinal - b.stage_ordinal);
+  return (
+    <>
+      <AdhesionCard member={member} progress={p} />
+      {done.map((path) => (
+        <div key={path.id}>
+          <StagePanel summary={stageSummary(path, s.catalog, p)} catalog={s.catalog} />
+          {s.isDirigente && <StageActions path={path} />}
+        </div>
+      ))}
       <h2 className="section-title">Pedidos</h2>
       <div className="card">
-        {p.requests.length ? <RequestList requests={p.requests} catalog={s.catalog} base="/revisoes/pedido" /> : <p className="faint">Sem pedidos.</p>}
+        {p.requests.length ? <RequestList requests={p.requests} catalog={s.catalog} base="/revisoes/pedido" /> : <p className="faint" style={{ margin: 0 }}>Sem pedidos.</p>}
       </div>
-
       <div id="merito" />
       <MeritPanel member={member} progress={p} />
     </>
@@ -114,6 +239,10 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
   const [historical, setHistorical] = useState(a?.is_historical ?? false);
   const [editing, setEditing] = useState(false);
   const complete = !!a?.decided_on;
+  // Só assinala; nunca corrige dados existentes automaticamente.
+  const outOfOrder = !!(a?.decided_on && a.commitment_on && a.commitment_on < a.decided_on);
+  const formOutOfOrder = !!(commitment && decided && commitment < decided);
+  const needsNotes = (formOutOfOrder || historical) && !notes.trim();
   return (
     <section className="card">
       <h2>Início de Pista e Promessa</h2>
@@ -121,8 +250,14 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
         <dt>Perfil traçado (Equipa de Animação)</dt><dd>{a?.profile_traced_on ? formatDate(a.profile_traced_on) : 'Por registar'}</dd>
         <dt>Decisão sobre a adesão (Conselho de Guias)</dt><dd>{a?.decided_on ? formatDate(a.decided_on) : 'Pendente'}</dd>
         <dt>Promessa / Investidura</dt><dd>{a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</dd>
-        {a?.is_historical && (<><dt>Origem</dt><dd>Registo anterior</dd></>)}
+        {a?.is_historical && (<><dt>Origem</dt><dd>Registo retroativo</dd></>)}
+        {a?.recorded_at && (<><dt>Registado em</dt><dd>{formatDate(a.recorded_at)}</dd></>)}
       </dl>
+      {outOfOrder && (
+        <Notice kind="warn">
+          <p>A Promessa ({formatDate(a!.commitment_on)}) está registada antes da decisão sobre a adesão ({formatDate(a!.decided_on)}). Normalmente acontece depois (pp. 7 e 10). Revê as datas{a?.notes ? '; a fundamentação está nas notas.' : ' ou fundamenta o registo nas notas.'}</p>
+        </Notice>
+      )}
       {a?.notes && <div className="quote" style={{ marginTop: 8 }}>{a.notes}</div>}
       {s.isDirigente && (
         <>
@@ -149,9 +284,11 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
                 <Field label="Data da decisão sobre a adesão" htmlFor="ad-d"><input id="ad-d" type="date" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
                 <Field label="Promessa / Investidura (se já aconteceu)" htmlFor="ad-c"><input id="ad-c" type="date" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
               </div>
-              <Field label="Notas (opcional)" htmlFor="ad-n"><textarea id="ad-n" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ minHeight: 70 }} /></Field>
-              <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Registo de adesão anterior à aplicação</label>
-              <button type="button" className="btn" disabled={action.busy || !decided}
+              <p className="faint">As datas são as do acontecimento; a data em que fica registado é guardada à parte.</p>
+              {formOutOfOrder && <Notice kind="warn"><p>A Promessa fica antes da decisão sobre a adesão. Confirma as datas ou explica nas notas por que razão o registo é assim.</p></Notice>}
+              <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Registo retroativo (anterior à aplicação)</label>
+              <Field label={formOutOfOrder || historical ? 'Fundamentação (obrigatória)' : 'Notas (opcional)'} htmlFor="ad-n"><textarea id="ad-n" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ minHeight: 70 }} /></Field>
+              <button type="button" className="btn" disabled={action.busy || !decided || needsNotes}
                 onClick={async () => {
                   const r = await action.run(() => call('record_adhesion', { p_membership: member.id, p_decided_on: decided, p_commitment_on: commitment || null, p_notes: notes, p_is_historical: historical }), 'Registo guardado.');
                   if (r.ok) setEditing(false);
@@ -286,18 +423,18 @@ function ProposeForMember({ pathId, progress }: { pathId: string; progress: Memb
   const options = s.catalog.areas.filter((a) => !takenAreas.has(a.code));
   if (!options.length) return null;
   return (
-    <section className="card flat">
-      <h3>Propor trilho para a etapa</h3>
-      <p className="faint">Inclui trilhos já validados ou reconhecidos que queiras atribuir a esta etapa (sem contar duas vezes).</p>
+    <details className="card flat">
+      <summary>Propor trilho para a etapa</summary>
+      <p className="faint">Inclui trilhos já validados ou reconhecidos que queiras atribuir a esta etapa (sem contar duas vezes). A proposta fica a aguardar a negociação.</p>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
       <TrailPicker catalog={s.catalog} id="pt" value={trail} onChange={setTrail} areas={options} available={(t) => !used.has(t.key)}
-        describe={(t) => trailStateLabel[trailState(t, progress).state].label.toLowerCase()} />
+        describe={(t) => CATEGORY_LABEL[trailCategory(t, progress)].label.toLowerCase()} />
       <button type="button" className="btn secondary" disabled={!trail || action.busy}
         onClick={async () => { const r = await action.run(() => call('propose_choice', { p_stage_path: pathId, p_trail: trail, p_planned: null, p_replaces: null }), 'Proposta criada; confirma-a em «Propostas por negociar».'); if (r.ok) setTrail(''); }}>
         Propor
       </button>
-    </section>
+    </details>
   );
 }
 

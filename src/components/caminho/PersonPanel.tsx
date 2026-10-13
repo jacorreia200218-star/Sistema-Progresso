@@ -6,12 +6,11 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchMemberProgress, type PathMember } from '../../lib/api';
 import { memberPosition, milestoneByKey, STATE_LABEL } from '../../lib/caminho';
 import { nextAction } from '../../lib/progress';
-import { stageChecklist } from '../../lib/meuprogresso';
 import type { Catalog } from '../../lib/types';
 import { Avatar, ErrorBox, Loading } from '../ui';
 import { FaceisSummary } from './Faceis';
 
-export function PersonPanelBody({ member, catalog, teamName }: { member: PathMember; catalog: Catalog; teamName: (id: string | null) => string }) {
+export function PersonPanelBody({ member, catalog, teamName, role }: { member: PathMember; catalog: Catalog; teamName: (id: string | null) => string; role: 'dirigente' | 'guia' | 'outro' }) {
   const q = useQuery({ queryKey: ['progress', member.membership_id], queryFn: () => fetchMemberProgress(member.membership_id) });
   const self = member.is_me;
   const base = self ? '/meu-progresso' : `/meu-progresso?pioneiro=${member.membership_id}`;
@@ -29,8 +28,7 @@ export function PersonPanelBody({ member, catalog, teamName }: { member: PathMem
       {q.isLoading ? <Loading rows={2} compact /> : q.error || !q.data ? <ErrorBox error={q.error ?? 'Sem acesso a este percurso.'} /> : (() => {
         const p = q.data;
         const pos = memberPosition(p, catalog);
-        const check = stageChecklist(catalog, p);
-        const action = nextAction(catalog, p);
+        const action = nextAction(catalog, p, self ? { kind: 'self' } : { kind: role, membershipId: member.membership_id });
         return (
           <>
             <dl className="meta">
@@ -40,7 +38,8 @@ export function PersonPanelBody({ member, catalog, teamName }: { member: PathMem
             <FaceisSummary catalog={catalog} progress={p} compact />
             <div className="next-line">
               <span className="faint">{self ? 'O teu próximo passo' : 'Próximo passo do pioneiro'}</span>
-              <p style={{ margin: 0 }}><strong>{check && check.summary.path.status !== 'concluida' ? check.headline : action.title}</strong></p>
+              <p style={{ margin: 0 }}><strong>{action.title}</strong></p>
+              {action.to && action.label && <Link to={action.to} className="btn ghost" style={{ paddingLeft: 0 }}>{action.label}</Link>}
             </div>
           </>
         );

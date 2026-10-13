@@ -72,6 +72,13 @@ export async function membershipOf(userId: string, sectionId: string): Promise<s
 }
 
 /** Espera que a promessa falhe com uma mensagem que contenha o texto indicado. */
+/** Entrar numa secção com um código de convite (lança o erro devolvido pelo servidor). */
+export async function joinWith(userId: string | null, code: string): Promise<string> {
+  const r = await rpc<{ ok: boolean; membership_id?: string; error?: string }>(userId, 'join_section', { p_code: code });
+  if (!r.ok) throw new Error(r.error);
+  return r.membership_id!;
+}
+
 export async function expectError(p: Promise<unknown>, contains: string | RegExp) {
   try {
     await p;
@@ -117,7 +124,7 @@ export async function buildWorld(tag: string): Promise<World> {
   };
   const members: Record<string, string> = { Ana: await membershipOf(users.Ana, section) };
   for (const [name, [fn, team, isAdmin]] of Object.entries(plan)) {
-    const m = await rpc<string>(users[name], 'redeem_invite', { p_code: code });
+    const m = await joinWith(users[name], code);
     if (fn) await rpc(users.Ana, 'approve_membership', { p_membership: m, p_function: fn, p_team: team });
     else {
       await rpc(users.Ana, 'approve_membership', { p_membership: m, p_function: 'dirigente', p_team: null });

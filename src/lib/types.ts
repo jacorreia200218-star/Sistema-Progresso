@@ -273,6 +273,9 @@ export interface Experience {
 
 export interface Invite {
   id: string;
+  code: string | null; // código curto (só os convites antigos não o têm)
+  team_id: string | null;
+  replaced_by?: string | null;
   label: string;
   expires_at: string;
   max_uses: number;

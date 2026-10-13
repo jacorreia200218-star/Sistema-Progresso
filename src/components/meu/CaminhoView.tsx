@@ -24,7 +24,7 @@ export function CaminhoView({ subject, progress }: { subject: Subject; progress:
   const counts = progressCounts(catalog, progress);
   const check = stageChecklist(catalog, progress);
   const stageOpen = !!check && check.summary.path.status === 'em_curso';
-  const next = nextAction(catalog, progress);
+  const next = nextAction(catalog, progress, subject.isSelf ? { kind: 'self' } : { kind: subject.isDirigente ? 'dirigente' : subject.isGuia ? 'guia' : 'outro', membershipId: subject.subjectId! });
   const trailHref = (key: string) => `/meu-progresso/trilho/${key}${subject.q ? `?${subject.q}` : ''}`;
   const canRequest = stageOpen && check!.stageValidation === 'por_pedir' && (subject.isSelf || subject.isDirigente || subject.isGuia);
   const path = check?.summary.path;
@@ -82,9 +82,9 @@ export function CaminhoView({ subject, progress }: { subject: Subject; progress:
 
         <div className="next-line">
           <span className="faint">{subject.isSelf ? 'Próximo passo' : 'Próximo passo do pioneiro'}</span>
-          <p style={{ margin: 0 }}><strong>{stageOpen ? check!.headline : next.title}</strong></p>
-          {stageOpen && check!.details.length > 1 && <ul className="tight faint">{check!.details.slice(1).map((d) => <li key={d}>{d}</li>)}</ul>}
-          {subject.isSelf && !stageOpen && next.to && !next.to.startsWith('/meu-progresso?vista=caminho') && <Link to={next.to} className="btn" style={{ marginTop: 6 }}>Continuar</Link>}
+          <p style={{ margin: 0 }}><strong>{next.title}</strong></p>
+          {next.detail && <p className="faint" style={{ margin: '2px 0 0' }}>{next.detail}</p>}
+          {next.to && next.label && !next.to.startsWith('/meu-progresso?vista=caminho') && <Link to={next.to} className="btn" style={{ marginTop: 6 }}>{next.label}</Link>}
         </div>
         <ErrorBox error={action.error} />
         {action.success && <Notice kind="success">{action.success}</Notice>}

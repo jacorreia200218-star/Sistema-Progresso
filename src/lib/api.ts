@@ -178,7 +178,7 @@ export async function fetchNotifications(): Promise<NotificationRow[]> {
 }
 
 export async function fetchInvites(sectionId: string): Promise<Invite[]> {
-  return check(await supabase.from('invites').select('*').eq('section_id', sectionId).order('created_at', { ascending: false })) as Invite[];
+  return check(await supabase.from('invites').select('id, section_id, code, team_id, label, expires_at, max_uses, use_count, revoked_at, created_at, replaced_by').eq('section_id', sectionId).order('created_at', { ascending: false })) as Invite[];
 }
 
 export async function fetchSettingsHistory(sectionId: string) {

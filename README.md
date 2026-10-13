@@ -202,6 +202,16 @@ Para reconstruir a migração do catálogo depois de alterar o JSON: `npm run ca
   para a vista já filtrada; distribuição por marcos; três entradas de atividade e «Ver atividade».
 - **Histórico reconhecido vs. etapa atual:** a etapa só conta os trilhos confirmados para ela na negociação
   (regra do servidor); trilhos já validados ou reconhecidos e ainda não associados aparecem à parte.
+- **Convites:** código curto (ex.: `AB7K-9M2P`, 8 caracteres sem O/0/I/1/L), aceite com ou sem hífen, espaços ou
+  minúsculas, por ligação curta (`/c#AB7K-9M2P`) ou em «Tenho um convite». Antes de confirmar mostra a secção/equipa
+  de destino. Na gestão: copiar código, copiar ligação, QR, validade, limite de utilizações, revogar e gerar novo.
+  Gerado no servidor, único, com limite de tentativas (8 falhas em 15 min) contra adivinhação. Nunca dá funções;
+  os convites antigos continuam válidos.
+- **Vista por equipa** (Caminho › Por equipa): pessoas por ordem alfabética, agrupadas por equipa, com a etapa e o
+  estado das seis áreas; com uma área escolhida agrupa as pessoas pelo trilho dessa área. Sem rankings.
+- **Página do membro** em separadores: Resumo, Etapa (escolhas, negociação, trilhos reconhecidos por associar),
+  Trilhos e Histórico (adesão, Promessa, etapas, pedidos, mérito). Data do acontecimento separada da data do registo;
+  Promessa antes da decisão sobre a adesão ou registo retroativo exigem fundamentação.
 - **Datas** sempre em DD/MM/AAAA (`formatDate` em `src/lib/labels.ts`; datas sem hora não mudam com o fuso).
 - **Meu progresso** (`/meu-progresso`): três vistas ligadas — *Caminho* (posição, checklist das seis áreas
   com «por concluir / submetido / precisa de revisão / validado», validação da etapa e reconhecimento),

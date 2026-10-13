@@ -13,6 +13,17 @@ beforeAll(async () => {
 });
 afterAll(() => pool.end());
 
+describe('datas da adesão e da Promessa', () => {
+  it('Promessa antes da decisão exige fundamentação; retroativo exige fundamentação; dados antigos não mudam', async () => {
+    const m = other.members.P1;
+    await expectError(rpc(other.users.Ana, 'record_adhesion', { p_membership: m, p_decided_on: '2026-03-10', p_commitment_on: '2026-03-01', p_notes: null, p_is_historical: false }), 'posterior à decisão');
+    await expectError(rpc(other.users.Ana, 'record_adhesion', { p_membership: m, p_decided_on: '2025-03-10', p_commitment_on: null, p_notes: ' ', p_is_historical: true }), 'fundamentação');
+    await rpc(other.users.Ana, 'record_adhesion', { p_membership: m, p_decided_on: '2026-03-10', p_commitment_on: '2026-03-01', p_notes: 'Datas aproximadas do registo em papel.', p_is_historical: true });
+    const a = await admin(`select decided_on::text, commitment_on::text, recorded_at is not null as r from public.adhesions where membership_id = $1`, [m]);
+    expect(a[0]).toEqual({ decided_on: '2026-03-10', commitment_on: '2026-03-01', r: true });
+  });
+});
+
 describe('posição no caminho (pp. 3, 4–14)', () => {
   let path: string;
 

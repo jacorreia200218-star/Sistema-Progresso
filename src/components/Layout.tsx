@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { Suspense, useEffect, useLayoutEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import rosaUrl from '../assets/rosa-dos-ventos.svg';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +9,8 @@ import { useProgress } from '../lib/hooks';
 import { memberPosition, milestoneByKey, STATE_LABEL } from '../lib/caminho';
 import { environmentLabel } from '../lib/supabase';
 import { ThemeToggle } from './ThemeControl';
-import { Avatar } from './ui';
+import { Avatar, Loading } from './ui';
+import { RouteBoundary } from './RouteBoundary';
 
 /** Rosa dos Ventos — símbolo da III Secção, extraído do Manual do Dirigente (CNE), p. 41. */
 export function Rosa({ size = 30 }: { size?: number }) {
@@ -79,6 +80,16 @@ function useScrollRestoration() {
   }, [location.key]);
 }
 
+/** Carregamento discreto: barra fina no topo e um esqueleto curto; a navegação fica visível. */
+function PageLoading() {
+  return (
+    <>
+      <div className="route-progress" aria-hidden="true" />
+      <Loading rows={2} />
+    </>
+  );
+}
+
 export default function Layout() {
   const s = useSection();
   const location = useLocation();
@@ -144,9 +155,13 @@ export default function Layout() {
           {items.map((i) => link(i, false))}
         </nav>
         <main id="conteudo" className="main" tabIndex={-1}>
-          <div key={location.pathname} className="page-enter">
-            <Outlet />
-          </div>
+          <RouteBoundary resetKey={location.pathname}>
+            <Suspense fallback={<PageLoading />}>
+              <div key={location.pathname} className="page-enter">
+                <Outlet />
+              </div>
+            </Suspense>
+          </RouteBoundary>
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Navegação principal">

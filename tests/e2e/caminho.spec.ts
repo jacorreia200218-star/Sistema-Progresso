@@ -19,7 +19,9 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(summary.getByRole('heading', { name: 'Histórico reconhecido' })).toBeVisible();
     await expect(summary).toContainText('1 de 6 áreas com trilho validado nesta etapa');
     await expect(summary.locator('.faceis-row')).toHaveCount(6);
-    await expect(summary).toContainText('Falta escolher o trilho de Intelectual e Social.');
+    // Próximo passo único em toda a app: o pedido devolvido tem prioridade, com acesso direto
+    await expect(summary.locator('.next-line')).toContainText('Rever o pedido de «Autoestima»');
+    await expect(summary.getByRole('link', { name: 'Rever pedido' })).toHaveAttribute('href', '/meu-progresso/trilho/afetivo-autoestima#pedido');
     // O mapa e as explicações estão fechados até se abrirem
     await expect(page.locator('.track')).toBeHidden();
     await page.getByText('Ver o mapa do caminho').click();
@@ -53,7 +55,7 @@ for (const theme of ['light', 'dark'] as const) {
     const names = await conhecimento.locator('.avatar-btn').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')!.split(',')[0]));
     expect(names).toEqual(['Diogo Fictício', 'Eva Fictícia', 'Filipe Fictício', 'Pedro Teste']);
     // Avatares com o mesmo tamanho
-    const sizes = await page.locator('.avatar-btn .avatar').evaluateAll((els) => [...new Set(els.map((e) => `${e.getBoundingClientRect().width}x${e.getBoundingClientRect().height}`))]);
+    const sizes = await page.locator('.avatar-btn .avatar').evaluateAll((els) => [...new Set(els.map((e) => `${Math.round(e.getBoundingClientRect().width)}x${Math.round(e.getBoundingClientRect().height)}`))]);
     expect(sizes).toEqual(['40x40']);
     await noHorizontalScroll(page);
     await page.screenshot({ path: `test-results/caminho-seccao-${info.project.name}-${theme}.png`, fullPage: true });

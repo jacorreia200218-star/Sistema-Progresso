@@ -10,8 +10,9 @@ import { fetchSectionPath, type PathMember } from '../lib/api';
 import { MILESTONES, milestoneByKey, type MilestoneKey } from '../lib/caminho';
 import { Avatar, Empty, ErrorBox, Loading, PageTitle } from '../components/ui';
 import { SidePanel } from '../components/nav';
-import { PeopleRow, Track, type TrackStep } from '../components/caminho/Track';
+import { PeopleRow, shortNames, Track, type TrackStep } from '../components/caminho/Track';
 import { PersonPanelBody } from '../components/caminho/PersonPanel';
+import { TeamView } from '../components/caminho/TeamView';
 import { MilestoneInfo } from '../components/caminho/Shared';
 
 const KEYS = MILESTONES.map((m) => m.key);
@@ -27,6 +28,8 @@ export default function Caminho() {
   const team = params.get('equipa') ?? '';
   const query = params.get('q') ?? '';
   const personId = params.get('pessoa');
+  const vista = params.get('vista') === 'equipa' ? 'equipa' : 'mapa';
+  const areaCode = params.get('area') ?? '';
   const openList = isKey(params.get('marco')) ? (params.get('marco') as MilestoneKey) : null;
 
   const path = useQuery({ queryKey: ['section-path', membership.section_id], queryFn: () => fetchSectionPath(membership.section_id) });
@@ -57,6 +60,7 @@ export default function Caminho() {
   const total = path.data?.total ?? 0;
   const counts = path.data?.counts ?? {};
 
+  const names = shortNames(visible);
   const steps = {} as Record<MilestoneKey, TrackStep>;
   for (const m of MILESTONES) {
     if (!m.tracked) {
@@ -71,7 +75,7 @@ export default function Caminho() {
       status: n ? 'ocupado' : 'neutro',
       caption: n ? `${n} ${n === 1 ? 'pessoa' : 'pessoas'}` : 'Ninguém',
       content: (
-        <PeopleRow people={people} max={MAX_AVATARS} hidden={hidden} teamName={teamName}
+        <PeopleRow people={people} max={MAX_AVATARS} hidden={hidden} teamName={teamName} names={names}
           onPick={(id) => set({ pessoa: id, marco: null })} onMore={() => set({ marco: m.key, pessoa: null })} />
       ),
     };
@@ -98,31 +102,49 @@ export default function Caminho() {
       ) : (
         <div className="caminho-grid">
           <div>
-            {visible.length > 1 && (
-              <div className="track-tools">
+            <div className="track-tools">
+              <div className="segmented" role="radiogroup" aria-label="Apresentação">
+                <label className="segment"><input type="radio" name="vista" checked={vista === 'mapa'} onChange={() => set({ vista: null, area: null })} /> <span>Mapa</span></label>
+                <label className="segment"><input type="radio" name="vista" checked={vista === 'equipa'} onChange={() => set({ vista: 'equipa' })} /> <span>Por equipa</span></label>
+              </div>
+              {visible.length > 1 && (
                 <label className="search-field">
                   <Search size={16} aria-hidden="true" />
                   <span className="sr-only">Pesquisar por nome</span>
                   <input type="search" placeholder="Pesquisar por nome" value={query} onChange={(e) => set({ q: e.target.value || null })} />
                 </label>
-                {teamOptions.length > 1 && (
-                  <label className="inline-field">
-                    <span className="sr-only">Equipa</span>
-                    <select aria-label="Equipa" value={team} onChange={(e) => set({ equipa: e.target.value || null, pessoa: null })}>
-                      <option value="">Todas as equipas</option>
-                      {teamOptions.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </label>
-                )}
-              </div>
-            )}
+              )}
+              {teamOptions.length > 1 && (
+                <label className="inline-field">
+                  <span className="sr-only">Equipa</span>
+                  <select aria-label="Equipa" value={team} onChange={(e) => set({ equipa: e.target.value || null, pessoa: null })}>
+                    <option value="">Todas as equipas</option>
+                    {teamOptions.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </label>
+              )}
+              {vista === 'equipa' && (
+                <label className="inline-field">
+                  <span className="sr-only">Área</span>
+                  <select aria-label="Área" value={areaCode} onChange={(e) => set({ area: e.target.value || null })}>
+                    <option value="">Todas as áreas</option>
+                    {catalog.areas.map((a) => <option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
             {path.data?.scope !== 'seccao' && (
               <p className="faint">{isMember && path.data?.scope === 'proprio' ? 'Vês o teu nome; dos outros pioneiros, quantos estão em cada marco.' : 'Vês os nomes da tua equipa; das outras, quantos estão em cada marco.'}</p>
             )}
             {filtering && !filtered.length && <p className="faint" role="status">Ninguém corresponde à pesquisa.</p>}
-            <section className="card map-card" aria-label="Mapa do caminho da secção">
-              <Track steps={steps} label="Marcos do caminho e quem está em cada um" />
-            </section>
+            {vista === 'mapa' ? (
+              <section className="card map-card" aria-label="Mapa do caminho da secção">
+                <Track steps={steps} label="Marcos do caminho e quem está em cada um" />
+              </section>
+            ) : (
+              <TeamView people={filtered} catalog={catalog} areaCode={areaCode} teamName={teamName} sectionId={membership.section_id}
+                onPick={(id) => set({ pessoa: id, marco: null })} />
+            )}
             <details className="more">
               <summary>Sobre os marcos do caminho</summary>
               {MILESTONES.filter((m) => m.tracked).map((m) => (
@@ -140,7 +162,7 @@ export default function Caminho() {
 
           {person && (
             <SidePanel title="Percurso" onClose={closePanel} labelledBy="painel-pessoa">
-              <PersonPanelBody key={person.membership_id} member={person} catalog={catalog} teamName={teamName} />
+              <PersonPanelBody key={person.membership_id} member={person} catalog={catalog} teamName={teamName} role={isDirigente ? 'dirigente' : s.isGuia ? 'guia' : 'outro'} />
             </SidePanel>
           )}
           {!person && openList && (

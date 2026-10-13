@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { admin, asUser, buildWorld, createUser, expectError, pool, rpc, today, trailId, validateTrail, type World } from './helpers';
+import { admin, asUser, buildWorld, createUser, expectError, joinWith, pool, rpc, today, trailId, validateTrail, type World } from './helpers';
 
 let w: World;
 let other: World;
@@ -23,7 +23,7 @@ describe('registo e convites', () => {
     const code = await rpc<string>(w.users.Ana, 'create_invite', {
       p_section: w.section, p_label: 'x', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 1,
     });
-    const m = await rpc<string>(u, 'redeem_invite', { p_code: code });
+    const m = await joinWith(u, code);
     const mine = await asUser(u, `select status, function, is_admin from public.memberships where id = $1`, [m]);
     expect(mine[0]).toEqual({ status: 'pendente', function: null, is_admin: false });
     expect(await asUser(u, `select * from public.teams where section_id = $1`, [w.section])).toHaveLength(0);
@@ -31,7 +31,7 @@ describe('registo e convites', () => {
     await expectError(rpc(u, 'create_trail_request', { p_membership: m, p_trail: await trailId('fisico-desempenho'), p_kind: 'normal' }), 'percurso de progresso ativo');
     // Convite de uso único já esgotado
     const u2 = await createUser('Segundo');
-    await expectError(rpc(u2, 'redeem_invite', { p_code: code }), 'limite de usos');
+    await expectError(joinWith(u2, code), 'limite de utilizações');
   });
 
   it('quem pede entrada indica a equipa; a administração confirma ou corrige e pode mudar o nome', async () => {
@@ -39,7 +39,7 @@ describe('registo e convites', () => {
     const code = await rpc<string>(w.users.Ana, 'create_invite', {
       p_section: w.section, p_label: 'equipa', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 1,
     });
-    const m = await rpc<string>(u, 'redeem_invite', { p_code: code });
+    const m = await joinWith(u, code);
     const opts = await asUser(u, `select * from public.join_team_options()`);
     expect(opts.map((o) => o.team_id).sort()).toEqual([w.teamA, w.teamB].sort());
     expect(await asUser(other.users.P1, `select * from public.join_team_options()`)).toEqual([]); // sem pedidos pendentes, nada
@@ -58,6 +58,55 @@ describe('registo e convites', () => {
     await expectError(rpc(u, 'set_requested_team', { p_membership: m, p_team: w.teamB }), 'já foi confirmada');
   });
 
+  it('código curto: formato, sem caracteres confundíveis, aceite com ou sem hífen/espaços/minúsculas', async () => {
+    const code = await rpc<string>(w.users.Ana, 'create_invite', {
+      p_section: w.section, p_label: 'curto', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 3, p_team: w.teamB,
+    });
+    expect(code).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/);
+    const u = await createUser('Curto');
+    const preview = await rpc<any>(u, 'invite_preview', { p_code: ` ${code.toLowerCase().replace('-', ' ')} ` });
+    expect(preview).toMatchObject({ ok: true, team: expect.any(String), already: false });
+    expect(preview.section).toBeTruthy();
+    const m = await joinWith(u, code.replace('-', '').toLowerCase());
+    const row = await admin(`select status, function, is_admin, requested_team_id from public.memberships where id = $1`, [m]);
+    expect(row[0]).toEqual({ status: 'pendente', function: null, is_admin: false, requested_team_id: w.teamB }); // nunca dá funções
+    await expectError(joinWith(u, code), 'Já tens um pedido');
+    expect((await rpc<any>(u, 'invite_preview', { p_code: code })).already).toBe(true);
+    // Muitos códigos gerados: todos únicos e só com o alfabeto permitido
+    const many = await admin<{ c: string }>(`select private.invite_code_new() as c from generate_series(1, 300)`);
+    expect(new Set(many.map((x) => x.c)).size).toBe(300);
+    for (const x of many) expect(x.c).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/);
+  });
+
+  it('limite de tentativas: adivinhar códigos fica bloqueado durante 15 minutos', async () => {
+    const u = await createUser('Adivinha');
+    for (let i = 0; i < 8; i++) await expectError(joinWith(u, `ZZZZ-ZZ${'23456789'[i]}Z`), 'inválido');
+    await expectError(joinWith(u, 'ABCD-EFGH'), 'Demasiadas tentativas');
+    expect((await rpc<any>(u, 'invite_preview', { p_code: 'ABCD-EFGH' })).error).toMatch(/Demasiadas tentativas/);
+    // Mesmo com um código válido, enquanto durar o bloqueio
+    const code = await rpc<string>(w.users.Ana, 'create_invite', {
+      p_section: w.section, p_label: 'bloq', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 3,
+    });
+    await expectError(joinWith(u, code), 'Demasiadas tentativas');
+    expect(await asUser(u, `select * from private.invite_attempts`).catch((e) => String(e))).toMatch(/permission denied/);
+  });
+
+  it('gerar um convite novo revoga o anterior; convites antigos (código longo) continuam a funcionar', async () => {
+    const code = await rpc<string>(w.users.Ana, 'create_invite', {
+      p_section: w.section, p_label: 'renovar', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 3,
+    });
+    const id = (await admin(`select id from public.invites where code = $1`, [code.replace('-', '')]))[0].id;
+    await expectError(rpc(w.users.P1, 'regenerate_invite', { p_invite: id }), 'não encontrado');
+    const fresh = await rpc<string>(w.users.Ana, 'regenerate_invite', { p_invite: id });
+    expect(fresh).not.toBe(code);
+    await expectError(joinWith(await createUser('Velho'), code), 'revogado');
+    await joinWith(await createUser('Novo'), fresh);
+    // Convite antigo: só o hash do código longo guardado
+    await admin(`insert into public.invites (section_id, token_hash, label, expires_at, max_uses, created_by)
+                 values ($1, extensions.digest('codigo-antigo-muito-longo-123', 'sha256'), 'antigo', now() + interval '1 day', 2, $2)`, [w.section, w.users.Ana]);
+    await joinWith(await createUser('Antigo'), 'codigo-antigo-muito-longo-123');
+  });
+
   it('rejeita convites revogados, expirados e inválidos', async () => {
     const code = await rpc<string>(w.users.Ana, 'create_invite', {
       p_section: w.section, p_label: 'revogar', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 5,
@@ -65,10 +114,10 @@ describe('registo e convites', () => {
     const inv = (await admin(`select id from public.invites where label = 'revogar' and section_id = $1`, [w.section]))[0].id;
     await rpc(w.users.Ana, 'revoke_invite', { p_invite: inv });
     const u = await createUser('Tardio');
-    await expectError(rpc(u, 'redeem_invite', { p_code: code }), 'revogado');
+    await expectError(joinWith(u, code), 'revogado');
     await admin(`update public.invites set revoked_at = null, expires_at = now() - interval '1 minute' where id = $1`, [inv]);
-    await expectError(rpc(u, 'redeem_invite', { p_code: code }), 'expirou');
-    await expectError(rpc(u, 'redeem_invite', { p_code: 'nao-existe' }), 'inválido');
+    await expectError(joinWith(u, code), 'expirou');
+    await expectError(joinWith(u, 'nao-existe-de-todo'), 'inválido');
   });
 
   it('consumo de convite de uso único é atómico sob concorrência', async () => {
@@ -76,7 +125,7 @@ describe('registo e convites', () => {
       p_section: w.section, p_label: 'corrida', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 1,
     });
     const racers = await Promise.all([1, 2, 3, 4].map((i) => createUser(`Corrida ${i}`)));
-    const results = await Promise.allSettled(racers.map((u) => rpc(u, 'redeem_invite', { p_code: code })));
+    const results = await Promise.allSettled(racers.map((u) => joinWith(u, code)));
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     const inv = await admin(`select use_count from public.invites where label = 'corrida' and section_id = $1`, [w.section]);
     expect(inv[0].use_count).toBe(1);
@@ -112,7 +161,7 @@ describe('escalada de privilégios e escrita direta', () => {
   });
 
   it('funções RPC não estão disponíveis para visitantes anónimos', async () => {
-    await expectError(rpc(null, 'redeem_invite', { p_code: 'x' }), 'permission denied');
+    await expectError(rpc(null, 'join_section', { p_code: 'x' }), 'permission denied');
   });
 
   it('a secção mantém sempre um administrador', async () => {

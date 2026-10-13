@@ -1,17 +1,14 @@
 // Resumo das seis áreas FACEIS: na etapa em curso, o trilho de cada área e o
 // seu estado; sem etapa aberta, os trilhos validados por área (0–3).
 import { Link } from 'react-router-dom';
-import { Check, CircleDashed, Clock, RotateCcw, Send } from 'lucide-react';
+import { Check, CircleDashed, Clock, Compass, RotateCcw, Send } from 'lucide-react';
 import { areaMarkers } from '../../lib/caminho';
 import { openPath } from '../../lib/progress';
-import { stageChecklist, type ChecklistStatus } from '../../lib/meuprogresso';
+import { stageChecklist, STATUS_TEXT, type ChecklistStatus } from '../../lib/meuprogresso';
 import type { Catalog, MemberProgress } from '../../lib/types';
 
 const ICON: Record<ChecklistStatus, typeof Check> = {
-  por_escolher: CircleDashed, em_negociacao: Clock, por_concluir: CircleDashed, submetido: Send, revisao: RotateCcw, validado: Check,
-};
-const SHORT: Record<ChecklistStatus, string> = {
-  por_escolher: 'Por escolher', em_negociacao: 'Em negociação', por_concluir: 'Em desenvolvimento', submetido: 'Em validação', revisao: 'Precisa de revisão', validado: 'Validado',
+  por_escolher: CircleDashed, em_negociacao: Clock, por_concluir: Compass, submetido: Send, revisao: RotateCcw, validado: Check,
 };
 
 export function FaceisSummary({ catalog, progress, compact, trailHref }: {
@@ -42,9 +39,9 @@ export function FaceisSummary({ catalog, progress, compact, trailHref }: {
             <span className="area-code" aria-hidden="true">{r.area.code}</span>
             <span className="grow">
               <span className="faceis-area">{r.area.name}</span>
-              <span className="faceis-trail">{r.trail?.name ?? 'Trilho por escolher'}</span>
+              {r.trail && <span className="faceis-trail">{r.trail.name}</span>}
             </span>
-            <span className={`faceis-state fs-${r.status}`}><Icon size={14} aria-hidden="true" /> {SHORT[r.status]}</span>
+            <span className={`faceis-state fs-${r.status}`}><Icon size={14} aria-hidden="true" /> {STATUS_TEXT[r.status]}</span>
           </>
         );
         return (

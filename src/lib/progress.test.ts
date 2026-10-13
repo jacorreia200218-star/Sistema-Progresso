@@ -103,8 +103,30 @@ describe('próxima ação', () => {
   it('sem adesão, orienta para o Desprendimento', () => {
     expect(nextAction(catalog, base({ adhesion: null, paths: [] })).title).toContain('Início de Pista');
   });
-  it('indica a área ainda sem escolha', () => {
-    expect(nextAction(catalog, base()).title).toBe('Escolher um trilho de F');
+  it('próximo passo curto quando nenhuma área tem escolha, com acesso às áreas', () => {
+    const a = nextAction(catalog, base());
+    expect(a.title).toBe('Escolher um trilho em cada área');
+    expect(a.to).toBe('/meu-progresso?vista=areas');
+  });
+  it('indica as áreas ainda sem escolha', () => {
+    const a = nextAction(catalog, base({ choices: codes.slice(1).map((c) => choice(`${c}1`)) }));
+    expect(a.title).toBe('Escolher trilho em F');
+    expect(a.to).toBe('/meu-progresso?vista=areas&area=F');
+  });
+  it('trilhos reconhecidos sem etapa: propõe associar (sem associar nem validar)', () => {
+    const p = base({ requests: codes.map((c) => request(`${c}2`, 'aprovado', 'historico')) });
+    const self = nextAction(catalog, p);
+    expect(self.title).toBe('Associar 6 trilhos reconhecidos à etapa');
+    expect(self.to).toBe('/meu-progresso?vista=areas&filtro=validado');
+    const lead = nextAction(catalog, p, { kind: 'dirigente', membershipId: 'm9' });
+    expect(lead).toMatchObject({ to: '/membros/m9?separador=etapa', label: 'Rever e propor' });
+    const guia = nextAction(catalog, p, { kind: 'guia', membershipId: 'm9' });
+    expect(guia.to).toBeUndefined(); // o guia não negocia escolhas
+    expect(p.choices).toHaveLength(0); // nada foi associado
+  });
+  it('quem acompanha recebe ligações para o percurso do pioneiro', () => {
+    const a = nextAction(catalog, base({ requests: [request('A1', 'devolvido')] }), { kind: 'dirigente', membershipId: 'm9' });
+    expect(a.to).toBe('/meu-progresso/trilho/A1?pioneiro=m9#pedido');
   });
 });
 

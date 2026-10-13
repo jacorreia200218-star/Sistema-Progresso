@@ -4,7 +4,7 @@ import { Clock, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useSection } from '../lib/session';
 import { call } from '../lib/api';
-import { clearInviteCode, readInviteCode } from '../lib/invite';
+import { clearInviteCode, normalizeInviteCode, readInviteCode } from '../lib/invite';
 import { useAction } from '../lib/useAction';
 import { memberStatusLabel } from '../lib/labels';
 import { ErrorBox, Field, Notice } from '../components/ui';
@@ -41,6 +41,8 @@ function TeamChoice({ membershipId, current, onSaved }: { membershipId: string; 
   );
 }
 
+interface InvitePreview { ok: boolean; error?: string; section?: string; group?: string | null; team?: string | null; already?: boolean }
+
 /** Ecrã para quem tem conta mas ainda não tem acesso ativo a uma secção. */
 export default function NoAccess() {
   const s = useSection();
@@ -48,14 +50,33 @@ export default function NoAccess() {
   const action = useAction();
   const suspended = s.memberships.filter((m) => m.status === 'suspenso');
 
-  async function join(e: FormEvent) {
+  const [preview, setPreview] = useState<InvitePreview | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+
+  // 1.º passo: mostrar o destino do convite; 2.º passo: confirmar a entrada.
+  async function check(e: FormEvent) {
     e.preventDefault();
-    const res = await action.run(() => call('redeem_invite', { p_code: code.trim() }), 'Pedido de entrada enviado.');
-    if (res.ok) {
-      clearInviteCode();
-      setCode('');
-      s.refetch();
+    setJoinError(null);
+    setPreview(null);
+    const res = await action.run(() => call<InvitePreview>('invite_preview', { p_code: normalizeInviteCode(code) }));
+    if (!res.ok || !res.value) return;
+    if (!res.value.ok) setJoinError(res.value.error ?? 'Código de convite inválido.');
+    else if (res.value.already) setJoinError('Já tens um pedido ou acesso nesta secção.');
+    else setPreview(res.value);
+  }
+  async function confirm() {
+    setJoinError(null);
+    const res = await action.run(() => call<{ ok: boolean; error?: string }>('join_section', { p_code: normalizeInviteCode(code) }));
+    if (!res.ok || !res.value) return;
+    if (!res.value.ok) {
+      setJoinError(res.value.error ?? 'Não foi possível usar o convite.');
+      setPreview(null);
+      return;
     }
+    clearInviteCode();
+    setCode('');
+    setPreview(null);
+    s.refetch();
   }
 
   return (
@@ -88,14 +109,29 @@ export default function NoAccess() {
           <p className="muted">Cola o código do convite que recebeste da tua secção (ou abre o link do convite).</p>
           <ErrorBox error={action.error} />
           {action.success && <Notice kind="success">{action.success}</Notice>}
-          <form onSubmit={join}>
-            <Field label="Código do convite" htmlFor="code">
-              <input id="code" type="text" autoComplete="off" required value={code} onChange={(e) => setCode(e.target.value)} />
-            </Field>
-            <button className="btn block" disabled={action.busy || !code.trim()}>
-              {action.busy ? 'A enviar…' : 'Pedir entrada'}
-            </button>
-          </form>
+          {joinError && <Notice kind="error"><p>{joinError}</p></Notice>}
+          {!preview ? (
+            <form onSubmit={check}>
+              <Field label="Código do convite" htmlFor="code" hint="8 letras e números, por exemplo AB7K-9M2P. Com ou sem hífen.">
+                <input id="code" type="text" autoComplete="off" autoCapitalize="characters" spellCheck={false} required aria-describedby="code-hint"
+                  value={code} onChange={(e) => setCode(e.target.value)} />
+              </Field>
+              <button className="btn block" disabled={action.busy || !code.trim()}>{action.busy ? 'A verificar…' : 'Continuar'}</button>
+            </form>
+          ) : (
+            <div>
+              <p className="faint" style={{ margin: 0 }}>Vais pedir entrada em</p>
+              <p className="invite-dest">
+                <strong>{preview.section}</strong>{preview.group ? ` · ${preview.group}` : ''}
+                {preview.team && <><br />Equipa: <strong>{preview.team}</strong></>}
+              </p>
+              <p className="faint">A administração da secção confirma a tua entrada, a equipa e a função. O convite não dá funções de dirigente nem de administração.</p>
+              <div className="btn-row">
+                <button type="button" className="btn" disabled={action.busy} onClick={confirm}>{action.busy ? 'A enviar…' : 'Confirmar entrada'}</button>
+                <button type="button" className="btn ghost" onClick={() => setPreview(null)}>Mudar código</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       <button type="button" className="btn ghost" onClick={() => supabase.auth.signOut()}>

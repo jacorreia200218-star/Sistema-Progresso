@@ -88,43 +88,10 @@ export function Doodle({ kind, at, scale = 1, delay = 0, className = '' }: Doodl
   );
 }
 
-// Computador: nuvens e pássaros em cima, árvores nos intervalos entre colunas,
-// e um pequeno acampamento em baixo.
-const WIDE_SPOTS: DoodleSpot[] = [
-  { kind: 'cloud', at: ['22%', '1%'], delay: 100 },
-  { kind: 'birds', at: ['47%', '2%'], delay: 250 },
-  { kind: 'cloud', at: ['70%', '0.5%'], scale: 0.8, delay: 400 },
-  { kind: 'pine', at: ['32.6%', '45%'], scale: 0.8, delay: 300 },
-  { kind: 'tree', at: ['34.6%', '47%'], scale: 0.7, delay: 450 },
-  { kind: 'pine', at: ['65.2%', '46%'], scale: 0.85, delay: 600 },
-  { kind: 'pine', at: ['4%', '89%'], delay: 500 },
-  { kind: 'tree', at: ['9%', '88%'], scale: 0.9, delay: 600 },
-  { kind: 'grass', at: ['30%', '95%'], delay: 700 },
-  { kind: 'fire', at: ['60%', '89%'], delay: 800 },
-  { kind: 'tent', at: ['65%', '87.5%'], delay: 900 },
-  { kind: 'pine', at: ['88%', '88%'], scale: 0.9, delay: 1000 },
-  { kind: 'pine', at: ['92%', '87%'], delay: 1100 },
-];
-
-// Telemóvel: pinheiros à esquerda do trilho quando ele faz curva para a direita,
-// nuvens em cima e o acampamento no fim.
-export function narrowSpots(step: number, top: number, height: number): DoodleSpot[] {
-  const trees: DoodleSpot[] = [1, 3, 5].filter((i) => top + i * step < height - 100).map((i, n) => ({ kind: n % 2 ? 'tree' : 'pine', at: ['1%', `${top + i * step - 12}px`], scale: 0.7, delay: 200 + n * 150 }));
-  return [
-    { kind: 'cloud', at: ['58%', '2px'], scale: 0.7, delay: 100 },
-    { kind: 'birds', at: ['80%', '10px'], scale: 0.8, delay: 250 },
-    ...trees,
-    { kind: 'pine', at: ['46%', `${height - 52}px`], scale: 0.9, delay: 700 },
-    { kind: 'fire', at: ['60%', `${height - 42}px`], scale: 0.9, delay: 850 },
-    { kind: 'tent', at: ['70%', `${height - 50}px`], delay: 1000 },
-  ];
-}
-
-export function MapDoodles({ narrow }: { narrow: DoodleSpot[] }) {
+export function MapDoodles({ spots }: { spots: DoodleSpot[] }) {
   return (
     <div className="doodles" aria-hidden="true">
-      {WIDE_SPOTS.map((s, i) => <Doodle key={`w${i}`} {...s} className="only-wide" />)}
-      {narrow.map((s, i) => <Doodle key={`n${i}`} {...s} className="only-narrow" />)}
+      {spots.map((s, i) => <Doodle key={`${s.kind}-${i}`} {...s} />)}
     </div>
   );
 }
