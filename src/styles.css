@@ -678,3 +678,44 @@ details.more-inner > summary { font-weight: 600; color: var(--ink); }
   .track-step .avatar-btn { width: 50px; }
   .track-step .people-row { gap: 6px 2px; }
 }
+
+/* Desenhos do mapa (traço de lápis) */
+.doodles { position: absolute; inset: 0; pointer-events: none; }
+.doodle { position: absolute; overflow: visible; pointer-events: none; }
+.doodle path { fill: none; stroke-width: 1.6px; stroke-linecap: round; stroke-linejoin: round; }
+.doodle .ink-green { stroke: var(--green-ink); }
+.doodle .ink-soft { stroke: var(--ink-faint); }
+.doodle .ink-faint { stroke: var(--path-edge); }
+.doodle .ink-accent { stroke: var(--accent-ink); }
+.doodle .ink-amber { stroke: var(--amber); }
+.doodle .fill-green { fill: var(--green-tint); }
+.doodle .fill-card { fill: var(--card); }
+.doodle .fill-tint { fill: var(--accent-tint); }
+.doodle .fill-amber { fill: var(--amber-tint); }
+.only-wide { display: none; }
+@media (min-width: 760px) { .only-wide { display: block; } .only-narrow { display: none; } .trail-map { height: 620px; } details.more .trail-map { height: 380px; } }
+.here-flag { position: absolute; left: 4px; top: -44px; width: 26px; height: 34px; z-index: 2; }
+@media (min-width: 760px) { .here-flag { left: calc(50% + 6px); } }
+.sway, .drift, .flap, .flicker, .wave { transform-box: fill-box; }
+.sway { transform-origin: 50% 100%; }
+.flicker { transform-origin: 50% 100%; }
+.wave { transform-origin: 0% 50%; }
+@media (prefers-reduced-motion: no-preference) {
+  /* 1) desenham-se como se fosse à mão */
+  .doodle path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: doodle-draw 1100ms ease-out forwards; animation-delay: var(--d, 0ms); }
+  .doodle .fill-green, .doodle .fill-card, .doodle .fill-tint, .doodle .fill-amber { fill-opacity: 0; animation: doodle-draw 1100ms ease-out forwards, doodle-fill 500ms ease-out forwards; animation-delay: var(--d, 0ms), calc(var(--d, 0ms) + 900ms); }
+  /* 2) depois mexem-se devagar */
+  .sway { animation: sway 4.5s ease-in-out infinite; animation-delay: calc(var(--d, 0ms) + 1200ms); }
+  .drift { animation: drift 14s ease-in-out infinite alternate; }
+  .flap { animation: flap 1.6s ease-in-out infinite, glide 18s linear infinite alternate; }
+  .flicker { animation: flicker 0.9s ease-in-out infinite alternate; }
+  .wave { animation: wave 1.8s ease-in-out infinite; }
+}
+@keyframes doodle-draw { to { stroke-dashoffset: 0; } }
+@keyframes doodle-fill { to { fill-opacity: 1; } }
+@keyframes sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes drift { from { transform: translateX(-10px); } to { transform: translateX(14px); } }
+@keyframes flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.6); } }
+@keyframes glide { from { translate: -12px 0; } to { translate: 20px -4px; } }
+@keyframes flicker { from { transform: scale(0.94, 0.9); opacity: 0.85; } to { transform: scale(1.04, 1.06); opacity: 1; } }
+@keyframes wave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-5deg) scaleX(0.94); } }

@@ -7,6 +7,7 @@ import { Check } from 'lucide-react';
 import { MILESTONES, type MilestoneKey } from '../../lib/caminho';
 import type { PathMember } from '../../lib/api';
 import { Avatar } from '../ui';
+import { Doodle, MapDoodles, narrowSpots } from './Doodles';
 
 export type StepStatus = 'feito' | 'atual' | 'por_vir' | 'info' | 'neutro' | 'ocupado';
 
@@ -69,6 +70,7 @@ export function Track({ steps, label }: { steps: Record<MilestoneKey, TrackStep>
     <div className="trail-map" style={{ '--nh': `${NARROW_HEIGHT}px` } as CSSProperties}>
       <MapPath className="map-wide" viewBox="0 0 100 100" d={smooth(widePts)} done={wideDone} />
       <MapPath className="map-narrow" viewBox={`0 0 100 ${NARROW_HEIGHT}`} d={smooth(narrowAll)} done={narrowDone} />
+      <MapDoodles narrow={narrowSpots(STEP, 34, NARROW_HEIGHT)} />
       <ol className="track" aria-label={label}>
         {MILESTONES.map((m, i) => {
           const s = steps[m.key];
@@ -78,6 +80,7 @@ export function Track({ steps, label }: { steps: Record<MilestoneKey, TrackStep>
           return (
             <li key={m.key} className={`track-step st-${s.status}`} style={style} aria-current={s.status === 'atual' ? 'step' : undefined}>
               <span className="track-dot" aria-hidden="true">{s.status === 'feito' ? <Check size={14} /> : i + 1}</span>
+              {s.status === 'atual' && <Doodle kind="flag" className="here-flag" delay={900} />}
               <div className="track-main">
                 <div className="track-head">
                   <strong>{m.name}</strong>
