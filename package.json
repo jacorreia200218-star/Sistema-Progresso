@@ -16,7 +16,8 @@
     "test:db": "bash tests/db/reset.sh && vitest run --project db",
     "catalog:verify": "node scripts/verify-catalog.mjs",
     "catalog:sql": "node scripts/generate-catalog-sql.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:bundle": "node scripts/bundle-migrations.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

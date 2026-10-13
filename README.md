@@ -68,8 +68,9 @@ Precisas de:
    npx supabase db push         # aplica supabase/migrations/*.sql por ordem
    ```
 
-   **b) Sem CLI:** no painel, abre **SQL Editor** e executa, **por ordem**, cada ficheiro de
-   `supabase/migrations/` (do `…000100_schema.sql` ao `…000700_bootstrap.sql`).
+   **b) Sem CLI (mais simples para começar):** no painel, abre **SQL Editor › New query**, cola o conteúdo
+   de `supabase/instalar_tudo.sql` (todas as migrações num só ficheiro) e carrega em **Run**. Faz isto
+   **uma única vez**, num projeto novo. (O ficheiro regenera-se com `npm run db:bundle`.)
 
 3. Confirma em **Storage** que existem os buckets `fotografias` e `anexos`, ambos **privados**.
 4. Em **Authentication › Sign In / Providers › Email**: mantém **Confirm email** ativo. Em
