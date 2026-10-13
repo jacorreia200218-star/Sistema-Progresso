@@ -92,7 +92,7 @@ export default function Trilhos() {
                       <details open={!!q || undefined} className="tree-trail">
                         <summary>
                           <span className="grow"><Hl text={t.name} q={q} /></span>
-                          {cat && cat !== 'por_iniciar' && <span className={`tree-state t-${CATEGORY_LABEL[cat].tone}`}>{CATEGORY_LABEL[cat].label}</span>}
+                          {cat && cat !== 'por_fechar' && <span className={`tree-state t-${CATEGORY_LABEL[cat].tone}`}>{CATEGORY_LABEL[cat].label}</span>}
                           <span className="faint tree-count">{t.catalog_objectives.map((o) => o.code).join(' ')}</span>
                         </summary>
                         <div className="tree-body">

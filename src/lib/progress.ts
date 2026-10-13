@@ -5,7 +5,8 @@ import type { Catalog, CatalogArea, CatalogTrail, MemberProgress, StageChoice, S
 
 export type TrailUiState = 'validado' | 'pendente' | 'devolvido' | 'rascunho' | 'selecionado' | 'proposto' | 'por_trabalhar';
 
-const INACTIVE: TrailRequest['status'][] = ['recusado', 'cancelado'];
+// «objetivos_validados»: os objetivos aceites contam, mas o pedido já não está ativo.
+const INACTIVE: TrailRequest['status'][] = ['recusado', 'cancelado', 'objetivos_validados'];
 
 export function activeRequest(requests: TrailRequest[], trailKey: string): TrailRequest | undefined {
   return requests.find((r) => r.trail_key === trailKey && !INACTIVE.includes(r.status));
@@ -168,7 +169,7 @@ export function nextAction(catalog: Catalog, p: MemberProgress, viewer: Viewer =
     return {
       title: usable.length === 1 ? `Associar «${usable[0].name}» à etapa` : `Associar ${usable.length} trilhos reconhecidos à etapa`,
       detail: 'Já estão validados mas ainda não contam para a etapa: a associação faz-se na negociação com a Equipa de Animação.',
-      to: leader ? memberTo('etapa') : self ? progress('areas', '&filtro=validado') : undefined,
+      to: leader ? memberTo('etapa') : self ? progress('validado') : undefined,
       label: leader ? 'Rever e propor' : self ? 'Ver trilhos reconhecidos' : undefined,
     };
   }
@@ -186,7 +187,7 @@ export function nextAction(catalog: Catalog, p: MemberProgress, viewer: Viewer =
   const revise = s.slots.find((slot) => slot.state === 'devolvido');
   if (revise?.trail) return { title: `Rever o pedido de «${revise.trail.name}»`, to: trailTo(revise.trail.key, '#pedido'), label: 'Ver pedido' };
   const toWork = s.slots.filter((slot) => slot.confirmed && !slot.validated && !activeRequest(p.requests, slot.confirmed.trail_key));
-  if (toWork.length === 1 && toWork[0].trail) return { title: `Caminhar no trilho «${toWork[0].trail.name}»`, to: trailTo(toWork[0].trail.key), label: 'Abrir trilho' };
-  if (toWork.length > 1) return { title: `Caminhar nos trilhos de ${joinPt(toWork.map((x) => x.area.name))}`, to: progress('areas', '&filtro=em_desenvolvimento'), label: 'Ver trilhos' };
+  if (toWork.length === 1 && toWork[0].trail) return { title: `Fechar o trilho «${toWork[0].trail.name}»`, to: trailTo(toWork[0].trail.key), label: 'Abrir trilho' };
+  if (toWork.length > 1) return { title: `Fechar os trilhos de ${joinPt(toWork.map((x) => x.area.name))}`, to: progress('areas'), label: 'Ver áreas' };
   return { title: 'Aguardar a reunião de Equipa', to: progress('pedidos', '&pfiltro=aguarda'), label: 'Ver pedidos' };
 }

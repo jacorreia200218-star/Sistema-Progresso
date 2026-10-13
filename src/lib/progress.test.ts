@@ -117,7 +117,7 @@ describe('próxima ação', () => {
     const p = base({ requests: codes.map((c) => request(`${c}2`, 'aprovado', 'historico')) });
     const self = nextAction(catalog, p);
     expect(self.title).toBe('Associar 6 trilhos reconhecidos à etapa');
-    expect(self.to).toBe('/meu-progresso?vista=areas&filtro=validado');
+    expect(self.to).toBe('/meu-progresso?vista=validado');
     const lead = nextAction(catalog, p, { kind: 'dirigente', membershipId: 'm9' });
     expect(lead).toMatchObject({ to: '/membros/m9?separador=etapa', label: 'Rever e propor' });
     const guia = nextAction(catalog, p, { kind: 'guia', membershipId: 'm9' });

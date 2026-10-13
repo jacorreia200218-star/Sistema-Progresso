@@ -1,25 +1,15 @@
 // Lógica do «Meu progresso»: categorias para os filtros, checklist da etapa
 // com mensagens concretas e informação de validação de cada trilho.
 // Tudo calculado a partir de registos persistidos; nada aqui valida trilhos.
-import type { Catalog, CatalogArea, CatalogTrail, MemberProgress, StageChoice, TrailDecision, TrailRequest } from './types';
+import type { Catalog, CatalogArea, CatalogTrail, MemberProgress, RequestObjective, StageChoice, TrailDecision, TrailRequest } from './types';
 import { activeRequest, isValidated, openPath, stageSummary, type StageSummary } from './progress';
 
-export type TrailCategory = 'por_iniciar' | 'em_desenvolvimento' | 'aguarda' | 'revisao' | 'validado';
-
-export const CATEGORY_FILTERS: { key: 'todos' | TrailCategory; label: string }[] = [
-  { key: 'todos', label: 'Todos' },
-  { key: 'por_iniciar', label: 'Por iniciar' },
-  { key: 'em_desenvolvimento', label: 'Em desenvolvimento' },
-  { key: 'aguarda', label: 'A aguardar validação' },
-  { key: 'revisao', label: 'Precisa de revisão' },
-  { key: 'validado', label: 'Validados' },
-];
+export type TrailCategory = 'por_fechar' | 'em_validacao' | 'a_rever' | 'validado';
 
 export const CATEGORY_LABEL: Record<TrailCategory, { label: string; tone: 'muted' | 'progress' | 'attention' | 'ok' | 'neutral'; icon: string }> = {
-  por_iniciar: { label: 'Por iniciar', tone: 'muted', icon: 'circle' },
-  em_desenvolvimento: { label: 'Em desenvolvimento', tone: 'progress', icon: 'compass' },
-  aguarda: { label: 'A aguardar validação', tone: 'neutral', icon: 'clock' },
-  revisao: { label: 'Precisa de revisão', tone: 'attention', icon: 'return' },
+  por_fechar: { label: 'Por fechar', tone: 'muted', icon: 'circle' },
+  em_validacao: { label: 'Em validação', tone: 'progress', icon: 'clock' },
+  a_rever: { label: 'A rever', tone: 'attention', icon: 'return' },
   validado: { label: 'Validado', tone: 'ok', icon: 'check' },
 };
 
@@ -29,20 +19,86 @@ export function activeChoice(p: MemberProgress, trailKey: string): StageChoice |
 }
 
 /**
- * Categoria de um trilho. «Validado» só depois da decisão pedagógica; submeter
- * não é concluir. Ter vivências registadas ou uma escolha conta como «em
- * desenvolvimento».
+ * Estado de um trilho. «Validado» só depois da decisão pedagógica (todos os
+ * objetivos); enviar não é concluir. Rascunhos, escolhas e vivências não mudam
+ * o estado: o trilho continua «Por fechar».
  */
-export function trailCategory(trail: CatalogTrail, p: MemberProgress, experiencesByTrail?: Record<string, number>): TrailCategory {
+export function trailCategory(trail: CatalogTrail, p: MemberProgress): TrailCategory {
   const r = activeRequest(p.requests, trail.key);
   if (r) {
     if (isValidated(r)) return 'validado';
-    if (r.status === 'submetido' || r.status === 'em_revisao') return 'aguarda';
-    if (r.status === 'devolvido') return 'revisao';
-    return 'em_desenvolvimento'; // rascunho
+    if (r.status === 'submetido' || r.status === 'em_revisao') return 'em_validacao';
+    if (r.status === 'devolvido') return 'a_rever';
   }
-  if (activeChoice(p, trail.key) || (experiencesByTrail?.[trail.key] ?? 0) > 0) return 'em_desenvolvimento';
-  return 'por_iniciar';
+  return 'por_fechar';
+}
+
+export type ObjectiveState = 'disponivel' | 'em_validacao' | 'a_rever' | 'validado';
+
+export const OBJECTIVE_LABEL: Record<ObjectiveState, { label: string; tone: 'muted' | 'progress' | 'attention' | 'ok' | 'neutral'; icon: string }> = {
+  disponivel: { label: 'Por validar', tone: 'muted', icon: 'circle' },
+  em_validacao: { label: 'Em validação', tone: 'progress', icon: 'clock' },
+  a_rever: { label: 'A rever', tone: 'attention', icon: 'return' },
+  validado: { label: 'Validado', tone: 'ok', icon: 'check' },
+};
+
+export interface ObjectiveInfo {
+  state: ObjectiveState;
+  /** Comentário de quem decidiu (para «A rever»). */
+  comment?: string | null;
+  /** Data da validação. */
+  date?: string | null;
+}
+
+const CLOSED: TrailRequest['status'][] = ['cancelado', 'recusado'];
+
+/**
+ * Estado de cada objetivo oficial de um trilho, a partir dos pedidos e das
+ * decisões guardadas. Pedidos antigos (por trilho, sem objetivos) aplicam o
+ * estado do pedido a todos os objetivos, sem os reinterpretar.
+ */
+export function objectiveStates(trail: CatalogTrail, p: MemberProgress): Map<string, ObjectiveInfo> {
+  const out = new Map<string, ObjectiveInfo>();
+  const r = activeRequest(p.requests, trail.key);
+  const rows = (p.objectives ?? []).filter((o) => p.requests.some((x) => x.id === o.request_id && x.trail_key === trail.key && !CLOSED.includes(x.status)));
+  const ids = trail.catalog_objectives.map((o) => o.id);
+  if (r && isValidated(r)) {
+    const v = validationInfo(r, p.decisions);
+    for (const id of ids) out.set(id, { state: 'validado', date: rows.find((x) => x.objective_id === id && x.decision === 'aceite')?.decided_at ?? v?.date });
+    return out;
+  }
+  for (const row of rows) if (row.decision === 'aceite') out.set(row.objective_id, { state: 'validado', date: row.decided_at });
+  if (r) {
+    const cur = rows.filter((x) => x.request_id === r.id && x.version_no === r.current_version);
+    const prev = rows.filter((x) => x.request_id === r.id && x.version_no === r.current_version - 1);
+    const fb = lastFeedback(r, p.decisions)?.comment ?? null;
+    const legacy = !rows.some((x) => x.request_id === r.id);
+    for (const id of ids) {
+      if (out.has(id)) continue;
+      if (r.status === 'submetido' || r.status === 'em_revisao') {
+        if (legacy || cur.some((x) => x.objective_id === id)) out.set(id, { state: 'em_validacao' });
+      } else if (r.status === 'devolvido') {
+        const row = cur.find((x) => x.objective_id === id);
+        if (legacy) out.set(id, { state: 'a_rever', comment: fb });
+        else if (row?.decision === 'rever') out.set(id, { state: 'a_rever', comment: row.comment ?? fb });
+      } else if (r.status === 'rascunho') {
+        const row = prev.find((x) => x.objective_id === id && x.decision === 'rever');
+        if (row) out.set(id, { state: 'a_rever', comment: row.comment ?? fb });
+      }
+    }
+  }
+  for (const id of ids) if (!out.has(id)) out.set(id, { state: 'disponivel' });
+  return out;
+}
+
+/** Quantos objetivos do trilho já estão validados. */
+export function validatedObjectives(trail: CatalogTrail, p: MemberProgress): number {
+  return [...objectiveStates(trail, p).values()].filter((x) => x.state === 'validado').length;
+}
+
+/** Objetivos de uma versão de um pedido (códigos ordenados). */
+export function requestObjectiveCodes(p: { objectives?: RequestObjective[] }, r: TrailRequest, version = r.current_version): string[] {
+  return (p.objectives ?? []).filter((o) => o.request_id === r.id && o.version_no === version).map((o) => o.objective_code);
 }
 
 const OUTCOME_KINDS = ['validado_equipa', 'aprovado_historico', 'reconhecido_negociacao'];
@@ -83,9 +139,9 @@ export interface StageChecklist {
 export const STATUS_TEXT: Record<ChecklistStatus, string> = {
   por_escolher: 'Por escolher',
   em_negociacao: 'Em negociação',
-  por_concluir: 'Em desenvolvimento',
-  submetido: 'A aguardar validação',
-  revisao: 'Precisa de revisão',
+  por_concluir: 'Por fechar',
+  submetido: 'Em validação',
+  revisao: 'A rever',
   validado: 'Validado',
 };
 
@@ -153,8 +209,9 @@ export interface ProgressCounts {
   recognized: number;
   /** Validados que ainda não estão associados a nenhuma etapa (podem ser propostos na negociação). */
   unassigned: CatalogTrail[];
-  inDevelopment: number;
+  /** Trilhos com pedido em validação e com pedido a rever. */
   inValidation: number;
+  toReview: number;
   /** Etapa atual: trilhos confirmados e validados nesta etapa (um por área). */
   stage: { name: string; validated: number; confirmed: number; areas: number } | null;
 }
@@ -175,8 +232,8 @@ export function progressCounts(catalog: Catalog, p: MemberProgress): ProgressCou
     validated: cats.filter((c) => c === 'validado').length,
     recognized: validatedReqs.filter((r) => r.kind === 'historico' || r.kind === 'negociacao').length,
     unassigned: trails.filter((t) => validatedReqs.some((r) => r.trail_key === t.key) && !assigned.has(t.key)),
-    inDevelopment: cats.filter((c) => c === 'em_desenvolvimento').length,
-    inValidation: cats.filter((c) => c === 'aguarda').length,
+    inValidation: cats.filter((c) => c === 'em_validacao').length,
+    toReview: cats.filter((c) => c === 'a_rever').length,
     stage: path && s ? { name: catalog.stages.find((x) => x.key === path.stage_key)?.name ?? path.stage_key, validated: s.validatedCount, confirmed: s.confirmedCount, areas: catalog.areas.length } : null,
   };
 }

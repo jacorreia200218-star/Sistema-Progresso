@@ -9,10 +9,51 @@ import { useAction } from '../lib/useAction';
 import { prepareAttachment, safeFileName } from '../lib/image';
 import { errorMessage } from '../lib/errors';
 import { formatDate, todayIso } from '../lib/labels';
-import type { RequestVersion } from '../lib/types';
-import { ConfirmButton, ErrorBox, Field, Notice } from './ui';
+import type { RequestObjective, RequestVersion } from '../lib/types';
+import { Link } from 'react-router-dom';
+import { Badge, ConfirmButton, ErrorBox, Field, Notice } from './ui';
 
-export function VersionContent({ version, attachments, historic, compact }: { version: RequestVersion; attachments: RequestDetail['attachments']; historic: boolean; compact?: boolean }) {
+/** Objetivos de uma versão do pedido, com a decisão e o comentário de cada um. */
+export function VersionObjectives({ rows, trailId }: { rows: RequestObjective[]; trailId: string }) {
+  const s = useActiveSection();
+  const trail = s.catalog.trailById.get(trailId);
+  return (
+    <ul className="obj-list" aria-label="Objetivos do pedido">
+      {rows.map((row) => {
+        const o = trail?.catalog_objectives.find((x) => x.id === row.objective_id);
+        return (
+          <li key={row.id} className="obj-item">
+            <span className="code">{row.objective_code}</span>
+            <span className="grow">
+              <span className="prose obj-text">{o?.text}</span>
+              {row.comment && <span className={row.decision === 'rever' ? 'feedback-inline' : 'faint'} style={{ display: 'block' }}>«{row.comment}»</span>}
+            </span>
+            {row.decision === 'aceite' ? <Badge label="Validado" tone="ok" icon="check" />
+              : row.decision === 'rever' ? <Badge label="A rever" tone="attention" icon="return" />
+              : <Badge label="Em validação" tone="progress" icon="clock" />}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function VersionContent({ version, attachments, historic, compact, objectives = [], trailId }: {
+  version: RequestVersion; attachments: RequestDetail['attachments']; historic: boolean; compact?: boolean; objectives?: RequestObjective[]; trailId?: string;
+}) {
+  const rows = objectives.filter((o) => o.version_id === version.id);
+  if (rows.length && trailId) {
+    // Pedido por objetivos: objetivos escolhidos e uma justificação comum.
+    return (
+      <section className={compact ? 'version-content' : 'card version-content'}>
+        {!compact && <h2>Objetivos e justificação</h2>}
+        <VersionObjectives rows={rows} trailId={trailId} />
+        <p className="label">Como demonstrei que atingi estes objetivos?</p>
+        <div className="quote prose">{version.evidence || '—'}</div>
+        <AttachmentList attachments={attachments} />
+      </section>
+    );
+  }
   return (
     <section className={compact ? 'version-content' : 'card version-content'}>
       {!compact && <h2>Reflexão e vivências</h2>}
@@ -156,6 +197,24 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
     if (fileInput.current) fileInput.current.value = '';
   }
 
+  const trailTo = trail ? `/meu-progresso/trilho/${trail.key}#pedido` : '/meu-progresso';
+  if (request.status === 'rascunho' && request.kind === 'normal') {
+    return (
+      <section className="card flat">
+        <p className="prose">Este pedido ainda não foi enviado. Escolhe os objetivos e escreve a justificação na página do trilho.</p>
+        <div className="btn-row">
+          <Link to={trailTo} className="btn">Continuar no trilho</Link>
+          <ConfirmButton className="btn ghost" confirmLabel="Cancelar pedido" description="O pedido fica no histórico como cancelado." disabled={action.busy}
+            onConfirm={() => action.run(() => call('cancel_trail_request', { p_request: request.id }), 'Pedido cancelado.')}>
+            Cancelar pedido
+          </ConfirmButton>
+        </div>
+        <ErrorBox error={action.error} />
+        {action.success && <Notice kind="success">{action.success}</Notice>}
+      </section>
+    );
+  }
+
   if (request.status === 'rascunho') {
     return (
       <section className="card">
@@ -256,7 +315,7 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
       {action.success && <Notice kind="success">{action.success}</Notice>}
       {(request.status === 'submetido' || request.status === 'em_revisao') && (
         <>
-          <p>{historic ? 'O pedido aguarda decisão dos dirigentes.' : 'O pedido aguarda a decisão da reunião de Equipa.'}</p>
+          <p className="prose">{historic ? 'O pedido aguarda decisão dos dirigentes.' : 'O pedido aguarda a decisão da reunião de Equipa. Se precisares de o alterar, retira-o: a versão enviada fica no histórico.'}</p>
           <ConfirmButton confirmLabel="Retirar para editar" description="A versão submetida fica no histórico e é criada uma nova versão em rascunho." disabled={action.busy}
             onConfirm={() => action.run(() => call('withdraw_trail_request', { p_request: request.id }), 'Pedido retirado. Podes editar a nova versão.')}>
             Retirar para editar
@@ -265,12 +324,16 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
       )}
       {request.status === 'devolvido' && (
         <>
-          <p className="prose">O pedido foi devolvido para continuares a trabalhar. Lê os comentários no histórico.</p>
+          <p className="prose">O pedido está «A rever». Lê os comentários, corrige e volta a enviar; o histórico fica guardado.</p>
           <div className="btn-row">
-            <button type="button" className="btn" disabled={action.busy}
-              onClick={() => action.run(() => call('start_new_version', { p_request: request.id }), 'Nova versão criada.')}>
-              Preparar nova versão
-            </button>
+            {historic ? (
+              <button type="button" className="btn" disabled={action.busy}
+                onClick={() => action.run(() => call('start_new_version', { p_request: request.id }), 'Nova versão criada.')}>
+                Preparar nova versão
+              </button>
+            ) : (
+              <Link to={trailTo} className="btn">Corrigir e reenviar</Link>
+            )}
             <ConfirmButton className="btn ghost" confirmLabel="Cancelar pedido" disabled={action.busy}
               description={historic ? 'Depois de cancelar podes pedir a validação deste trilho pelo progresso normal.' : undefined}
               onConfirm={() => action.run(() => call('cancel_trail_request', { p_request: request.id }), 'Pedido cancelado.')}>
@@ -280,6 +343,9 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
         </>
       )}
       {request.status === 'validado_equipa' && <p className="prose">Trilho validado na reunião de Equipa. A decisão foi comunicada ao Conselho de Guias.</p>}
+      {request.status === 'objetivos_validados' && (
+        <p className="prose">Os objetivos deste pedido foram validados. O trilho continua por fechar: <Link to={trailTo}>pede os restantes objetivos no trilho</Link>.</p>
+      )}
       {request.status === 'aprovado' && request.kind === 'historico' && (
         <p className="prose">Progresso anterior reconhecido pelos dirigentes{request.approved_reference_date ? ` (referência: ${formatDate(request.approved_reference_date)})` : ''}.</p>
       )}

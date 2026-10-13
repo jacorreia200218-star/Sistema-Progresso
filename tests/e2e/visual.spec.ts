@@ -31,11 +31,12 @@ test('tipografia partilhada e cartões do painel', async ({ page }, info) => {
 test('parágrafos de leitura justificados só onde há largura; textos curtos à esquerda', async ({ page }, info) => {
   await installMock(page, pioneer());
   await page.goto('/meu-progresso/trilho/afetivo-autoestima');
-  const objective = page.locator('.objective .prose').first();
+  await page.getByRole('checkbox', { name: /A5/ }).check();
+  const objective = page.locator('.obj-item .obj-text').first();
   const align = await objective.evaluate((e) => getComputedStyle(e).textAlign);
   expect(align).toBe(info.project.name === 'telemovel' ? 'start' : 'justify');
   expect(await objective.evaluate((e) => getComputedStyle(e).textAlignLast)).toBe('auto');
   expect(await page.locator('h1').evaluate((e) => getComputedStyle(e).textAlign)).toMatch(/start|left/);
-  expect(await page.locator('.next-title').evaluate((e) => getComputedStyle(e).textAlign)).toMatch(/start|left/);
+  expect(await page.locator('#pedido h2').evaluate((e) => getComputedStyle(e).textAlign)).toMatch(/start|left/);
   expect(await page.locator('.field label').first().evaluate((e) => getComputedStyle(e).textAlign)).toMatch(/start|left/);
 });

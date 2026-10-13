@@ -5,8 +5,8 @@ export type Tone = 'neutral' | 'progress' | 'ok' | 'attention' | 'muted';
 
 export const trailStateLabel: Record<TrailUiState, { label: string; tone: Tone; icon: string }> = {
   validado: { label: 'Validado', tone: 'ok', icon: 'check' },
-  pendente: { label: 'Pendente', tone: 'progress', icon: 'clock' },
-  devolvido: { label: 'Devolvido', tone: 'attention', icon: 'return' },
+  pendente: { label: 'Em validação', tone: 'progress', icon: 'clock' },
+  devolvido: { label: 'A rever', tone: 'attention', icon: 'return' },
   rascunho: { label: 'Rascunho', tone: 'neutral', icon: 'pencil' },
   selecionado: { label: 'Selecionado', tone: 'progress', icon: 'compass' },
   proposto: { label: 'Proposto', tone: 'neutral', icon: 'message' },
@@ -15,10 +15,11 @@ export const trailStateLabel: Record<TrailUiState, { label: string; tone: Tone; 
 
 export const requestStatusLabel: Record<RequestStatus, { label: string; tone: Tone; icon: string }> = {
   rascunho: { label: 'Rascunho', tone: 'neutral', icon: 'pencil' },
-  submetido: { label: 'Submetido', tone: 'progress', icon: 'send' },
-  em_revisao: { label: 'Em revisão', tone: 'progress', icon: 'clock' },
-  validado_equipa: { label: 'Validado na equipa', tone: 'ok', icon: 'check' },
-  devolvido: { label: 'Devolvido', tone: 'attention', icon: 'return' },
+  submetido: { label: 'Em validação', tone: 'progress', icon: 'send' },
+  em_revisao: { label: 'Em validação', tone: 'progress', icon: 'clock' },
+  validado_equipa: { label: 'Validado', tone: 'ok', icon: 'check' },
+  devolvido: { label: 'A rever', tone: 'attention', icon: 'return' },
+  objetivos_validados: { label: 'Objetivos validados', tone: 'ok', icon: 'check' },
   aprovado: { label: 'Reconhecido', tone: 'ok', icon: 'check' },
   recusado: { label: 'Não reconhecido', tone: 'muted', icon: 'x' },
   cancelado: { label: 'Cancelado', tone: 'muted', icon: 'x' },
@@ -27,13 +28,14 @@ export const requestStatusLabel: Record<RequestStatus, { label: string; tone: To
 export const decisionLabel: Record<DecisionKind, string> = {
   em_revisao: 'Colocado em revisão',
   validado_equipa: 'Validado na reunião de Equipa',
-  devolvido_equipa: 'Devolvido pela reunião de Equipa',
+  devolvido_equipa: 'A rever, por decisão da reunião de Equipa',
   devolvido_conselho: 'Devolvido após o Conselho de Guias',
   revisao_animacao: 'Nota da Equipa de Animação',
   aprovado_historico: 'Progresso anterior reconhecido',
   recusado_historico: 'Progresso anterior não reconhecido',
   devolvido_historico: 'Progresso anterior devolvido para correção',
   reconhecido_negociacao: 'Reconhecido na negociação pela Equipa de Animação',
+  objetivos_equipa: 'Objetivos validados na reunião de Equipa (o trilho continua por fechar)',
 };
 
 export const stageRequestLabel: Record<StageRequestStatus, { label: string; tone: Tone; icon: string }> = {

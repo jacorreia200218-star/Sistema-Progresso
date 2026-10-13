@@ -90,16 +90,34 @@ const progressRows = () => {
       req('r-dev', 'afetivo-autoestima', 'devolvido', 'normal', 1),
       req('r-draft', 'carater-autonomia', 'rascunho'),
       req('r-hist', 'social-interacao-e-cooperacao', 'submetido', 'historico'),
+      // Pedidos por objetivos: validação parcial, «A rever» com um objetivo aceite e um em validação.
+      req('r-parc', 'intelectual-procura-do-conhecimento', 'objetivos_validados'),
+      req('r-rev', 'carater-responsabilidade', 'devolvido'),
+      req('r-obj', 'espiritual-descoberta', 'submetido'),
     ],
     trail_request_versions: [
       { id: 'v-ok', request_id: 'r-ok', version_no: 1, reflection: 'Treinei com regularidade.', experiences: 'Raid', period_start: null, period_end: null, approximate_date: null, created_at: now, updated_at: now, submitted_at: now, withdrawn_at: null },
       { id: 'v-dev', request_id: 'r-dev', version_no: 1, reflection: 'Reflexão inicial.', experiences: '', period_start: null, period_end: null, approximate_date: null, created_at: now, updated_at: now, submitted_at: now, withdrawn_at: null },
       { id: 'v-draft', request_id: 'r-draft', version_no: 1, reflection: '', experiences: '', period_start: null, period_end: null, approximate_date: null, created_at: now, updated_at: now, submitted_at: null, withdrawn_at: null },
       { id: 'v-hist', request_id: 'r-hist', version_no: 1, reflection: 'Fui guia de cozinha no acampamento.', experiences: '', period_start: null, period_end: null, approximate_date: 'Verão de 2025', created_at: now, updated_at: now, submitted_at: now, withdrawn_at: null },
+      ...['r-parc', 'r-rev', 'r-obj'].map((id) => ({
+        id: `v-${id}`, request_id: id, version_no: 1, reflection: '', experiences: '', context: '', period_start: null, period_end: null, approximate_date: null,
+        evidence: id === 'r-obj' ? 'Preparei a vigília da equipa e conversei com o assistente sobre o que significa rezar em conjunto.' : 'No projeto da escola organizei o grupo e cumpri os prazos combinados.',
+        created_at: now, updated_at: now, submitted_at: now, withdrawn_at: null,
+      })),
+    ],
+    request_objectives: [
+      { id: 'ro1', request_id: 'r-parc', version_id: 'v-r-parc', objective_id: 'o-I1', objective_code: 'I1', decision: 'aceite', comment: null, decided_by: 'u-guia', decided_at: now },
+      { id: 'ro2', request_id: 'r-rev', version_id: 'v-r-rev', objective_id: 'o-C3', objective_code: 'C3', decision: 'aceite', comment: null, decided_by: 'u-guia', decided_at: now },
+      { id: 'ro3', request_id: 'r-rev', version_id: 'v-r-rev', objective_id: 'o-C4', objective_code: 'C4', decision: 'rever', comment: 'Conta um exemplo em que assumiste uma responsabilidade na equipa.', decided_by: 'u-guia', decided_at: now },
+      { id: 'ro4', request_id: 'r-obj', version_id: 'v-r-obj', objective_id: 'o-E1', objective_code: 'E1', decision: null, comment: null, decided_by: null, decided_at: null },
+      { id: 'ro5', request_id: 'r-obj', version_id: 'v-r-obj', objective_id: 'o-E2', objective_code: 'E2', decision: null, comment: null, decided_by: null, decided_at: null },
     ],
     trail_decisions: [
       { id: 'd1', request_id: 'r-ok', version_id: 'v-ok', kind: 'validado_equipa', meeting_date: today, comment: 'Validado em reunião.', reference_date: null, recorded_by: 'u-guia', recorded_as: 'guia', recorded_at: now },
       { id: 'd2', request_id: 'r-dev', version_id: 'v-dev', kind: 'devolvido_equipa', meeting_date: today, comment: 'Falta mostrar continuidade.', reference_date: null, recorded_by: 'u-guia', recorded_as: 'guia', recorded_at: now },
+      { id: 'd3', request_id: 'r-parc', version_id: 'v-r-parc', kind: 'objetivos_equipa', meeting_date: today, comment: null, reference_date: null, recorded_by: 'u-guia', recorded_as: 'guia', recorded_at: now },
+      { id: 'd4', request_id: 'r-rev', version_id: 'v-r-rev', kind: 'devolvido_equipa', meeting_date: today, comment: null, reference_date: null, recorded_by: 'u-guia', recorded_as: 'guia', recorded_at: now },
     ],
     stage_requests: [],
     merit_awards: [],
@@ -260,7 +278,7 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
       calls.push({ fn, body });
       const T = persona.tables;
       if (fn === 'create_trail_request') {
-        if ((T.trail_requests ?? []).some((r) => r.trail_id === body.p_trail && !['recusado', 'cancelado'].includes(r.status))) {
+        if ((T.trail_requests ?? []).some((r) => r.trail_id === body.p_trail && !['recusado', 'cancelado', 'objetivos_validados'].includes(r.status))) {
           return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'P0001', message: 'Já existe um pedido ativo ou uma validação para este trilho.' }) });
         }
         const id = `r-novo-${(T.trail_requests ?? []).length}`;
@@ -278,6 +296,44 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
         const v = (T.trail_request_versions ?? []).find((x) => x.request_id === body.p_request && !x.submitted_at);
         if (r) r.status = 'submetido';
         if (v) v.submitted_at = now;
+      }
+      const fail = (message: string) => route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'P0001', message }) });
+      const versionOf = (r: Row, no = r.current_version) => (T.trail_request_versions ?? []).find((x) => x.request_id === r.id && x.version_no === no);
+      if (fn === 'submit_objectives_request') {
+        const r = (T.trail_requests ?? []).find((x) => x.id === body.p_request);
+        if (!r || r.status !== 'rascunho') return fail('Este pedido já foi enviado. Atualiza a página.');
+        if (body.p_expected_version !== r.current_version) return fail('O pedido mudou entretanto. Atualiza a página.');
+        if (!String(body.p_justification ?? '').trim()) return fail('Explica como demonstraste que atingiste estes objetivos.');
+        const v = versionOf(r)!;
+        T.request_objectives = [...(T.request_objectives ?? []).filter((o) => o.version_id !== v.id), ...(body.p_objectives as string[]).map((id, i) => ({
+          id: `ro-${Date.now()}-${i}`, request_id: r.id, version_id: v.id, objective_id: id, objective_code: id.replace(/^o-/, ''), decision: null, comment: null, decided_by: null, decided_at: null,
+        }))];
+        Object.assign(v, { evidence: body.p_justification, submitted_at: now });
+        r.status = 'submetido';
+      }
+      if (fn === 'start_new_version') {
+        const r = (T.trail_requests ?? []).find((x) => x.id === body.p_request);
+        if (!r || r.status !== 'devolvido') return fail('Só pedidos devolvidos podem ter nova versão.');
+        const v = versionOf(r)!;
+        const nv = { ...v, id: `${v.id}-${r.current_version + 1}`, version_no: r.current_version + 1, submitted_at: null, withdrawn_at: null };
+        T.trail_request_versions = [...T.trail_request_versions, nv];
+        T.request_objectives = [...(T.request_objectives ?? []), ...(T.request_objectives ?? []).filter((o) => o.version_id === v.id && o.decision !== 'aceite')
+          .map((o) => ({ ...o, id: `${o.id}-n`, version_id: nv.id, decision: null, comment: null, decided_by: null, decided_at: null }))];
+        Object.assign(r, { current_version: r.current_version + 1, status: 'rascunho' });
+      }
+      if (fn === 'record_objectives_decision') {
+        const r = (T.trail_requests ?? []).find((x) => x.id === body.p_request)!;
+        const v = versionOf(r)!;
+        for (const d of body.p_decisions as Row[]) {
+          const row = (T.request_objectives ?? []).find((o) => o.version_id === v.id && o.objective_id === d.objective_id);
+          if (row) Object.assign(row, { decision: d.accepted ? 'aceite' : 'rever', comment: d.comment || null, decided_by: persona.userId, decided_at: now });
+        }
+        const trailObjectives = catalogJson.areas.flatMap((a: Row) => a.trails).find((t: Row) => t.key === r.trail_key).objectives.map((o: Row) => `o-${o.code}`);
+        const accepted = new Set((T.request_objectives ?? []).filter((o) => o.decision === 'aceite' && (T.trail_requests ?? []).some((x) => x.id === o.request_id && x.membership_id === r.membership_id)).map((o) => o.objective_id));
+        const review = (body.p_decisions as Row[]).some((d) => !d.accepted);
+        r.status = review ? 'devolvido' : trailObjectives.every((id: string) => accepted.has(id)) ? 'validado_equipa' : 'objetivos_validados';
+        T.trail_decisions = [{ id: `d-${Date.now()}`, request_id: r.id, version_id: v.id, kind: review ? 'devolvido_equipa' : r.status === 'validado_equipa' ? 'validado_equipa' : 'objetivos_equipa', meeting_date: body.p_meeting_date, comment: body.p_comment || null, reference_date: null, recorded_by: persona.userId, recorded_as: 'dirigente', recorded_at: now }, ...(T.trail_decisions ?? [])];
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(r.status) });
       }
       const result = persona.rpc && fn in persona.rpc ? persona.rpc[fn]
         : fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? 'codigo-de-teste' : null;

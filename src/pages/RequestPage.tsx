@@ -9,6 +9,7 @@ import type { RequestVersion } from '../lib/types';
 import { Avatar, Badge, ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
 import NotFound from './NotFound';
 import { OwnerRequestPanel, VersionContent } from '../components/RequestEditor';
+import { ObjectivesDecision } from '../components/ObjectivesDecision';
 
 export default function RequestPage() {
   const { id } = useParams();
@@ -21,7 +22,7 @@ export default function RequestPage() {
 
 function RequestView({ detail }: { detail: RequestDetail }) {
   const s = useActiveSection();
-  const { request, versions, decisions, attachments, member } = detail;
+  const { request, versions, decisions, attachments, member, objectives } = detail;
   const trail = s.catalog.trailById.get(request.trail_id);
   const isOwner = request.membership_id === s.membership.id;
   const current = versions.find((v) => v.version_no === request.current_version)!;
@@ -32,7 +33,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
     <>
       <PageTitle
         title={trail?.name ?? 'Pedido'}
-        subtitle={request.kind === 'negociacao' ? 'Trilho reconhecido na negociação' : historic ? 'Pedido de progresso anterior' : 'Pedido de validação de trilho'}
+        subtitle={request.kind === 'negociacao' ? 'Trilho reconhecido na negociação' : historic ? 'Pedido de progresso anterior' : objectives.length ? 'Pedido de validação de objetivos' : 'Pedido de validação de trilho'}
         back={isOwner ? '/meu-progresso?vista=pedidos' : true}
       />
       <div className="row" style={{ marginBottom: 12 }}>
@@ -59,7 +60,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
           <p className="prose">A Equipa de Animação reconheceu, na negociação, que este trilho já tinha sido alcançado (Manual do Dirigente, p. 10). A fundamentação está no histórico.</p>
         </Notice>
       )}
-      {request.kind !== 'negociacao' && (!isOwner || request.status !== 'rascunho') && <VersionContent version={current} attachments={attachments.filter((a) => a.version_id === current.id)} historic={historic} />}
+      {request.kind !== 'negociacao' && (!isOwner || request.status !== 'rascunho') && <VersionContent version={current} attachments={attachments.filter((a) => a.version_id === current.id)} historic={historic} objectives={objectives} trailId={request.trail_id} />}
 
       <h2 className="section-title">Histórico</h2>
       <div className="card">
@@ -74,7 +75,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
               {v.version_no !== request.current_version && v.submitted_at && (
                 <details>
                   <summary className="faint">Ver conteúdo desta versão</summary>
-                  <VersionContent version={v} attachments={attachments.filter((a) => a.version_id === v.id)} historic={historic} compact />
+                  <VersionContent version={v} attachments={attachments.filter((a) => a.version_id === v.id)} historic={historic} compact objectives={objectives} trailId={request.trail_id} />
                 </details>
               )}
               {decisions
@@ -110,16 +111,21 @@ function ReviewerPanel({ detail, current }: { detail: RequestDetail; current: Re
   const open = request.status === 'submetido' || request.status === 'em_revisao';
   const isTeamGuia = s.isGuia && member?.team_id === s.membership.team_id;
   const canTeam = request.kind === 'normal' && open && (s.isDirigente || isTeamGuia);
+  const rows = detail.objectives.filter((o) => o.version_id === current.id);
+  const [decided, setDecided] = useState<string | null>(null);
   const canHistoric = request.kind === 'historico' && open && s.isDirigente;
   const commentRequired = outcome !== 'validado' && outcome !== 'aprovado';
 
   if (!canTeam && !canHistoric && !s.isDirigente) {
+    if (decided) return <Notice kind="success">{decided}</Notice>;
     return request.status === 'rascunho' ? <Notice kind="info">Este pedido ainda está em rascunho.</Notice> : null;
   }
 
   return (
     <>
-      {canTeam && (
+      {decided && <Notice kind="success">{decided}</Notice>}
+      {canTeam && rows.length > 0 && <ObjectivesDecision detail={detail} current={current} isTeamGuia={!!isTeamGuia} onDone={setDecided} />}
+      {canTeam && rows.length === 0 && (
         <section className="card">
           <h2>Registo da reunião de Equipa</h2>
           <Notice kind="info">
@@ -132,8 +138,8 @@ function ReviewerPanel({ detail, current }: { detail: RequestDetail; current: Re
           {action.success && <Notice kind="success">{action.success}</Notice>}
           {request.status === 'submetido' && (
             <button type="button" className="btn secondary" disabled={action.busy}
-              onClick={() => action.run(() => call('mark_request_in_review', { p_request: request.id }), 'Pedido marcado como em revisão.')}>
-              Marcar como em revisão
+              onClick={() => action.run(() => call('mark_request_in_review', { p_request: request.id }), 'Pedido marcado como em análise.')}>
+              Marcar como em análise
             </button>
           )}
           <fieldset style={{ marginTop: 12 }}>

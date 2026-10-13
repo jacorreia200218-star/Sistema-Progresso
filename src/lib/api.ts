@@ -3,6 +3,7 @@
 import { supabase } from './supabase';
 import { errorMessage } from './errors';
 import type {
+  RequestObjective,
   Adhesion, Attachment, Catalog, CatalogArea, CatalogStage, Experience, Invite, MemberProgress, Membership, MeritAward,
   MeritStatus, NotificationRow, Profile, RequestVersion, Section, SectionSettings, StageChoice, StagePath, StageRequest,
   Team, TrailDecision, TrailRequest,
@@ -88,6 +89,7 @@ export async function fetchMemberProgress(membershipId: string): Promise<MemberP
   }
   return {
     decisions,
+    objectives: reqs.length ? await fetchObjectives(reqs.map((r) => r.id)) : [],
     adhesion: check(ad) as Adhesion | null,
     paths: check(paths) as StagePath[],
     choices: check(choices) as StageChoice[],
@@ -114,7 +116,20 @@ export async function fetchTeams(sectionId: string): Promise<Team[]> {
   return check(await supabase.from('teams').select('*').eq('section_id', sectionId).order('name')) as Team[];
 }
 
+/** Objetivos dos pedidos indicados, com o número da versão a que pertencem. */
+export async function fetchObjectives(requestIds: string[]): Promise<RequestObjective[]> {
+  const [rows, versions] = await Promise.all([
+    supabase.from('request_objectives').select('*').in('request_id', requestIds),
+    supabase.from('trail_request_versions').select('id, version_no').in('request_id', requestIds),
+  ]);
+  const no = new Map((check(versions) as { id: string; version_no: number }[]).map((v) => [v.id, v.version_no]));
+  return (check(rows) as RequestObjective[])
+    .map((r) => ({ ...r, version_no: no.get(r.version_id) }))
+    .sort((a, b) => a.objective_code.localeCompare(b.objective_code, 'pt', { numeric: true }));
+}
+
 export interface RequestDetail {
+  objectives: RequestObjective[];
   request: TrailRequest;
   versions: RequestVersion[];
   decisions: TrailDecision[];
@@ -140,6 +155,7 @@ export async function fetchRequest(id: string): Promise<RequestDetail | null> {
     for (const p of profs) recorders[p.id] = p.full_name;
   }
   return {
+    objectives: await fetchObjectives([req.id]),
     request: req,
     versions: check(versions) as RequestVersion[],
     decisions: dec,

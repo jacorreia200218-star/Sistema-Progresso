@@ -13,7 +13,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });
     await installMock(page, pioneer());
     await page.goto('/meu-progresso?vista=caminho');
-    await expect(page.getByRole('heading', { name: 'Meu progresso', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'O meu percurso', exact: true })).toBeVisible();
     const summary = page.locator('.summary');
     await expect(summary.getByRole('heading', { name: 'Etapa atual' })).toBeVisible();
     await expect(summary.getByRole('heading', { name: 'Histórico reconhecido' })).toBeVisible();

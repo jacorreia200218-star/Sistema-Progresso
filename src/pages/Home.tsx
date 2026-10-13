@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, CheckCircle2, ClipboardList, Compass, Flag, MessageSquare, Route as RouteIcon, Send, Users, UsersRound } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ClipboardList, Flag, MessageSquare, Route as RouteIcon, RotateCcw, Send, Users, UsersRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useActiveSection } from '../lib/session';
 import { useProgress, useTeams } from '../lib/hooks';
@@ -42,9 +42,9 @@ function MemberHome() {
     <>
       <StatCards label="Resumo do meu progresso" items={[
         { label: 'Etapa atual', value: c.stage?.name ?? milestoneByKey[pos.milestone].name, hint: STATE_LABEL[pos.state].label, to: '/meu-progresso?vista=caminho', tone: 'azul', icon: RouteIcon },
-        { label: 'Trilhos em desenvolvimento', value: c.inDevelopment, to: '/meu-progresso?vista=areas&filtro=em_desenvolvimento', tone: 'verde', icon: Compass },
-        { label: 'Pedidos em validação', value: c.inValidation, to: '/meu-progresso?vista=pedidos&pfiltro=aguarda', tone: 'ambar', icon: Send },
-        { label: 'Trilhos validados', value: c.validated, to: '/meu-progresso?vista=areas&filtro=validado', tone: 'lilas', icon: CheckCircle2 },
+        { label: 'Pedidos em validação', value: c.inValidation, to: '/meu-progresso?vista=pedidos&pfiltro=aguarda', tone: 'verde', icon: Send },
+        { label: 'Pedidos a rever', value: c.toReview, to: '/meu-progresso?vista=pedidos&pfiltro=revisao', tone: 'ambar', icon: RotateCcw },
+        { label: 'Trilhos validados', value: c.validated, to: '/meu-progresso?vista=validado', tone: 'lilas', icon: CheckCircle2 },
       ]} />
 
       <section className="card next-step" aria-labelledby="h-next">

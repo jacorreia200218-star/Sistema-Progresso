@@ -10,7 +10,9 @@ export type RequestStatus =
   | 'devolvido'
   | 'aprovado'
   | 'recusado'
-  | 'cancelado';
+  | 'cancelado'
+  /** Todos os objetivos do pedido aceites, mas o trilho ainda tem objetivos por validar. */
+  | 'objetivos_validados';
 export type DecisionKind =
   | 'em_revisao'
   | 'validado_equipa'
@@ -20,7 +22,8 @@ export type DecisionKind =
   | 'aprovado_historico'
   | 'recusado_historico'
   | 'devolvido_historico'
-  | 'reconhecido_negociacao';
+  | 'reconhecido_negociacao'
+  | 'objetivos_equipa';
 export type ChoiceStatus = 'proposta' | 'confirmada' | 'recusada' | 'retirada' | 'substituida';
 export type StageRequestStatus = 'submetido' | 'decidido_conselho' | 'confirmada' | 'nao_confirmada' | 'cancelado';
 
@@ -285,6 +288,20 @@ export interface Invite {
 }
 
 /** Progresso de um membro, carregado de uma vez para cálculo dos estados. */
+/** Objetivo incluído numa versão de um pedido, com a decisão da reunião de Equipa. */
+export interface RequestObjective {
+  id: string;
+  request_id: string;
+  version_id: string;
+  objective_id: string;
+  objective_code: string;
+  decision: 'aceite' | 'rever' | null;
+  comment: string | null;
+  decided_at: string | null;
+  /** Número da versão (preenchido pela interface a partir das versões). */
+  version_no?: number;
+}
+
 export interface MemberProgress {
   adhesion: Adhesion | null;
   paths: StagePath[];
@@ -294,4 +311,6 @@ export interface MemberProgress {
   merit: MeritAward | null;
   /** Decisões de resultado sobre os pedidos (datas e autoria da validação). */
   decisions?: TrailDecision[];
+  /** Objetivos dos pedidos (todas as versões). Pedidos antigos, por trilho, não têm. */
+  objectives?: RequestObjective[];
 }

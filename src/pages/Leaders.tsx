@@ -191,7 +191,7 @@ function Council({ members }: { members: MemberRow[] }) {
   const names = nameMap(members);
   if (stageReqs.isLoading || reqs.isLoading) return <Loading />;
   const open = (stageReqs.data ?? []).filter((s) => s.status === 'submetido' || s.status === 'decidido_conselho');
-  const recent = (reqs.data ?? []).filter((r) => r.kind === 'normal' && (r.status === 'validado_equipa' || r.status === 'devolvido')).slice(0, 20);
+  const recent = (reqs.data ?? []).filter((r) => r.kind === 'normal' && (r.status === 'validado_equipa' || r.status === 'devolvido' || r.status === 'objetivos_validados')).slice(0, 20);
   return (
     <>
       <h2 className="section-title">Validação de etapas</h2>
