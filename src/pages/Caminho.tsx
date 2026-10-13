@@ -18,7 +18,7 @@ const KEYS = MILESTONES.map((m) => m.key);
 const isKey = (v: string | null): v is MilestoneKey => !!v && (KEYS as string[]).includes(v);
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const byName = (a: PathMember, b: PathMember) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' });
-const MAX_AVATARS = 7;
+const MAX_AVATARS = 5;
 
 export default function Caminho() {
   const s = useActiveSection();
@@ -68,7 +68,7 @@ export default function Caminho() {
     const hidden = filtering ? 0 : Math.max(0, (counts[m.key] ?? 0) - known);
     const n = filtering ? people.length : counts[m.key] ?? 0;
     steps[m.key] = {
-      status: n ? 'atual' : 'neutro',
+      status: n ? 'ocupado' : 'neutro',
       caption: n ? `${n} ${n === 1 ? 'pessoa' : 'pessoas'}` : 'Ninguém',
       content: (
         <PeopleRow people={people} max={MAX_AVATARS} hidden={hidden} teamName={teamName}
@@ -120,7 +120,7 @@ export default function Caminho() {
               <p className="faint">{isMember && path.data?.scope === 'proprio' ? 'Vês o teu nome; dos outros pioneiros, quantos estão em cada marco.' : 'Vês os nomes da tua equipa; das outras, quantos estão em cada marco.'}</p>
             )}
             {filtering && !filtered.length && <p className="faint" role="status">Ninguém corresponde à pesquisa.</p>}
-            <section className="card track-card" aria-label="Percurso da secção">
+            <section className="card map-card" aria-label="Mapa do caminho da secção">
               <Track steps={steps} label="Marcos do caminho e quem está em cada um" />
             </section>
             <details className="more">

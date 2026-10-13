@@ -192,7 +192,7 @@ Para reconstruir a migração do catálogo depois de alterar o JSON: `npm run ca
   Desligar bloqueia novas submissões no servidor, sem afetar pedidos já submetidos nem aprovações.
 - **Anilha de mérito:** elegibilidade calculada (18 trilhos + Construção concluída) mostrada à parte da
   atribuição registada por um dirigente, com data.
-- **Caminho da secção** (`/caminho`): os marcos do manual numa linha simples, com as pessoas (avatares iguais,
+- **Caminho da secção** (`/caminho`): um mapa com o trilho desenhado e os marcos do manual ao longo dele, com as pessoas (avatares iguais,
   por ordem alfabética) no marco onde estão; «+N» abre a lista completa; pesquisa por nome e filtro por equipa
   ficam no endereço. Tocar numa pessoa abre um painel (lateral no computador, folha no telemóvel) com equipa,
   etapa atual, as seis áreas FACEIS e o próximo passo. Sem rankings nem arrastar: a posição resulta do progresso

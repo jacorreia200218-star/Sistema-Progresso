@@ -567,24 +567,47 @@ a.ck-row:hover { background: var(--surface-2); }
 .stat-label { font-size: 0.86rem; color: var(--ink-soft); }
 .stat-hint { font-size: 0.8rem; color: var(--accent-ink); }
 
-/* Percurso (linha reta com marcos) */
-.track-card { padding: 6px 14px; }
-.track { list-style: none; margin: 0; padding: 0; }
-.track-step { position: relative; display: flex; gap: 12px; padding: 10px 0; }
-.track-step + .track-step { border-top: 1px solid var(--line); }
-.track-step::before { content: ''; position: absolute; left: 13px; top: 0; bottom: 0; width: 2px; background: var(--line); }
-.track-step:first-child::before { top: 18px; }
-.track-step:last-child::before { bottom: calc(100% - 18px); }
-.track-dot { position: relative; z-index: 1; flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; background: var(--card); border: 2px solid var(--path-edge); color: var(--ink-soft); }
+/* Mapa do caminho: trilho desenhado + marcos e pessoas por cima (HTML real) */
+.map-card { padding: 8px; overflow: hidden; }
+.trail-map { position: relative; height: var(--nh); } /* no telemóvel a altura tem de coincidir com o SVG */
+.map-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.map-wide { display: none; }
+.map-path-bg { fill: none; stroke: var(--surface-3); stroke-width: 22px; stroke-linecap: round; stroke-linejoin: round; }
+.map-path { fill: none; stroke: var(--path-edge); stroke-width: 2px; stroke-dasharray: 1.2 1.6; stroke-linecap: round; }
+.map-path-done { fill: none; stroke: var(--accent); stroke-width: 4px; stroke-linecap: round; opacity: 0.85; }
+@media (prefers-reduced-motion: no-preference) {
+  .map-path-done { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: map-draw 900ms var(--ease) 120ms forwards; }
+  .track-step { animation: map-pop 260ms var(--ease) both; animation-delay: calc(var(--i) * 45ms); }
+}
+@keyframes map-draw { to { stroke-dashoffset: 0; } }
+@keyframes map-pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.track { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; }
+.track-step { position: absolute; left: var(--xn); right: 6px; top: var(--yn); }
+.track-dot { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); z-index: 1; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; background: var(--card); border: 2px solid var(--path-edge); color: var(--ink-soft); box-shadow: 0 0 0 4px var(--card); }
 .st-feito .track-dot { background: var(--green-tint); border-color: var(--green-ink); color: var(--green-ink); }
-.st-atual .track-dot { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.st-info .track-dot { border-style: dashed; }
+.st-atual .track-dot { background: var(--accent); border-color: var(--accent); color: var(--on-accent); width: 36px; height: 36px; box-shadow: 0 0 0 5px var(--accent-tint); }
+.st-ocupado .track-dot { border-color: var(--accent); color: var(--accent-ink); }
+.st-info .track-dot { border-style: dashed; width: 24px; height: 24px; font-size: 0.72rem; }
 .st-por_vir .track-dot { border-style: dotted; }
-.track-main { flex: 1; min-width: 0; }
-.track-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-height: 28px; }
-.track-caption { font-size: 0.84rem; color: var(--ink-soft); }
-.st-atual .track-caption { color: var(--accent-ink); }
+.track-main { margin: -12px 0 0 28px; min-width: 0; }
+.track-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.track-head strong { font-size: 0.95rem; }
+.track-caption { font-size: 0.82rem; color: var(--ink-soft); }
+.st-atual .track-caption, .st-ocupado .track-caption { color: var(--accent-ink); }
 .st-info .track-head strong { font-weight: 400; color: var(--ink-soft); }
+@media (min-width: 760px) {
+  .trail-map { height: 640px; }
+  .map-wide { display: block; }
+  .map-narrow { display: none; }
+  .track-step { left: calc(var(--xw) - 12%); right: auto; width: 24%; top: var(--yw); text-align: center; }
+  .track-dot { left: 50%; }
+  .track-main { margin: 26px 0 0; }
+  .track-head { justify-content: center; flex-direction: column; align-items: center; }
+  .track-step .people-row { justify-content: center; }
+}
+/* Percurso pessoal (dentro de «Ver o mapa do caminho»): mais baixo, só marcos */
+details.more .trail-map { margin: 4px 0 8px; }
+@media (min-width: 760px) { details.more .trail-map { height: 360px; } }
 .people-row { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 6px; margin: 8px 0 2px; padding: 0; align-items: flex-start; }
 .avatar-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px; padding: 2px; background: none; border: 0; border-radius: 10px; cursor: pointer; font: inherit; color: inherit; }
 .avatar-btn .avatar { width: 40px; height: 40px; font-size: 0.85rem; }
@@ -650,3 +673,8 @@ details.more-inner > summary { font-weight: 600; color: var(--ink); }
 .avatar { background: var(--accent-tint); color: var(--accent-ink); }
 /* Frases curtas (objetivos oficiais, estados, próximos passos) não se justificam: evita espaços largos no telemóvel. */
 .main .objective p, .main .next-title, .main .next-line p, .main .list-item p, .main .consult-note, .main .summary p, .main .side-panel p { text-align: left; }
+@media (min-width: 760px) {
+  .trail-map { height: 580px; }
+  .track-step .avatar-btn { width: 50px; }
+  .track-step .people-row { gap: 6px 2px; }
+}

@@ -91,7 +91,7 @@ test('grupos grandes: alguns avatares e «+N» com a lista completa', async ({ p
   await installMock(page, bigLeader());
   await page.goto('/caminho');
   const conhecimento = page.locator('.track-step', { hasText: 'Conhecimento' });
-  await expect(conhecimento.locator('.avatar-btn')).toHaveCount(8); // 7 pessoas + «+N»
+  await expect(conhecimento.locator('.avatar-btn')).toHaveCount(6); // 5 pessoas + «+N»
   await conhecimento.getByRole('button', { name: 'Ver todos (13)' }).click();
   const list = page.getByRole('dialog', { name: /Conhecimento · 13/ });
   await expect(list.locator('.person')).toHaveCount(13);
