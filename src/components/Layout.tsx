@@ -12,7 +12,7 @@ import { Avatar } from './ui';
 function Mark() {
   return (
     <svg className="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="14" fill="#A52A35" />
+      <rect width="64" height="64" rx="14" fill="#1D4FA3" />
       <circle cx="32" cy="32" r="17" fill="none" stroke="#F7F5F0" strokeWidth="3" />
       <path d="M32 18 L37 32 L32 46 L27 32 Z" fill="#F7F5F0" />
     </svg>

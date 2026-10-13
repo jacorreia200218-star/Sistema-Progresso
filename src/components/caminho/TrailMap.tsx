@@ -143,7 +143,7 @@ function CycleRing({ x, y, r, phases }: { x: number; y: number; r: number; phase
     const a1 = -Math.PI / 2 + (i + 1) * (Math.PI / 2) - 0.16;
     const d = `M${x + R * Math.cos(a0)},${y + R * Math.sin(a0)} A${R},${R} 0 0 1 ${x + R * Math.cos(a1)},${y + R * Math.sin(a1)}`;
     const st = phases?.[i]?.status;
-    const stroke = st === 'feito' ? 'var(--green-ink)' : st === 'atual' ? 'var(--red-ink)' : 'var(--path-edge)';
+    const stroke = st === 'feito' ? 'var(--green-ink)' : st === 'atual' ? 'var(--accent-ink)' : 'var(--path-edge)';
     return <path key={i} d={d} stroke={stroke} strokeWidth={st === 'atual' ? 5 : 4} fill="none" strokeLinecap="round" opacity={st ? 1 : 0.55} />;
   });
   return <g aria-hidden="true">{arcs}</g>;
@@ -236,9 +236,9 @@ function MapSvg({ variant, nodes, selected, onSelect, title }: Props & { variant
         const isSel = selected === m.key;
         const stageNo = ['conhecimento', 'vontade', 'construcao'].indexOf(m.key) + 1;
         const lab = L.label(i);
-        const stroke = n.status === 'atual' ? 'var(--red-ink)' : n.status === 'feito' ? 'var(--green-ink)' : 'var(--path-edge)';
-        const fill = n.status === 'feito' ? 'var(--green-tint)' : n.status === 'atual' ? 'var(--red-tint)' : 'var(--card)';
-        const color = n.status === 'atual' ? 'var(--red-ink)' : n.status === 'feito' ? 'var(--green-ink)' : 'var(--ink-soft)';
+        const stroke = n.status === 'atual' ? 'var(--accent-ink)' : n.status === 'feito' ? 'var(--green-ink)' : 'var(--path-edge)';
+        const fill = n.status === 'feito' ? 'var(--green-tint)' : n.status === 'atual' ? 'var(--accent-tint)' : 'var(--card)';
+        const color = n.status === 'atual' ? 'var(--accent-ink)' : n.status === 'feito' ? 'var(--green-ink)' : 'var(--ink-soft)';
         const statusText = { feito: 'concluído', atual: 'estás aqui', por_vir: 'por vir', info: 'momento sem registo na aplicação', neutro: '' }[n.status];
         const aria = [m.name, statusText, n.caption ?? '']
           .filter(Boolean)
@@ -267,7 +267,7 @@ function MapSvg({ variant, nodes, selected, onSelect, title }: Props & { variant
             )}
             <text x={labelX} y={labelY} textAnchor={lab.anchor} fontSize={variant === 'largo' ? 15 : 14.5} fontWeight="700" fill="var(--ink)">{m.short}</text>
             {n.caption && (
-              <text x={labelX} y={labelY + 17} textAnchor={lab.anchor} fontSize="12" fill={n.status === 'atual' ? 'var(--red-ink)' : 'var(--ink-soft)'}>{n.caption}</text>
+              <text x={labelX} y={labelY + 17} textAnchor={lab.anchor} fontSize="12" fill={n.status === 'atual' ? 'var(--accent-ink)' : 'var(--ink-soft)'}>{n.caption}</text>
             )}
             {stageNo > 0 && (
               <text x={labelX} y={labelY + (n.caption ? 33 : 17)} textAnchor={lab.anchor} fontSize="11" fill="var(--ink-faint)">
@@ -305,7 +305,7 @@ export function MapLegend() {
           {[0, 1, 2, 3].map((i) => {
             const a0 = -Math.PI / 2 + i * (Math.PI / 2) + 0.2;
             const a1 = a0 + Math.PI / 2 - 0.4;
-            return <path key={i} d={`M${13 * Math.cos(a0)},${13 * Math.sin(a0)} A13,13 0 0 1 ${13 * Math.cos(a1)},${13 * Math.sin(a1)}`} stroke={i === 0 ? 'var(--green-ink)' : i === 1 ? 'var(--red-ink)' : 'var(--path-edge)'} strokeWidth="3.5" fill="none" strokeLinecap="round" />;
+            return <path key={i} d={`M${13 * Math.cos(a0)},${13 * Math.sin(a0)} A13,13 0 0 1 ${13 * Math.cos(a1)},${13 * Math.sin(a1)}`} stroke={i === 0 ? 'var(--green-ink)' : i === 1 ? 'var(--accent-ink)' : 'var(--path-edge)'} strokeWidth="3.5" fill="none" strokeLinecap="round" />;
           })}
         </svg>
         Ciclo da etapa: escolha · oportunidades · validação · reconhecimento

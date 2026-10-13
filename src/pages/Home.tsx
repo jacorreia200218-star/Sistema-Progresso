@@ -195,7 +195,7 @@ function LeaderHome() {
 
       <section className="card" aria-labelledby="h-pend">
         <div className="card-title">
-          <ClipboardCheck aria-hidden="true" color="var(--red-ink)" />
+          <ClipboardCheck aria-hidden="true" color="var(--accent-ink)" />
           <h2 id="h-pend" style={{ margin: 0 }}>Pendentes</h2>
         </div>
         <ul className="list">

@@ -16,7 +16,7 @@ export function StagePanel({ summary, catalog, linkTrails = true }: { summary: S
     <div className="card">
       <div className="row between">
         <div className="card-title">
-          <Flag aria-hidden="true" color="var(--red-ink)" />
+          <Flag aria-hidden="true" color="var(--accent-ink)" />
           <h2 style={{ margin: 0 }}>Etapa {stageName(catalog, path.stage_key)}</h2>
         </div>
         {path.status === 'concluida' ? (
