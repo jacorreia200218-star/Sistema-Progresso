@@ -74,7 +74,7 @@ const memberships = [
   mem('m-p1', profiles.p1, 'pioneiro', 'teamA'),
   mem('m-ana', profiles.ana, 'dirigente', null, { is_admin: true }),
   mem('m-guia', profiles.guia, 'guia', 'teamA'),
-  mem('m-novo', profiles.novo, null, null, { status: 'pendente', approved_at: null }),
+  mem('m-novo', profiles.novo, null, null, { status: 'pendente', approved_at: null, requested_team_id: 'teamB' }),
 ];
 
 const progressRows = () => {
@@ -157,6 +157,25 @@ export function leader(): Persona {
         { at: now, kind: 'validado_equipa', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Desempenho', ref: 'r-ok' },
         { at: now, kind: 'etapa_aberta', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Conhecimento', ref: 'path1' },
       ],
+    },
+  };
+}
+
+/** Conta criada, com pedido de entrada pendente (ainda sem acesso aos dados da secção). */
+export function pendingUser(): Persona {
+  const c = buildCatalog();
+  return {
+    userId: 'u-novo',
+    tables: {
+      profiles: [profiles.novo],
+      memberships: [{ ...memberships.find((m) => m.id === 'm-novo')!, requested_team_id: null, sections: section, teams: null }],
+      catalog_versions: [c.version],
+      catalog_areas: c.areas,
+      catalog_stages: c.stages,
+      notifications: [],
+    },
+    rpc: {
+      join_team_options: teams.map((t) => ({ membership_id: 'm-novo', section_id: 'sec1', team_id: t.id, team_name: t.name })),
     },
   };
 }

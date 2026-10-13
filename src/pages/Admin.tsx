@@ -64,11 +64,40 @@ function RoleFields({ fn, setFn, team, setTeam, teams, idp, allowNone }: {
   );
 }
 
+/** Nome e totem do membro, editáveis pela administração (fica no registo). */
+function NameFields({ m }: { m: MemberRow }) {
+  const action = useAction();
+  const [name, setName] = useState(m.profiles?.full_name ?? '');
+  const [totem, setTotem] = useState(m.profiles?.totem ?? '');
+  const dirty = name.trim() !== (m.profiles?.full_name ?? '') || totem.trim() !== (m.profiles?.totem ?? '');
+  return (
+    <div className="name-fields">
+      <div className="grid-2">
+        <Field label="Nome" htmlFor={`nm-${m.id}`}>
+          <input id={`nm-${m.id}`} type="text" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Totem (opcional)" htmlFor={`tt-${m.id}`}>
+          <input id={`tt-${m.id}`} type="text" value={totem} maxLength={120} onChange={(e) => setTotem(e.target.value)} />
+        </Field>
+      </div>
+      <ErrorBox error={action.error} />
+      {action.success && !dirty && <Notice kind="success">{action.success}</Notice>}
+      {dirty && (
+        <button type="button" className="btn secondary" disabled={action.busy || !name.trim()}
+          onClick={() => action.run(() => call('admin_update_profile', { p_membership: m.id, p_full_name: name, p_totem: totem }), 'Nome guardado.')}>
+          Guardar nome
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PendingRow({ m, teams }: { m: MemberRow; teams: Team[] }) {
   const action = useAction();
   const [fn, setFn] = useState<MemberFunction | ''>('pioneiro');
-  const [team, setTeam] = useState('');
+  const [team, setTeam] = useState(m.requested_team_id ?? '');
   const [reason, setReason] = useState('');
+  const requested = teams.find((t) => t.id === m.requested_team_id);
   return (
     <div className="card flat">
       <div className="row">
@@ -76,13 +105,14 @@ function PendingRow({ m, teams }: { m: MemberRow; teams: Team[] }) {
         <div className="grow">
           <strong>{m.profiles?.full_name || 'Sem nome'}</strong>
           <br />
-          <span className="faint">Pedido em {formatDateTime(m.requested_at)}</span>
+          <span className="faint">Pedido em {formatDateTime(m.requested_at)}{requested ? ` · indicou a equipa ${requested.name}` : ' · não indicou equipa'}</span>
         </div>
       </div>
       <ErrorBox error={action.error} />
       {action.success ? <Notice kind="success">{action.success}</Notice> : (
         <>
-          <p className="faint" style={{ marginTop: 10 }}>Confirma que conheces esta pessoa antes de aprovar. A função é atribuída por ti, nunca escolhida no registo.</p>
+          <p className="faint" style={{ marginTop: 10 }}>Confirma que conheces esta pessoa antes de aprovar. A equipa indicada vem pré-preenchida e podes corrigi-la; a função é atribuída por ti.</p>
+          <NameFields m={m} />
           <RoleFields fn={fn} setFn={setFn} team={team} setTeam={setTeam} teams={teams} idp={m.id} />
           <div className="btn-row" style={{ marginTop: 0 }}>
             <button type="button" className="btn" disabled={action.busy || !fn || ((fn === 'pioneiro' || fn === 'guia') && !team)}
@@ -127,6 +157,7 @@ function MemberEditor({ m, teams }: { m: MemberRow; teams: Team[] }) {
       <div style={{ marginTop: 12 }}>
         <ErrorBox error={action.error} />
         {action.success && <Notice kind="success">{action.success}</Notice>}
+        <NameFields m={m} />
         <RoleFields fn={fn} setFn={setFn} team={team} setTeam={setTeam} teams={teams} idp={m.id} allowNone />
         <label className="checkbox"><input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} /> Administração técnica (gere membros, equipas, convites e configurações)</label>
         <Field label="Motivo da alteração (fica no histórico)" htmlFor={`r-${m.id}`}>

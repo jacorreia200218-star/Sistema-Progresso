@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import rosaUrl from '../assets/rosa-dos-ventos.svg';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, ClipboardCheck, Compass, Home, Route as RouteIcon, Settings, User, Users } from 'lucide-react';
+import { Bell, ClipboardCheck, Compass, Home, ListTree, Route as RouteIcon, Settings, User, Users } from 'lucide-react';
 import { useSection } from '../lib/session';
 import { fetchNotifications, fetchPendingCounts } from '../lib/api';
 import { useProgress } from '../lib/hooks';
@@ -97,12 +97,17 @@ export default function Layout() {
     { to: '/', label: 'Início', short: 'Início', icon: Home, end: true, show: true },
     { to: '/meu-progresso', label: 'Meu progresso', short: 'Progresso', icon: Compass, show: s.isMember, count: c.pedidos, countLabel: 'pedidos precisam de ti' },
     { to: '/caminho', label: 'Caminho da secção', short: 'Caminho', icon: RouteIcon, show: true },
+    { to: '/trilhos', label: 'Trilhos', short: 'Trilhos', icon: ListTree, show: true, optionalOnMobile: true },
     { to: '/equipa', label: 'Equipa', short: 'Equipa', icon: Users, show: s.isGuia, count: c.equipa, countLabel: 'para a reunião de Equipa' },
     { to: '/meu-progresso', label: 'Progresso dos pioneiros', short: 'Progressos', icon: Compass, show: s.isDirigente && !s.isMember },
     { to: '/acompanhamento', label: 'Acompanhamento', short: 'Acompanhar', icon: ClipboardCheck, show: s.isDirigente, count: c.acompanhamento, countLabel: 'pendentes' },
     { to: '/gestao', label: 'Gestão', short: 'Gestão', icon: Settings, show: s.isAdmin, count: c.gestao, countLabel: 'pedidos de entrada' },
     { to: '/perfil', label: 'Perfil', short: 'Perfil', icon: User, show: true, desktopOnly: true },
   ].filter((i) => i.show);
+
+  // Na barra de baixo cabem cinco destinos; «Trilhos» sai primeiro (fica acessível no Caminho e em Meu progresso).
+  const mobileAll = items.filter((i) => !i.desktopOnly);
+  const mobileItems = mobileAll.length > 5 ? mobileAll.filter((i) => !('optionalOnMobile' in i)) : mobileAll;
 
   const link = (i: (typeof items)[number], compact: boolean) => (
     <NavLink key={i.to} to={i.to} end={i.end} className="nav-link">
@@ -145,7 +150,7 @@ export default function Layout() {
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Navegação principal">
-        {items.filter((i) => !i.desktopOnly).map((i) => link(i, true))}
+        {mobileItems.map((i) => link(i, true))}
       </nav>
     </div>
   );

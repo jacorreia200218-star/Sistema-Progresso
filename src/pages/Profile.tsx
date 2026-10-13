@@ -5,10 +5,10 @@ import { useActiveSection } from '../lib/session';
 import { useTeams } from '../lib/hooks';
 import { call } from '../lib/api';
 import { useAction } from '../lib/useAction';
-import { compressImage } from '../lib/image';
+import { squarePhoto } from '../lib/image';
 import { errorMessage } from '../lib/errors';
 import { functionLabel, memberStatusLabel } from '../lib/labels';
-import { Avatar, ErrorBox, Field, Notice, PageTitle } from '../components/ui';
+import { Avatar, ErrorBox, Field, Notice, PageTitle, PasswordInput } from '../components/ui';
 import { ThemeControl } from '../components/ThemeControl';
 
 export default function Profile() {
@@ -40,7 +40,7 @@ export default function Profile() {
     setPhotoBusy(true);
     setPhotoError(null);
     try {
-      const blob = await compressImage(file);
+      const blob = await squarePhoto(file);
       const old = s.profile?.photo_path;
       const path = `${s.userId}/${crypto.randomUUID()}.jpg`;
       const up = await supabase.storage.from('fotografias').upload(path, blob, { contentType: 'image/jpeg' });
@@ -136,7 +136,7 @@ export default function Profile() {
         <ErrorBox error={pwdAction.error} />
         {pwdAction.success && <Notice kind="success">{pwdAction.success}</Notice>}
         <Field label="Nova palavra-passe" htmlFor="pwd" hint="Pelo menos 8 caracteres. Se te esqueceres, usa «Esqueci-me da palavra-passe» no ecrã de entrada.">
-          <input id="pwd" type="password" autoComplete="new-password" minLength={8} value={pwd} onChange={(e) => setPwd(e.target.value)} />
+          <PasswordInput id="pwd" autoComplete="new-password" minLength={8} value={pwd} onChange={(e) => setPwd(e.target.value)} />
         </Field>
         <div className="btn-row">
           <button className="btn secondary" disabled={pwdAction.busy || pwd.length < 8}><KeyRound size={18} aria-hidden="true" /> Alterar palavra-passe</button>

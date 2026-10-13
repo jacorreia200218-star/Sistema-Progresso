@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Catalog, TrailRequest } from '../lib/types';
-import { formatDate, requestKindLabel, requestStatusLabel } from '../lib/labels';
+import { formatShortDate, requestKindLabel, requestStatusLabel } from '../lib/labels';
 import { Badge } from './ui';
 
 export function RequestList({ requests, catalog, names, base = '/pedidos' }: {
@@ -20,7 +20,7 @@ export function RequestList({ requests, catalog, names, base = '/pedidos' }: {
                 {names?.[r.membership_id] && <span> · {names[r.membership_id]}</span>}
                 <br />
                 <span className="faint">
-                  {requestKindLabel[r.kind] ? `${requestKindLabel[r.kind]} · ` : ''}atualizado {formatDate(r.updated_at)}
+                  {requestKindLabel[r.kind] ? `${requestKindLabel[r.kind]} · ` : ''}{formatShortDate(r.updated_at)}
                 </span>
               </span>
               <Badge {...requestStatusLabel[r.status]} />

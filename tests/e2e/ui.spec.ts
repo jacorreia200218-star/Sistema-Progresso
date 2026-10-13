@@ -122,7 +122,10 @@ test('dirigente e administração', async ({ page }, info) => {
 
   await page.goto('/gestao/membros');
   await expect(page.getByText('Pessoa Nova Teste')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Aprovar entrada' })).toBeDisabled(); // falta a equipa
+  // A equipa indicada pela pessoa vem pré-preenchida; a administração pode corrigir
+  await expect(page.getByText('indicou a equipa Equipa Bússola')).toBeVisible();
+  await expect(page.locator('#m-novo-team')).toHaveValue('teamB');
+  await expect(page.getByRole('button', { name: 'Aprovar entrada' })).toBeEnabled();
   await noHorizontalScroll(page);
 
   await page.goto('/gestao/configuracoes');

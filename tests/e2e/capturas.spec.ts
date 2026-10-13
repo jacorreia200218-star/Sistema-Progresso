@@ -42,6 +42,13 @@ for (const theme of ['light', 'dark'] as const) {
     await flat(page);
     await page.screenshot({ path: `docs/capturas/trilho-devolvido-${dev}-${t}.png`, ...full });
 
+    await page.goto('/trilhos');
+    await page.locator('.tree').waitFor();
+    await page.locator('.tree-area summary').first().click();
+    await page.locator('.tree-trail summary').first().click();
+    await flat(page);
+    await page.screenshot({ path: `docs/capturas/trilhos-${dev}-${t}.png`, ...full });
+
     const p3 = await page.context().newPage();
     await p3.emulateMedia({ colorScheme: theme });
     await installMock(p3, leader());

@@ -48,6 +48,7 @@ export interface Membership {
   function: MemberFunction | null;
   is_admin: boolean;
   team_id: string | null;
+  requested_team_id?: string | null;
   requested_at: string;
   approved_at: string | null;
 }

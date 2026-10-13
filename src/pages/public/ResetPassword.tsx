@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
 import { useAuth } from '../../auth/AuthProvider';
-import { ErrorBox, Field, Loading, Notice } from '../../components/ui';
+import { ErrorBox, Field, Loading, Notice, PasswordInput } from '../../components/ui';
 import PublicShell from './PublicShell';
 
 export default function ResetPassword() {
@@ -51,10 +51,10 @@ export default function ResetPassword() {
           <ErrorBox error={error} />
           <form onSubmit={submit}>
             <Field label="Nova palavra-passe" htmlFor="password" hint="Pelo menos 8 caracteres.">
-              <input id="password" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput id="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
             </Field>
             <Field label="Repetir palavra-passe" htmlFor="password2">
-              <input id="password2" type="password" autoComplete="new-password" required value={password2} onChange={(e) => setPassword2(e.target.value)} />
+              <PasswordInput id="password2" autoComplete="new-password" required value={password2} onChange={(e) => setPassword2(e.target.value)} />
             </Field>
             <button className="btn block" disabled={busy}>{busy ? 'A guardar…' : 'Guardar palavra-passe'}</button>
           </form>

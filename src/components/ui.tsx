@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, ArrowLeft, Check, CheckCircle2, Circle, Clock, Compass, Info, MessageCircle, Pencil, RotateCcw, Send, Sprout, X,
+  AlertCircle, ArrowLeft, Check, CheckCircle2, Circle, Clock, Compass, Eye, EyeOff, Info, MessageCircle, Pencil, RotateCcw, Send, Sprout, X,
 } from 'lucide-react';
 import type { Tone } from '../lib/labels';
 import { signedUrl } from '../lib/api';
@@ -118,6 +118,20 @@ export function Field({ label, hint, children, htmlFor }: { label: string; hint?
   );
 }
 
+/** Campo de palavra-passe com botão para mostrar/ocultar o que se escreveu. */
+export function PasswordInput(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="password-field">
+      <input {...props} type={show ? 'text' : 'password'} autoCapitalize="none" spellCheck={false} />
+      <button type="button" className="password-toggle" aria-pressed={show} aria-controls={props.id}
+        aria-label={show ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'} onClick={() => setShow((v) => !v)}>
+        {show ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
+
 export function Meter({ value, max, label }: { value: number; max: number; label: string }) {
   const pct = max ? Math.round((value / max) * 100) : 0;
   return (
@@ -135,15 +149,31 @@ export function Meter({ value, max, label }: { value: number; max: number; label
   );
 }
 
+// URLs assinados das fotografias, reaproveitados entre páginas (evita piscar e pedidos repetidos).
+const photoUrls = new Map<string, { url: string; until: number }>();
+function cachedPhoto(path?: string | null) {
+  const hit = path ? photoUrls.get(path) : undefined;
+  return hit && hit.until > Date.now() ? hit.url : null;
+}
+
 /** Avatar com iniciais; a fotografia carrega por cima, sem bloquear o resto. */
 export function Avatar({ name, photoPath, size }: { name: string; photoPath?: string | null; size?: 'lg' }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [url, setUrl] = useState<string | null>(() => cachedPhoto(photoPath));
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
-    setUrl(null);
-    setLoaded(false);
-    if (photoPath) signedUrl('fotografias', photoPath, 3600).then((u) => alive && setUrl(u)).catch(() => undefined);
+    setFailed(false);
+    const hit = cachedPhoto(photoPath);
+    setUrl(hit);
+    if (photoPath && !hit) {
+      signedUrl('fotografias', photoPath, 3600)
+        .then((u) => {
+          if (!u) return;
+          photoUrls.set(photoPath, { url: u, until: Date.now() + 50 * 60 * 1000 });
+          if (alive) setUrl(u);
+        })
+        .catch(() => undefined);
+    }
     return () => {
       alive = false;
     };
@@ -156,10 +186,8 @@ export function Avatar({ name, photoPath, size }: { name: string; photoPath?: st
     .join('');
   return (
     <span className={`avatar ${size ?? ''}`} aria-hidden="true">
-      {url ? (
-        <img src={url} alt="" onLoad={() => setLoaded(true)} style={{ display: loaded ? 'block' : 'none' }} />
-      ) : null}
-      {!loaded && (initials || '?')}
+      <span className="avatar-initials">{initials || '?'}</span>
+      {url && !failed && <img src={url} alt="" decoding="async" onError={() => setFailed(true)} />}
     </span>
   );
 }

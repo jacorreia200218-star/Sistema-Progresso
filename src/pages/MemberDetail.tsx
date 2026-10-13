@@ -14,6 +14,7 @@ import { StagePanel, stageName } from '../components/StagePanel';
 import { RequestList } from '../components/RequestList';
 import { ChoiceDecision } from './Leaders';
 import NotFound from './NotFound';
+import { TrailPicker } from '../components/TrailPicker';
 
 export default function MemberDetail() {
   const { id } = useParams();
@@ -182,16 +183,7 @@ function RecognizeInNegotiation({ member, progress }: { member: MemberRow; progr
       </p>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
-      <Field label="Trilho" htmlFor="rn-t">
-        <select id="rn-t" value={trail} onChange={(e) => setTrail(e.target.value)}>
-          <option value="">Escolhe…</option>
-          {s.catalog.areas.map((a) => (
-            <optgroup key={a.id} label={a.name}>
-              {a.catalog_trails.filter((t) => !active.has(t.key)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </optgroup>
-          ))}
-        </select>
-      </Field>
+      <TrailPicker catalog={s.catalog} id="rn-t" value={trail} onChange={setTrail} available={(t) => !active.has(t.key)} />
       <Field label="Fundamentação (obrigatória)" htmlFor="rn-c"><textarea id="rn-c" value={comment} onChange={(e) => setComment(e.target.value)} style={{ minHeight: 70 }} /></Field>
       <Field label="Referência temporal (opcional)" htmlFor="rn-d"><input id="rn-d" type="date" max={todayIso()} value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
       <ConfirmButton className="btn" confirmLabel="Reconhecer" disabled={action.busy || !trail || !comment.trim()}
@@ -299,18 +291,8 @@ function ProposeForMember({ pathId, progress }: { pathId: string; progress: Memb
       <p className="faint">Inclui trilhos já validados ou reconhecidos que queiras atribuir a esta etapa (sem contar duas vezes).</p>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
-      <Field label="Trilho" htmlFor="pt">
-        <select id="pt" value={trail} onChange={(e) => setTrail(e.target.value)}>
-          <option value="">Escolhe…</option>
-          {options.map((a) => (
-            <optgroup key={a.id} label={a.name}>
-              {a.catalog_trails.filter((t) => !used.has(t.key)).map((t) => (
-                <option key={t.id} value={t.id}>{t.name} ({trailStateLabel[trailState(t, progress).state].label.toLowerCase()})</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-      </Field>
+      <TrailPicker catalog={s.catalog} id="pt" value={trail} onChange={setTrail} areas={options} available={(t) => !used.has(t.key)}
+        describe={(t) => trailStateLabel[trailState(t, progress).state].label.toLowerCase()} />
       <button type="button" className="btn secondary" disabled={!trail || action.busy}
         onClick={async () => { const r = await action.run(() => call('propose_choice', { p_stage_path: pathId, p_trail: trail, p_planned: null, p_replaces: null }), 'Proposta criada; confirma-a em «Propostas por negociar».'); if (r.ok) setTrail(''); }}>
         Propor

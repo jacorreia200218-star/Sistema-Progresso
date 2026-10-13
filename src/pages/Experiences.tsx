@@ -8,6 +8,7 @@ import { useAction } from '../lib/useAction';
 import { errorMessage } from '../lib/errors';
 import { formatDate, todayIso } from '../lib/labels';
 import { ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
+import { TrailPicker } from '../components/TrailPicker';
 
 /** Diário pessoal de vivências: só o próprio vê. Registar uma vivência não valida nada. */
 export default function Experiences() {
@@ -43,21 +44,10 @@ export default function Experiences() {
         <Field label="Descrição (opcional)" htmlFor="desc">
           <textarea id="desc" value={form.description} maxLength={4000} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </Field>
-        <div className="grid-2">
-          <Field label="Data (opcional)" htmlFor="date">
+        <Field label="Data (opcional)" htmlFor="date">
             <input id="date" type="date" max={todayIso()} value={form.occurred_on} onChange={(e) => setForm({ ...form, occurred_on: e.target.value })} />
           </Field>
-          <Field label="Trilho relacionado (opcional)" htmlFor="trail">
-            <select id="trail" value={form.trail_key} onChange={(e) => setForm({ ...form, trail_key: e.target.value })}>
-              <option value="">—</option>
-              {catalog.areas.map((a) => (
-                <optgroup key={a.id} label={a.name}>
-                  {a.catalog_trails.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
-                </optgroup>
-              ))}
-            </select>
-          </Field>
-        </div>
+        <TrailPicker catalog={catalog} id="trail" by="key" optional trailLabel="Trilho relacionado" value={form.trail_key} onChange={(v) => setForm({ ...form, trail_key: v })} />
         <button className="btn" disabled={action.busy || !form.title.trim()}>Guardar vivência</button>
       </form>
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : (

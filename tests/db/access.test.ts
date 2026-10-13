@@ -34,6 +34,30 @@ describe('registo e convites', () => {
     await expectError(rpc(u2, 'redeem_invite', { p_code: code }), 'limite de usos');
   });
 
+  it('quem pede entrada indica a equipa; a administração confirma ou corrige e pode mudar o nome', async () => {
+    const u = await createUser('Com Equipa');
+    const code = await rpc<string>(w.users.Ana, 'create_invite', {
+      p_section: w.section, p_label: 'equipa', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 1,
+    });
+    const m = await rpc<string>(u, 'redeem_invite', { p_code: code });
+    const opts = await asUser(u, `select * from public.join_team_options()`);
+    expect(opts.map((o) => o.team_id).sort()).toEqual([w.teamA, w.teamB].sort());
+    expect(await asUser(other.users.P1, `select * from public.join_team_options()`)).toEqual([]); // sem pedidos pendentes, nada
+    await expectError(rpc(u, 'set_requested_team', { p_membership: m, p_team: other.teamA }), 'Equipa inválida');
+    await expectError(rpc(w.users.P1, 'set_requested_team', { p_membership: m, p_team: w.teamA }), 'não encontrado');
+    await rpc(u, 'set_requested_team', { p_membership: m, p_team: w.teamB });
+    const row = await asUser(u, `select requested_team_id, team_id, function from public.memberships where id = $1`, [m]);
+    expect(row[0]).toEqual({ requested_team_id: w.teamB, team_id: null, function: null }); // só uma indicação
+    // A administração muda o nome e aprova noutra equipa
+    await expectError(rpc(w.users.P1, 'admin_update_profile', { p_membership: m, p_full_name: 'X', p_totem: null }), 'não encontrada');
+    await expectError(rpc(other.users.Ana, 'admin_update_profile', { p_membership: m, p_full_name: 'X', p_totem: null }), 'não encontrada');
+    await rpc(w.users.Ana, 'admin_update_profile', { p_membership: m, p_full_name: 'Nome Corrigido', p_totem: 'Lince' });
+    expect((await admin(`select full_name, totem from public.profiles where id = $1`, [u]))[0]).toEqual({ full_name: 'Nome Corrigido', totem: 'Lince' });
+    await rpc(w.users.Ana, 'approve_membership', { p_membership: m, p_function: 'pioneiro', p_team: w.teamA });
+    expect((await admin(`select team_id from public.memberships where id = $1`, [m]))[0].team_id).toBe(w.teamA);
+    await expectError(rpc(u, 'set_requested_team', { p_membership: m, p_team: w.teamB }), 'já foi confirmada');
+  });
+
   it('rejeita convites revogados, expirados e inválidos', async () => {
     const code = await rpc<string>(w.users.Ana, 'create_invite', {
       p_section: w.section, p_label: 'revogar', p_expires_at: new Date(Date.now() + 3600e3).toISOString(), p_max_uses: 5,

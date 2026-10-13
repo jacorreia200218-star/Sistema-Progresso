@@ -276,7 +276,8 @@ legend { font-weight: 600; margin-bottom: 6px; }
 /* Avatar */
 .avatar { width: 38px; height: 38px; font-size: 0.85rem; border-radius: 50%; background: var(--green-tint); color: var(--green-ink); display: grid; place-items: center; font-weight: 700; overflow: hidden; flex: none; }
 .avatar.lg { width: 84px; height: 84px; font-size: 1.6rem; }
-.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar { position: relative; aspect-ratio: 1; }
+.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center; border-radius: inherit; }
 
 /* Progresso */
 .meter { height: 8px; background: var(--meter); border-radius: 99px; overflow: hidden; }
@@ -494,3 +495,58 @@ a.ck-row:hover { background: var(--surface-2); }
 .ck-t-validado { color: var(--green-ink); font-weight: 600; }
 .ck-t-revisao { color: var(--amber); font-weight: 600; }
 @media (max-width: 520px) { .ck-row { flex-wrap: wrap; } .ck-text { max-width: none; width: 100%; text-align: left; padding-left: 64px; } }
+
+/* Palavra-passe com mostrar/ocultar */
+.password-field { position: relative; }
+.password-field input { width: 100%; padding-right: 48px; }
+.password-toggle { position: absolute; top: 0; right: 0; bottom: 0; width: 44px; display: grid; place-items: center; background: none; border: 0; color: var(--ink-soft); cursor: pointer; border-radius: 0 10px 10px 0; }
+.password-toggle:hover { color: var(--ink); }
+.password-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+
+/* Trilhos em árvore */
+.tree-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.search-field { display: flex; align-items: center; gap: 8px; border: 1px solid var(--input-border); border-radius: 10px; padding: 0 10px; background: var(--card); min-width: 0; flex: 1 1 220px; color: var(--ink-soft); }
+.search-field:focus-within { outline: 3px solid var(--focus); outline-offset: 1px; }
+.search-field input { border: 0 !important; outline: none; background: transparent; padding-left: 0 !important; flex: 1; min-width: 0; min-height: 40px; box-shadow: none !important; }
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree > li + li { border-top: 1px solid var(--line); }
+.tree summary { list-style: none; display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 4px; border-radius: 8px; }
+.tree summary::-webkit-details-marker { display: none; }
+.tree summary::before { content: ''; flex: none; width: 7px; height: 7px; border-right: 1.5px solid var(--ink-soft); border-bottom: 1.5px solid var(--ink-soft); transform: rotate(-45deg); transition: transform 160ms var(--ease); margin: 0 2px; }
+.tree details[open] > summary::before { transform: rotate(45deg); }
+.tree summary:hover { background: var(--surface-3); }
+.tree summary:focus-visible { outline: 3px solid var(--focus); outline-offset: -2px; }
+.tree-area > ul { margin-left: 15px; padding-left: 14px; border-left: 1px solid var(--line); margin-bottom: 8px; }
+.tree-trail > summary { padding: 7px 4px; }
+.tree-count { font-size: 0.8rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tree-state { font-size: 0.76rem; white-space: nowrap; color: var(--ink-soft); }
+.tree-state.t-ok { color: var(--green-ink); }
+.tree-state.t-attention { color: var(--amber); }
+.tree-state.t-progress { color: var(--accent-ink); }
+.tree-body { margin: 0 0 10px 15px; padding: 2px 0 4px 14px; border-left: 1px solid var(--line); }
+.tree-body p { margin: 4px 0 8px; }
+.tree-objectives { display: grid; gap: 6px; margin: 0 0 8px; }
+.tree-objectives li { display: flex; gap: 8px; }
+.obj-code { flex: none; font-weight: 600; color: var(--accent-ink); min-width: 2.2em; font-variant-numeric: tabular-nums; }
+.tree-keywords { font-size: 0.84rem; color: var(--ink-soft); }
+.tree-link { font-size: 0.88rem; font-weight: 600; color: var(--accent-ink); text-decoration: none; }
+.tree-link:hover { text-decoration: underline; }
+.tree mark { background: var(--accent-tint); color: inherit; border-radius: 3px; padding: 0 1px; }
+.tree-examples { margin-top: 28px; }
+.examples { margin: 0; display: grid; gap: 14px; }
+.examples dt { font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.examples dd { margin: 0 0 4px 34px; font-size: 0.9rem; }
+
+/* Minimalismo: superfícies planas separadas por linhas finas, sem sombras nem
+   faixas de cor espessas; a cor fica para o estado e para a ação principal. */
+:root, :root[data-theme='dark'] { --shadow: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --shadow: none; } }
+.card, .area-card { box-shadow: none; border: 1px solid var(--line); }
+.caminho-hero, .next-step { border-left: 1px solid var(--line); }
+.next-step { background: var(--accent-tint); border-color: transparent; }
+.person-panel { border-top: 1px solid var(--line); }
+.ml-atual { box-shadow: 0 0 0 1.5px var(--accent-ink); }
+.segment:has(input:checked) { box-shadow: 0 0 0 1px var(--line); }
+.lead { font-size: 0.92rem; }
+.section-title { letter-spacing: 0.06em; }
+.area-markers .grow { flex: 1; min-width: 0; }

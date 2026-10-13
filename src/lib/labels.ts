@@ -57,6 +57,13 @@ export const memberStatusLabel: Record<MemberStatus, string> = {
   saiu: 'Saiu da secção',
 };
 
+/** Data curta para listas (ex.: «13 out. 2026»). */
+export function formatShortDate(d: string | null | undefined): string {
+  if (!d) return '—';
+  const date = d.length === 10 ? new Date(`${d}T12:00:00`) : new Date(d);
+  return date.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export function formatDate(d: string | null | undefined): string {
   if (!d) return '—';
   const date = d.length === 10 ? new Date(`${d}T12:00:00`) : new Date(d);

@@ -115,9 +115,12 @@ export function AreasView({ subject, progress }: { subject: Subject; progress: M
       )}
 
       {!area && filtro === 'todos' ? (
-        <ul className="area-grid" aria-label="Áreas de desenvolvimento FACEIS">
-          {catalog.areas.map((a) => <AreaCard key={a.id} area={a} progress={progress} subject={subject} expCount={expCount} />)}
-        </ul>
+        <>
+          <ul className="area-grid" aria-label="Áreas de desenvolvimento FACEIS">
+            {catalog.areas.map((a) => <AreaCard key={a.id} area={a} progress={progress} subject={subject} expCount={expCount} />)}
+          </ul>
+          <Link to="/trilhos" className="btn ghost" style={{ marginTop: 8 }}>Ver todos os trilhos e objetivos em árvore</Link>
+        </>
       ) : (
         scopeAreas.map((a) => {
           const trails = matching(a);

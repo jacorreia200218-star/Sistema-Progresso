@@ -5,8 +5,9 @@ import { useProgress } from '../lib/hooks';
 import { call } from '../lib/api';
 import { useAction } from '../lib/useAction';
 import { activeRequest } from '../lib/progress';
-import { Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
+import { Empty, ErrorBox, Loading, Notice, PageTitle } from '../components/ui';
 import { RequestList } from '../components/RequestList';
+import { TrailPicker } from '../components/TrailPicker';
 
 export default function Historical() {
   const { membership, catalog, settings } = useActiveSection();
@@ -18,9 +19,6 @@ export default function Historical() {
   if (q.error || !q.data) return <ErrorBox error={q.error} retry={q.refetch} />;
   const enabled = !!settings?.historical_progress_enabled;
   const mine = q.data.requests.filter((r) => r.kind === 'historico');
-  const available = catalog.areas.flatMap((a) =>
-    a.catalog_trails.filter((t) => !activeRequest(q.data!.requests, t.key)).map((t) => ({ t, a })),
-  );
 
   async function create() {
     const res = await action.run(() => call<string>('create_trail_request', { p_membership: membership.id, p_trail: trail, p_kind: 'historico' }));
@@ -37,18 +35,7 @@ export default function Historical() {
             seguem diretamente para os dirigentes e <strong>só contam depois de aprovados</strong>.
           </p>
           <ErrorBox error={action.error} />
-          <Field label="Trilho" htmlFor="trail">
-            <select id="trail" value={trail} onChange={(e) => setTrail(e.target.value)}>
-              <option value="">Escolhe um trilho…</option>
-              {catalog.areas.map((a) => (
-                <optgroup key={a.id} label={a.name}>
-                  {available.filter((x) => x.a.id === a.id).map(({ t }) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </Field>
+          <TrailPicker catalog={catalog} id="trail" value={trail} onChange={setTrail} available={(t) => !activeRequest(q.data!.requests, t.key)} />
           <button type="button" className="btn" disabled={!trail || action.busy} onClick={create}>
             Criar pedido
           </button>

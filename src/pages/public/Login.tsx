@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
-import { ErrorBox, Field, Notice } from '../../components/ui';
+import { ErrorBox, Field, Notice, PasswordInput } from '../../components/ui';
 import PublicShell from './PublicShell';
 
 export default function Login() {
@@ -36,7 +36,7 @@ export default function Login() {
           <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Palavra-passe" htmlFor="password">
-          <input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput id="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <button className="btn block" disabled={busy}>{busy ? 'A entrar…' : 'Entrar'}</button>
       </form>

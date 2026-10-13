@@ -203,6 +203,12 @@ Para reconstruir a migração do catálogo depois de alterar o JSON: `npm run ca
   já definidos, rascunho, confirmação; o servidor impede pedidos duplicados). Submeter não conclui o trilho.
   Um dirigente sem percurso próprio consulta um pioneiro autorizado através de um seletor em «modo de
   consulta», sem ações do pioneiro. Capturas em `docs/capturas/` (`CAPTURAS=1 npx playwright test capturas`).
+- **Trilhos** (`/trilhos`): resumo em árvore — áreas FACEIS → trilhos → objetivos e palavras-chave —, com
+  pesquisa sem acentos, abrir/fechar tudo, o estado de cada trilho para quem tem percurso e, no fim, exemplos
+  de oportunidades educativas do manual.
+- **Entrada na secção:** cada pessoa cria a conta com o seu nome e, no pedido de entrada, indica a equipa. A
+  administração confirma ou corrige a equipa, atribui a função e pode depois alterar nome, totem, equipa e
+  função (fica no registo). Os trilhos escolhem-se primeiro pela área e depois dentro dela.
 - **Símbolo:** a Rosa dos Ventos usada no cabeçalho, entrada, favicon e ícones da aplicação é o vetor
   original do Manual do Dirigente (p. 41), copiado sem alterações para `src/assets/rosa-dos-ventos.svg`.
 - **Temas** Claro / Escuro / Sistema (Perfil › Aparência, ou o botão na barra superior).

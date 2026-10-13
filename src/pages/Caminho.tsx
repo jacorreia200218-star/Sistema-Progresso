@@ -206,6 +206,7 @@ export default function Caminho() {
           )}
         </section>
       )}
+      <Link to="/trilhos" className="btn ghost">Ver as áreas e os trilhos em árvore</Link>
     </div>
   );
 }
