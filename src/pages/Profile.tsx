@@ -10,6 +10,7 @@ import { errorMessage } from '../lib/errors';
 import { functionLabel, memberStatusLabel } from '../lib/labels';
 import { Avatar, ErrorBox, Field, Notice, PageTitle, PasswordInput } from '../components/ui';
 import { ThemeControl } from '../components/ThemeControl';
+import { PushSettings } from '../components/PushSettings';
 
 export default function Profile() {
   const s = useActiveSection();
@@ -104,6 +105,8 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      <PushSettings />
 
       <div className="card">
         <h2>Aparência</h2>
