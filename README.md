@@ -137,6 +137,19 @@ ao painel do Supabase:
 4. **Deploy.** Copia o endereço final e atualiza **Site URL** e **Redirect URLs** no Supabase (passo 3.5).
 5. O `vercel.json` encaminha todas as rotas para a app e define cabeçalhos de segurança e `noindex`.
 
+### 7.1 Notificações push (telemóvel e computador)
+
+1. Aplica a migração `20261020000100_notificacoes_push.sql` (num projeto já instalado:
+   `supabase/atualizacoes/2026-10-20_notificacoes_push.sql` no SQL Editor). Se a extensão `pg_net` não
+   ficar ativa, ativa-a em **Database › Extensions**.
+2. Na Vercel, acrescenta a variável `SUPABASE_SECRET_KEY` com a chave secreta do Supabase
+   (**Project Settings › API Keys › Secret keys**; serve também a antiga `service_role`) e volta a publicar.
+3. As chaves VAPID são criadas automaticamente na primeira utilização e guardadas em `private.push_config`.
+   Por omissão o aviso vai para `https://sistema-progresso.vercel.app/api/push`; noutro projeto (por exemplo, a
+   demonstração) muda o endereço com `update private.push_config set endpoint = 'https://<app>/api/push';`.
+4. Cada pessoa ativa em **Perfil › Notificações no telemóvel**. No iPhone (iOS 16.4 ou mais recente) a app tem de
+   estar adicionada ao ecrã principal e ser aberta a partir do ícone.
+
 ## 8. Demonstração vs. produção
 
 - Usa **dois projetos Supabase** e **dois projetos Vercel**: `pioneiros-demo` e `pioneiros-producao`.
