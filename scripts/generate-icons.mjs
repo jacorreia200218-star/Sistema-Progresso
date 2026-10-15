@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Gera os ícones da app (Rosa dos Ventos branca sobre fundo azul) a partir de
+// Gera os ícones da app (Rosa dos Ventos azul sobre fundo preto) a partir de
 // public/rosa-dos-ventos.svg. Uso: node scripts/generate-icons.mjs (usa o Chromium do Playwright).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -7,10 +7,10 @@ import path from 'node:path';
 import { chromium } from '@playwright/test';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BLUE = '#1D4FA3';
+const BG = '#000000';
 const src = readFileSync(path.join(root, 'public/rosa-dos-ventos.svg'), 'utf8');
 const viewBox = src.match(/viewBox="([^"]+)"/)[1];
-const paths = src.match(/<g[\s\S]*<\/g>/)[0].replace(/fill="#009FE3"/, 'fill="#FFFFFF"');
+const paths = src.match(/<g[\s\S]*<\/g>/)[0];
 
 // scale: fração do lado ocupada pela rosa (menor no ícone «maskable», que é recortado).
 const svg = (scale, rounded = false) => {
@@ -18,7 +18,7 @@ const svg = (scale, rounded = false) => {
   const side = w / scale;
   const o = (side - w) / 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x - o} ${y - o} ${side} ${side}">`
-    + `<rect x="${x - o}" y="${y - o}" width="${side}" height="${side}"${rounded ? ` rx="${side * 0.2}"` : ''} fill="${BLUE}"/>${paths}</svg>`;
+    + `<rect x="${x - o}" y="${y - o}" width="${side}" height="${side}"${rounded ? ` rx="${side * 0.2}"` : ''} fill="${BG}"/>${paths}</svg>`;
 };
 
 writeFileSync(path.join(root, 'public/icons/icon.svg'), svg(0.72, true) + '\n');
