@@ -54,7 +54,7 @@ export default function TrailPage() {
     <nav className="row page-links" aria-label="Navegação">
       <Link to={areaTo} className="btn ghost"><ArrowLeft size={16} aria-hidden="true" /> Voltar aos trilhos</Link>
       <Link to={areasTo} className="btn ghost">Voltar às áreas</Link>
-      {p && <Link to={pedidosTo} className="btn ghost">{subject.isSelf ? 'Os meus pedidos' : 'Pedidos deste pioneiro'}</Link>}
+      {p && subject.isSelf && <Link to={pedidosTo} className="btn ghost">Os meus pedidos</Link>}
     </nav>
   );
 

@@ -140,3 +140,69 @@ test('pioneiro: notificações com ligações atuais', async ({ page }) => {
   await page.getByRole('link', { name: /Trilho a rever/ }).click();
   await expect(page).toHaveURL(/\/pedidos\/r-dev/);
 });
+
+test('negociação: cada proposta abre o seu registo; substituída e retirada distinguem-se', async ({ page }, info) => {
+  await installMock(page, leader());
+  await page.goto('/acompanhamento/pedidos?tipo=negociacao&estado=todos');
+  const inbox = page.locator('.inbox');
+  // Seis propostas distintas (3 confirmadas, 1 por negociar, 1 substituída, 1 retirada), cada uma com o seu identificador
+  await expect(inbox.locator('> li')).toHaveCount(6);
+  const refs = await inbox.locator('> li').evaluateAll((els) => els.map((e) => e.textContent?.match(/P-[A-Z0-9]{6}/)?.[0]));
+  expect(new Set(refs).size).toBe(6);
+  await expect(inbox.locator('.badge', { hasText: 'Confirmada' })).toHaveCount(3);
+  for (const t of ['Por negociar', 'Substituída', 'Retirada']) await expect(inbox).toContainText(t);
+
+  await inbox.getByRole('link', { name: /Serviço/ }).click();
+  await expect(page).toHaveURL(/\/acompanhamento\/proposta\/c-espiritual-servico$/);
+  const summary = page.getByRole('region', { name: 'Resumo da proposta' });
+  await expect(summary).toContainText('Identificador');
+  await expect(summary).toContainText('Proposta em');
+  await expect(summary.getByRole('link', { name: /^P-/ })).toBeVisible(); // substitui a proposta anterior
+  await expect(page.getByRole('button', { name: 'Confirmar' })).toBeVisible(); // por negociar: decisão aqui
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/proposta-${info.project.name}.png`, fullPage: true });
+
+  // A proposta substituída é outro registo, com a sua data de decisão e ligação à nova
+  await summary.getByRole('link', { name: /^P-/ }).click();
+  await expect(page.getByRole('heading', { name: 'Descoberta', level: 1 })).toBeVisible();
+  await expect(page.locator('.badge', { hasText: 'Substituída' }).first()).toBeVisible();
+  await expect(page.getByText('Substituída em')).toBeVisible();
+  await expect(page.getByText('Substituída por')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Confirmar' })).toHaveCount(0);
+  // Voltar regressa à caixa com o filtro
+  await page.goBack();
+  await page.goBack();
+  await expect(page).toHaveURL(/tipo=negociacao/);
+
+  // Retirada: comentário só com «—» não aparece
+  await page.goto('/acompanhamento/proposta/c-intelectual-procura-do-conhecimento');
+  await expect(page.getByText('Retirada em')).toBeVisible();
+  await expect(page.getByText('Comentário da decisão')).toHaveCount(0);
+});
+
+test('detalhe do pedido: data de envio uma vez no resumo, objetivos junto da justificação, sem campos vazios', async ({ page }) => {
+  await installMock(page, leader());
+  await page.goto('/revisoes/pedido/r-obj');
+  const summary = page.getByRole('region', { name: 'Resumo do pedido' });
+  await expect(summary.getByText('Enviado', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Enviado em /)).toHaveCount(0); // não se repete fora do resumo
+  // Objetivos e justificação seguidos
+  const order = await page.evaluate(() => {
+    const objs = document.getElementById('h-objs')!.closest('section')!;
+    const just = document.getElementById('h-justificacao')!.closest('section')!;
+    return objs.nextElementSibling === just;
+  });
+  expect(order).toBe(true);
+  await expect(page.getByText('Sem decisão')).toHaveCount(0); // linhas antigas sem decisão não aparecem
+  await expect(page.locator('.version-content .quote', { hasText: /^—$/ })).toHaveCount(0);
+});
+
+test('notificações: lista vazia só com uma mensagem curta', async ({ page }) => {
+  const persona = leader();
+  persona.tables.notifications = [];
+  await installMock(page, persona);
+  await page.goto('/notificacoes');
+  await expect(page.getByText('Sem notificações.')).toBeVisible();
+  await expect(page.locator('main .card')).toHaveCount(0);
+  await expect(page.getByRole('button')).not.toContainText(['Limpar todas']);
+});

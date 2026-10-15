@@ -98,3 +98,6 @@ export const requestKindLabel: Record<string, string> = {
 /** Pedido de validação do trilho: campo da justificação conjunta. */
 export const JUSTIFICATION_LABEL = 'Como demonstrei que alcancei este trilho?';
 export const JUSTIFICATION_HINT = 'Explica o que fizeste, em que situações e como isso demonstra os objetivos acima.';
+
+/** Identificador curto e estável de uma proposta de trilho (a partir do identificador interno). */
+export const proposalRef = (c: { id: string }) => `P-${c.id.replace(/-/g, '').slice(-6).toUpperCase()}`;

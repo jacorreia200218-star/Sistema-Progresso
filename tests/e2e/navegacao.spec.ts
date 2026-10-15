@@ -7,7 +7,13 @@ test('falha a carregar uma página: navegação visível e «Tentar novamente» 
   await expect(page.getByRole('heading', { name: /Olá/ })).toBeVisible();
   // Simula o que acontece depois de uma nova publicação: o código antigo da página já não existe.
   await page.route(/\/src\/pages\/Caminho\.tsx/, (r) => r.abort());
-  await page.getByRole('navigation', { name: 'Navegação principal' }).first().getByRole('link', { name: /Caminho/ }).first().click();
+  const nav = page.getByRole('navigation', { name: 'Navegação principal' }).first();
+  // No telemóvel, para quem dirige, o Caminho está em «Mais».
+  if (await nav.getByRole('link', { name: /Caminho/ }).count()) await nav.getByRole('link', { name: /Caminho/ }).first().click();
+  else {
+    await nav.getByRole('link', { name: /Mais/ }).click();
+    await page.getByRole('navigation', { name: 'Outras secções' }).getByRole('link', { name: /Caminho/ }).click();
+  }
   // Tenta recarregar uma vez; se continuar a falhar, mostra a mensagem sem esvaziar o ecrã.
   await expect(page.getByText(/Não foi possível abrir esta página/)).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('navigation', { name: 'Navegação principal' }).first()).toBeVisible();

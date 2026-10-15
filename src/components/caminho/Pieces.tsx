@@ -89,13 +89,9 @@ export function PersonalAtMilestone({ k, progress, catalog, self }: { k: Milesto
       <div className="stack">
         {here ? <p className="here">{you} aqui · {stateBadge(pos.state)}</p> : <p><Badge label="Concluído" tone="ok" icon="check" /></p>}
         <ul className="tri-state">
-          <li className={a?.profile_traced_on ? 'tri-ok' : 'tri-no'}>
-            <span aria-hidden="true">{a?.profile_traced_on ? <Check size={16} /> : <CircleDashed size={16} />}</span>
-            <span><strong>Perfil traçado pela Equipa de Animação:</strong> {a?.profile_traced_on ? formatDate(a.profile_traced_on) : 'Por registar'}</span>
-          </li>
           <li className={a?.decided_on ? 'tri-ok' : 'tri-no'}>
             <span aria-hidden="true">{a?.decided_on ? <Check size={16} /> : <CircleDashed size={16} />}</span>
-            <span><strong>Decisão sobre a adesão (Conselho de Guias):</strong> {a?.decided_on ? formatDate(a.decided_on) : 'Pendente'}</span>
+            <span><strong>Data de adesão:</strong> {a?.decided_on ? formatDate(a.decided_on) : 'Por registar'}</span>
           </li>
         </ul>
       </div>
@@ -109,7 +105,7 @@ export function PersonalAtMilestone({ k, progress, catalog, self }: { k: Milesto
         <ul className="tri-state">
           <li className={a?.commitment_on ? 'tri-ok' : 'tri-no'}>
             <span aria-hidden="true">{a?.commitment_on ? <Check size={16} /> : <CircleDashed size={16} />}</span>
-            <span><strong>Promessa / Investidura:</strong> {a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</span>
+            <span><strong>Data da Promessa:</strong> {a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</span>
           </li>
         </ul>
         {pos.state === 'aguarda_etapa' && <p className="faint prose">A Equipa de Animação abre contigo a etapa do Conhecimento, na primeira negociação, e entrega a insígnia.</p>}

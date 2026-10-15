@@ -232,7 +232,6 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
   const s = useActiveSection();
   const action = useAction();
   const a = progress.adhesion;
-  const [traced, setTraced] = useState(a?.profile_traced_on ?? todayIso());
   const [decided, setDecided] = useState(a?.decided_on ?? todayIso());
   const [commitment, setCommitment] = useState(a?.commitment_on ?? '');
   const [notes, setNotes] = useState(a?.notes ?? '');
@@ -247,15 +246,13 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
     <section className="card">
       <h2>Início de Pista e Promessa</h2>
       <dl className="meta">
-        <dt>Perfil traçado (Equipa de Animação)</dt><dd>{a?.profile_traced_on ? formatDate(a.profile_traced_on) : 'Por registar'}</dd>
-        <dt>Decisão sobre a adesão (Conselho de Guias)</dt><dd>{a?.decided_on ? formatDate(a.decided_on) : 'Pendente'}</dd>
-        <dt>Promessa / Investidura</dt><dd>{a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</dd>
+        <dt>Data de adesão</dt><dd>{a?.decided_on ? formatDate(a.decided_on) : 'Por registar'}</dd>
+        <dt>Data da Promessa</dt><dd>{a?.commitment_on ? formatDate(a.commitment_on) : 'Por registar'}</dd>
         {a?.is_historical && (<><dt>Origem</dt><dd>Registo retroativo</dd></>)}
-        {a?.recorded_at && (<><dt>Registado em</dt><dd>{formatDate(a.recorded_at)}</dd></>)}
       </dl>
       {outOfOrder && (
         <Notice kind="warn">
-          <p className="prose">A Promessa ({formatDate(a!.commitment_on)}) está registada antes da decisão sobre a adesão ({formatDate(a!.decided_on)}). Normalmente acontece depois (pp. 7 e 10). Revê as datas{a?.notes ? '; a fundamentação está nas notas.' : ' ou fundamenta o registo nas notas.'}</p>
+          <p className="prose">A Promessa ({formatDate(a!.commitment_on)}) está registada antes da adesão ({formatDate(a!.decided_on)}). Normalmente acontece depois (pp. 7 e 10). Revê as datas{a?.notes ? '; a fundamentação está nas notas.' : ' ou fundamenta o registo nas notas.'}</p>
         </Notice>
       )}
       {a?.notes && <div className="quote" style={{ marginTop: 8 }}>{a.notes}</div>}
@@ -263,29 +260,16 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
         <>
           <ErrorBox error={action.error} />
           {action.success && <Notice kind="success">{action.success}</Notice>}
-          {!a?.profile_traced_on && !complete && (
-            <div className="card flat" style={{ marginTop: 10 }}>
-              <p className="faint prose">O perfil é traçado pela Equipa de Animação durante a adesão, por observação direta, com ajuda do Guia (pp. 4 e 7). Regista só a data; as observações não ficam na aplicação.</p>
-              <div className="row">
-                <input aria-label="Data do traçado do perfil" type="date" max={todayIso()} value={traced} onChange={(e) => setTraced(e.target.value)} style={{ maxWidth: 200 }} />
-                <button type="button" className="btn secondary" disabled={action.busy || !traced}
-                  onClick={() => action.run(() => call('record_profile_traced', { p_membership: member.id, p_date: traced }), 'Traçado do perfil registado.')}>
-                  Registar perfil traçado
-                </button>
-              </div>
-            </div>
-          )}
           {complete && !editing ? (
-            <button type="button" className="btn ghost" onClick={() => setEditing(true)}>{a?.commitment_on ? 'Corrigir' : 'Registar a Promessa / Investidura'}</button>
+            <button type="button" className="btn ghost" onClick={() => setEditing(true)}>{a?.commitment_on ? 'Corrigir' : 'Registar a Promessa'}</button>
           ) : (
             <div style={{ marginTop: 10 }}>
-              <p className="faint prose">A decisão sobre a adesão é tomada em Conselho de Guias, com a presença de toda a Equipa de Animação (p. 7). A primeira etapa só abre depois da Promessa/Investidura (p. 10).</p>
+              <p className="faint prose">A data de adesão é o dia em que passou a pioneiro. A primeira etapa só abre depois da Promessa (p. 10).</p>
               <div className="grid-2">
-                <Field label="Data da decisão sobre a adesão" htmlFor="ad-d"><input id="ad-d" type="date" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
-                <Field label="Promessa / Investidura (se já aconteceu)" htmlFor="ad-c"><input id="ad-c" type="date" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
+                <Field label="Data de adesão (passagem a pioneiro)" htmlFor="ad-d"><input id="ad-d" type="date" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
+                <Field label="Data da Promessa (se já aconteceu)" htmlFor="ad-c"><input id="ad-c" type="date" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
               </div>
-              <p className="faint prose">As datas são as do acontecimento; a data em que fica registado é guardada à parte.</p>
-              {formOutOfOrder && <Notice kind="warn"><p className="prose">A Promessa fica antes da decisão sobre a adesão. Confirma as datas ou explica nas notas por que razão o registo é assim.</p></Notice>}
+              {formOutOfOrder && <Notice kind="warn"><p className="prose">A Promessa fica antes da adesão. Confirma as datas ou explica nas notas por que razão o registo é assim.</p></Notice>}
               <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Registo retroativo (anterior à aplicação)</label>
               <Field label={formOutOfOrder || historical ? 'Fundamentação (obrigatória)' : 'Notas (opcional)'} htmlFor="ad-n"><textarea id="ad-n" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ minHeight: 70 }} /></Field>
               <button type="button" className="btn" disabled={action.busy || !decided || needsNotes}

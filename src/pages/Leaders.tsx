@@ -22,6 +22,7 @@ import type { StageChoice, StageRequest, TrailRequest } from '../lib/types';
 import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
 import { RequestList } from '../components/RequestList';
 import { stageName } from '../components/StagePanel';
+import { proposalRef } from '../lib/labels';
 
 const TABS = [
   ['seccao', 'Secção'],
@@ -232,7 +233,7 @@ interface InboxItem {
   request?: TrailRequest;
 }
 
-const CHOICE_STATUS: Record<StageChoice['status'], { label: string; tone: Tone; icon: string }> = {
+export const CHOICE_STATUS: Record<StageChoice['status'], { label: string; tone: Tone; icon: string }> = {
   proposta: { label: 'Por negociar', tone: 'progress', icon: 'clock' },
   confirmada: { label: 'Confirmada', tone: 'ok', icon: 'check' },
   recusada: { label: 'Não aceite', tone: 'muted', icon: 'x' },
@@ -250,7 +251,6 @@ function Inbox({ members }: { members: MemberRow[] }) {
   const [tipo, setTipo] = useParam('tipo', 'todos');
   const [estado, setEstado] = useParam('estado', 'pendentes');
   const [team, setTeam] = useParam('equipa');
-  const [open, setOpen] = useState<string | null>(null);
   const names = nameMap(members);
   const byId = new Map(members.map((m) => [m.id, m]));
 
@@ -315,7 +315,7 @@ function Inbox({ members }: { members: MemberRow[] }) {
                     <br />
                     <span className="faint">
                       {area?.name}
-                      {i.choice ? ` · etapa ${stage}${i.choice.replaces_choice_id ? ' · troca' : ''}` : ''}
+                      {i.choice ? ` · etapa ${stage} · ${proposalRef(i.choice)}${i.choice.replaces_choice_id ? ' · troca' : ''}` : ''}
                       {guiaOwn ? ' · pedido do guia: regista a Equipa de Animação' : ''} · {formatDate(i.at)}
                     </span>
                   </span>
@@ -324,16 +324,8 @@ function Inbox({ members }: { members: MemberRow[] }) {
               );
               return (
                 <li key={i.key} className={i.pending ? 'is-pending' : ''}>
-                  {i.request ? (
-                    <Link to={`/revisoes/pedido/${i.request.id}`} className="list-item">{head}</Link>
-                  ) : i.pending ? (
-                    <>
-                      <button type="button" className="list-item as-button" aria-expanded={open === i.key} onClick={() => setOpen(open === i.key ? null : i.key)}>{head}</button>
-                      {open === i.key && <ChoiceDecision choice={i.choice!} stage={stage ?? ''} />}
-                    </>
-                  ) : (
-                    <Link to={`/membros/${i.memberId}?separador=etapa`} className="list-item">{head}</Link>
-                  )}
+                  {/* Cada pedido e cada proposta abre o seu próprio registo. */}
+                  <Link to={i.request ? `/revisoes/pedido/${i.request.id}` : `/acompanhamento/proposta/${i.choice!.id}`} className="list-item">{head}</Link>
                 </li>
               );
             })}
@@ -344,7 +336,7 @@ function Inbox({ members }: { members: MemberRow[] }) {
   );
 }
 
-export function ChoiceDecision({ choice, member, stage }: { choice: StageChoice; member?: string; stage: string }) {
+export function ChoiceDecision({ choice, member, stage, bare }: { choice: StageChoice; member?: string; stage: string; /** Só a decisão (o resto já está na página da proposta). */ bare?: boolean }) {
   const { catalog } = useActiveSection();
   const action = useAction();
   const [comment, setComment] = useState('');
@@ -352,14 +344,18 @@ export function ChoiceDecision({ choice, member, stage }: { choice: StageChoice;
   const area = trail ? catalog.areaById.get(trail.area_id) : undefined;
   return (
     <div className="card flat">
-      <p style={{ marginBottom: 4 }}>
-        {member && <strong>{member} · </strong>}Etapa {stage} · {area?.name}
-      </p>
-      <p>
-        {choice.replaces_choice_id ? 'Troca para ' : 'Proposta: '}
-        <Link to={`/meu-progresso/trilho/${trail?.key}?pioneiro=${choice.membership_id}`}>{trail?.name}</Link>
-      </p>
-      {choice.planned_opportunities && <div className="quote prose">{choice.planned_opportunities}</div>}
+      {bare ? <h2>Decisão da negociação</h2> : (
+        <>
+          <p style={{ marginBottom: 4 }}>
+            {member && <strong>{member} · </strong>}Etapa {stage} · {area?.name}
+          </p>
+          <p>
+            {choice.replaces_choice_id ? 'Troca para ' : 'Proposta: '}
+            <Link to={`/meu-progresso/trilho/${trail?.key}?pioneiro=${choice.membership_id}`}>{trail?.name}</Link>
+          </p>
+          {choice.planned_opportunities && <div className="quote prose">{choice.planned_opportunities}</div>}
+        </>
+      )}
       <ErrorBox error={action.error} />
       {action.success ? <Notice kind="success">{action.success}</Notice> : (
         <>

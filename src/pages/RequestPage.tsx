@@ -95,7 +95,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
               <strong>{member.profiles?.full_name}</strong>
               <span className="faint">{member.profiles?.totem ? ` · ${member.profiles.totem}` : ''}{team ? ` · ${team}` : ''}</span>
             </div>
-            {s.isDirigente && <Link to={`/membros/${member.id}`} className="btn ghost">Ver percurso</Link>}
+            {s.isDirigente && <Link to={`/membros/${member.id}`} className="btn ghost">Percurso</Link>}
           </div>
         )}
         <dl className="meta compact-meta">
@@ -116,6 +116,10 @@ function RequestView({ detail }: { detail: RequestDetail }) {
           <TrailObjectives trail={trail} flagged={flagged} />
         </section>
       )}
+      {/* A justificação fica logo a seguir aos objetivos, para se lerem juntos. */}
+      {request.kind !== 'negociacao' && (!isOwner || request.status !== 'rascunho') && (
+        <VersionContent version={current} attachments={attachments.filter((a) => a.version_id === current.id)} historic={historic} objectives={objectives} />
+      )}
 
       {isOwner && <OwnerRequestPanel detail={detail} current={current} />}
       {!isOwner && <ReviewerPanel detail={detail} current={current} hasTeamGuia={!!member?.team_id} />}
@@ -124,9 +128,6 @@ function RequestView({ detail }: { detail: RequestDetail }) {
         <Notice kind="info">
           <p className="prose">A Equipa de Animação reconheceu, na negociação, que este trilho já tinha sido alcançado (Manual do Dirigente, p. 10). A fundamentação está no histórico.</p>
         </Notice>
-      )}
-      {request.kind !== 'negociacao' && (!isOwner || request.status !== 'rascunho') && (
-        <VersionContent version={current} attachments={attachments.filter((a) => a.version_id === current.id)} historic={historic} objectives={objectives} />
       )}
 
       <h2 className="section-title">Decisões e histórico</h2>
