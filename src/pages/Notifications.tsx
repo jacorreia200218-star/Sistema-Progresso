@@ -10,7 +10,7 @@ import { call, fetchNotificationCount, fetchNotifications } from '../lib/api';
 import { errorMessage } from '../lib/errors';
 import { formatDateTime } from '../lib/labels';
 import type { NotificationRow } from '../lib/types';
-import { ConfirmButton, Empty, ErrorBox, Loading, PageTitle } from '../components/ui';
+import { ConfirmButton, ErrorBox, Loading, PageTitle } from '../components/ui';
 
 type Scope = 'ids' | 'lidas' | 'todas';
 
@@ -121,8 +121,8 @@ export default function Notifications() {
           </ConfirmButton>
         </div>
       )}
-      <div className="card">
-        {items.length === 0 ? <Empty title="Sem notificações." /> : (
+      {/* Lista vazia: só uma mensagem curta. */}
+      {items.length === 0 ? <p className="empty-short">Sem notificações.</p> : <div className="card">{(
           <ul className="list notif-list">
             {items.map((n) => {
               const body = (
@@ -152,8 +152,7 @@ export default function Notifications() {
               );
             })}
           </ul>
-        )}
-      </div>
+        )}</div>}
     </>
   );
 }

@@ -8,7 +8,7 @@ import { call, signedUrl, type RequestDetail } from '../lib/api';
 import { useAction } from '../lib/useAction';
 import { prepareAttachment, safeFileName } from '../lib/image';
 import { errorMessage } from '../lib/errors';
-import { formatDate, formatDateTime, JUSTIFICATION_LABEL, todayIso } from '../lib/labels';
+import { formatDate, JUSTIFICATION_LABEL, todayIso } from '../lib/labels';
 import type { RequestObjective, RequestVersion } from '../lib/types';
 import { Link } from 'react-router-dom';
 import { Badge, ConfirmButton, ErrorBox, Field, Notice } from './ui';
@@ -30,54 +30,47 @@ export function LegacyObjectives({ rows }: { rows: RequestObjective[] }) {
   );
 }
 
-/** Conteúdo de uma versão: justificação conjunta (ou os campos de reflexão dos pedidos antigos), anexos e data. */
+/** Texto preenchido (os campos antigos vazios ou só com «—» não se mostram). */
+const filled = (t?: string | null) => !!t && !/^[\s—–-]*$/.test(t);
+
+/**
+ * Conteúdo de uma versão: justificação conjunta (ou os campos de reflexão dos
+ * pedidos antigos que estejam preenchidos) e anexos. A data de envio aparece uma
+ * vez no resumo do pedido e, por versão, no histórico.
+ */
 export function VersionContent({ version, attachments, historic, compact, objectives = [] }: {
   version: RequestVersion; attachments: RequestDetail['attachments']; historic: boolean; compact?: boolean; objectives?: RequestObjective[];
 }) {
-  const legacy = objectives.filter((o) => o.version_id === version.id);
-  const sentOn = version.submitted_at ? <p className="faint" style={{ margin: '8px 0 0' }}>Enviado em {formatDateTime(version.submitted_at)}.</p> : null;
-  if (!historic && (version.evidence || legacy.length) && !version.reflection) {
-    return (
-      <section className={compact ? 'version-content' : 'card version-content'}>
-        {!compact && <h2>Justificação</h2>}
-        {legacy.length > 0 && (
-          <>
-            <p className="label">Objetivos escolhidos (modelo anterior, por objetivo)</p>
-            <LegacyObjectives rows={legacy} />
-          </>
-        )}
-        <p className="label">{JUSTIFICATION_LABEL}</p>
-        <div className="quote prose">{version.evidence || '—'}</div>
-        <AttachmentList attachments={attachments} />
-        {sentOn}
-      </section>
-    );
-  }
+  // Do modelo anterior só interessam as linhas com decisão registada (histórico).
+  const legacy = objectives.filter((o) => o.version_id === version.id && o.decision);
+  const fields: [string, string | null | undefined][] = !historic && !filled(version.reflection)
+    ? [[JUSTIFICATION_LABEL, version.evidence]]
+    : [['O que fiz', version.experiences], ['Em que contexto', version.context], ['O que aprendi', version.reflection], ['Como demonstrei os objetivos do trilho', version.evidence]];
+  const shown = fields.filter(([, t]) => filled(t));
+  const period = version.period_start || version.period_end;
   return (
-    <section className={compact ? 'version-content' : 'card version-content'}>
-      {!compact && <h2>Reflexão e vivências</h2>}
-      <p className="label">O que fiz</p>
-      <div className="quote prose">{version.experiences || '—'}</div>
-      {version.context && (<><p className="label" style={{ marginTop: 10 }}>Em que contexto</p><div className="quote prose">{version.context}</div></>)}
-      <p className="label" style={{ marginTop: 10 }}>O que aprendi</p>
-      <div className="quote prose">{version.reflection || '—'}</div>
-      {version.evidence && (<><p className="label" style={{ marginTop: 10 }}>Como demonstrei os objetivos do trilho</p><div className="quote prose">{version.evidence}</div></>)}
-      <dl className="meta" style={{ marginTop: 10 }}>
-        {(version.period_start || version.period_end) && (
-          <>
-            <dt>Período</dt>
-            <dd>{formatDate(version.period_start)} – {formatDate(version.period_end)}</dd>
-          </>
-        )}
-        {historic && (
-          <>
-            <dt>Data aproximada</dt>
-            <dd>{version.approximate_date || 'Não indicada'}</dd>
-          </>
-        )}
-      </dl>
+    <section className={compact ? 'version-content' : 'card version-content'} aria-labelledby={compact ? undefined : 'h-justificacao'}>
+      {!compact && <h2 id="h-justificacao">Justificação</h2>}
+      {shown.length === 0 && <p className="faint">Sem texto.</p>}
+      {shown.map(([label, text], i) => (
+        <div key={label} style={i ? { marginTop: 12 } : undefined}>
+          <p className="label">{label}</p>
+          <div className="quote prose">{text}</div>
+        </div>
+      ))}
+      {(period || (historic && filled(version.approximate_date))) && (
+        <dl className="meta" style={{ marginTop: 12 }}>
+          {period && <><dt>Período</dt><dd>{formatDate(version.period_start)} – {formatDate(version.period_end)}</dd></>}
+          {historic && filled(version.approximate_date) && <><dt>Data aproximada</dt><dd>{version.approximate_date}</dd></>}
+        </dl>
+      )}
       <AttachmentList attachments={attachments} />
-      {sentOn}
+      {legacy.length > 0 && (
+        <details className="legacy-objs">
+          <summary className="faint">Decisões por objetivo no modelo anterior (histórico)</summary>
+          <LegacyObjectives rows={legacy} />
+        </details>
+      )}
     </section>
   );
 }

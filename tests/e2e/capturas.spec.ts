@@ -6,6 +6,7 @@ test.skip(!process.env.CAPTURAS, 'Só com CAPTURAS=1');
 
 for (const theme of ['light', 'dark'] as const) {
   test(`capturas ${theme}`, async ({ page }, info) => {
+    test.setTimeout(120_000);
     const dev = info.project.name;
     const t = theme === 'light' ? 'claro' : 'escuro';
     await page.emulateMedia({ colorScheme: theme });
@@ -84,6 +85,14 @@ for (const theme of ['light', 'dark'] as const) {
     await p3.getByText('Comunicação das decisões de trilhos das equipas').waitFor();
     await flat(p3);
     await p3.screenshot({ path: `docs/capturas/acompanhamento-etapas-${dev}-${t}.png`, ...full });
+    await p3.goto('/acompanhamento/proposta/c-espiritual-servico');
+    await p3.getByRole('region', { name: 'Resumo da proposta' }).waitFor();
+    await flat(p3);
+    await p3.screenshot({ path: `docs/capturas/proposta-${dev}-${t}.png`, ...full });
+    await p3.goto('/revisoes/pedido/r-obj');
+    await p3.locator('#h-justificacao').waitFor();
+    await flat(p3);
+    await p3.screenshot({ path: `docs/capturas/pedido-detalhe-${dev}-${t}.png`, ...full });
     await p3.goto('/notificacoes');
     await p3.locator('li.notif').first().waitFor();
     await p3.locator('li.notif').nth(0).getByRole('checkbox').check();

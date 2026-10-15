@@ -23,7 +23,11 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(cards).toHaveCount(6);
     const fisico = cards.filter({ hasText: 'Físico' });
     await expect(fisico.locator('.seg')).toHaveCount(3);
-    await expect(fisico.getByRole('img', { name: '1 de 3 trilhos validados' })).toBeVisible();
+    await expect(fisico.locator('.segments')).toHaveAttribute('aria-hidden', 'true'); // o número está no texto, sem repetir
+    await expect(fisico).toContainText('Conhecimento: Desempenho');
+    await expect(page.locator('.legend summary')).toHaveText('Trilhos validados na área');
+    await page.locator('.legend summary').click();
+    await expect(page.locator('.legend')).toContainText('Um segmento preenchido é um trilho validado');
     await expect(fisico).toContainText('1 de 3 trilhos validados');
     await expect(page.getByText('Em desenvolvimento')).toHaveCount(0);
     await noHorizontalScroll(page);
@@ -195,21 +199,63 @@ test('dirigente: grelha de pioneiros, consulta e volta com os filtros', async ({
   await page.getByPlaceholder('Pesquisar por nome').fill('pedro');
   await expect(grid.locator('.person-card')).toHaveCount(1);
   await noHorizontalScroll(page);
+  // Estado resumido no cartão (o detalhe fica no percurso)
+  await page.getByPlaceholder('Pesquisar por nome').fill('carla');
+  await expect(grid.locator('.person-card')).toContainText('Aguarda Promessa');
+  await expect(grid.locator('.person-card')).not.toContainText('Adesão decidida');
+  await page.getByPlaceholder('Pesquisar por nome').fill('pedro');
   await page.screenshot({ path: `test-results/grelha-${info.project.name}.png`, fullPage: true });
 
   await grid.locator('.person-card', { hasText: 'Pedro Teste' }).click();
-  const head = page.getByRole('region', { name: 'Modo de consulta' });
+  const head = page.getByRole('region', { name: /Modo de consulta/ });
   await expect(head).toContainText('Pedro Teste');
-  await expect(head.getByRole('link', { name: 'Pedidos deste pioneiro' })).toBeVisible();
-  await expect(head.getByRole('link', { name: 'Ver percurso' })).toBeVisible();
+  for (const l of ['Todos os pioneiros', 'Pedidos', 'Percurso', 'Decisões']) await expect(head.getByRole('link', { name: l, exact: true })).toBeVisible();
+  // Sem acessos repetidos fora do cabeçalho
+  for (const l of ['Pedidos', 'Percurso']) await expect(page.getByRole('link', { name: l, exact: true })).toHaveCount(1);
+  await expect(page.getByText('Pedidos deste pioneiro')).toHaveCount(0);
   await expect(page.getByText('Os meus pedidos')).toHaveCount(0);
+  // Identificação numa linha, ações na seguinte; equipa e modo sem quebras a meio
+  const who = await head.locator('.consult-who').boundingBox();
+  const acts = await head.locator('.consult-links').boundingBox();
+  expect(acts!.y).toBeGreaterThanOrEqual(who!.y + who!.height - 1);
+  for (const sel of ['.consult-meta .nowrap >> nth=0', '.consult-mode']) {
+    const lines = await head.locator(sel).evaluate((e) => Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight || '18')));
+    expect(lines).toBeLessThanOrEqual(1);
+  }
+  await page.screenshot({ path: `test-results/consulta-${info.project.name}.png`, fullPage: true });
   await expect(page.locator('.area-card')).toHaveCount(6);
   await page.locator('.area-card', { hasText: 'Afetivo' }).click();
   await page.locator('.trail-row', { hasText: 'Autoestima' }).click();
   await expect(page.getByLabel(LABEL)).toHaveCount(0); // consulta: sem ações do pioneiro
   await expect(page.getByRole('button', { name: 'Pedir validação do trilho' })).toHaveCount(0);
 
-  await page.getByRole('region', { name: 'Modo de consulta' }).getByRole('link', { name: 'Todos os pioneiros' }).click();
+  await page.getByRole('region', { name: /Modo de consulta/ }).getByRole('link', { name: 'Todos os pioneiros' }).click();
   await expect(page.getByPlaceholder('Pesquisar por nome')).toHaveValue('pedro');
   await expect(page.locator('.people-grid .person-card')).toHaveCount(1);
+});
+
+test('grelha: teclado, nomes longos e regresso com o botão de voltar', async ({ page }, info) => {
+  const persona = leader();
+  const sp = persona.rpc!.section_path as { members: Record<string, unknown>[] };
+  sp.members = [...sp.members, { membership_id: 'm-longo', full_name: 'Maria Francisca de Albuquerque e Vasconcelos Teixeira', totem: null, photo_path: null, team_id: 'teamB', function: 'pioneiro', milestone: 'promessa', state: 'aguarda_promessa', is_me: false }];
+  await installMock(page, persona);
+  await page.goto('/meu-progresso');
+  await page.getByLabel('Filtrar por equipa').selectOption({ label: 'Equipa Bússola' });
+  const card = page.locator('.person-card', { hasText: 'Vasconcelos' });
+  await expect(card).toContainText('Aguarda Promessa');
+  await noHorizontalScroll(page);
+  // Teclado: chega-se ao cartão com Tab e abre-se com Enter
+  await card.focus();
+  await expect(card).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/pioneiro=m-longo/);
+  const head = page.getByRole('region', { name: /Modo de consulta/ });
+  await expect(head).toContainText('Maria Francisca de Albuquerque e Vasconcelos Teixeira');
+  await expect(head).toContainText('Equipa Bússola');
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/consulta-nome-longo-${info.project.name}.png`, fullPage: true });
+  // Voltar (browser) regressa à grelha com a equipa escolhida
+  await page.goBack();
+  await expect(page.getByLabel('Filtrar por equipa')).toHaveValue('teamB');
+  await expect(page.locator('.person-card', { hasText: 'Vasconcelos' })).toBeVisible();
 });

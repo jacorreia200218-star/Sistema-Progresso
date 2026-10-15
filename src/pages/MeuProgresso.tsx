@@ -19,7 +19,7 @@ import { Crumbs, type Crumb } from '../components/nav';
 
 const VIEWS = [
   { key: 'areas', label: 'Áreas FACEIS' },
-  { key: 'pedidos', label: 'Os meus pedidos', consult: 'Pedidos deste pioneiro' },
+  { key: 'pedidos', label: 'Os meus pedidos', consult: 'Pedidos' },
   { key: 'validado', label: 'Progresso validado' },
   { key: 'caminho', label: 'O meu percurso', consult: 'Percurso' },
   { key: 'pessoas', label: 'Pioneiros' },
@@ -82,14 +82,15 @@ export default function MeuProgresso() {
           </div>
           {vista === 'areas' && !area && (
             <nav className="progress-links" aria-label="Mais sobre o progresso">
-              <Link to={viewTo('pedidos')} className="btn secondary">
+              {!subject.consulted && <Link to={viewTo('pedidos')} className="btn secondary">
                 <ClipboardList size={16} aria-hidden="true" /> {viewLabel('pedidos')}
                 {needsAction > 0 && <span className="count" aria-label={`${needsAction} precisam de atenção`}>{needsAction}</span>}
-              </Link>
+              </Link>}
               <Link to={viewTo('validado')} className="btn secondary">
                 <CheckCircle2 size={16} aria-hidden="true" /> Progresso validado{p ? <span className="faint">&nbsp;· {validatedTrails}</span> : null}
               </Link>
-              <Link to={viewTo('caminho')} className="btn ghost"><RouteIcon size={16} aria-hidden="true" /> {subject.consulted ? 'Ver percurso' : 'Ver o meu percurso'}</Link>
+              {/* Na consulta, Pedidos e Percurso estão no cabeçalho (sem acessos repetidos). */}
+              {!subject.consulted && <Link to={viewTo('caminho')} className="btn ghost"><RouteIcon size={16} aria-hidden="true" /> Ver o meu percurso</Link>}
               {subject.isGuia && !subject.consulted && (
                 <Link to="?vista=pessoas" className="btn ghost"><Users size={16} aria-hidden="true" /> Progresso da equipa</Link>
               )}

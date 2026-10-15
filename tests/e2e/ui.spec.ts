@@ -45,8 +45,9 @@ test('pioneiro: início, progresso, trilho e pedido', async ({ page }, info) => 
   const cards = page.locator('.area-card');
   await expect(cards).toHaveCount(6);
   await expect(cards.filter({ hasText: 'Físico' })).toContainText('1 de 3 trilhos validados');
-  await expect(cards.filter({ hasText: 'Afetivo' })).toContainText('1 a rever');
-  await expect(cards.filter({ hasText: 'Social' })).toContainText('1 em validação');
+  // Cartão só com nome, segmentos, total validado e trilho da etapa; o estado de cada trilho vê-se ao abrir a área
+  await expect(cards.filter({ hasText: 'Afetivo' })).toContainText('Conhecimento: Autoestima');
+  await expect(cards.filter({ hasText: 'Afetivo' })).not.toContainText('a rever');
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/progresso-${info.project.name}.png`, fullPage: true });
 
@@ -84,8 +85,9 @@ test('dirigente e administração', async ({ page }, info) => {
 
   await page.goto('/dirigentes/negociacao');
   await expect(page).toHaveURL(/\/acompanhamento\/pedidos\?tipo=negociacao/);
-  await page.locator('.inbox').getByRole('button', { name: /Serviço/ }).click();
-  await expect(page.getByText(/Proposta:/)).toBeVisible();
+  await page.locator('.inbox').getByRole('link', { name: /Serviço/ }).click();
+  await expect(page).toHaveURL(/\/acompanhamento\/proposta\/c-espiritual-servico/);
+  await expect(page.getByRole('heading', { name: 'Decisão da negociação' })).toBeVisible();
   await page.getByRole('button', { name: 'Não aceitar' }).isDisabled();
   await page.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByText('Escolha confirmada.')).toBeVisible();

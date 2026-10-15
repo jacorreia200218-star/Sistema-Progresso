@@ -25,6 +25,7 @@ const Profile = lazyPage(() => import('./pages/Profile'));
 const Notifications = lazyPage(() => import('./pages/Notifications'));
 const Team = lazyPage(() => import('./pages/Team'));
 const Leaders = lazyPage(() => import('./pages/Leaders'));
+const ProposalPage = lazyPage(() => import('./pages/ProposalPage'));
 const MemberDetail = lazyPage(() => import('./pages/MemberDetail'));
 const Admin = lazyPage(() => import('./pages/Admin'));
 const Caminho = lazyPage(() => import('./pages/Caminho'));
@@ -88,6 +89,7 @@ function Authenticated() {
           <Route path="equipa" element={<Guard when={s.isGuia}><Team /></Guard>} />
           <Route path="conselho" element={<Guard when={s.isGuia || s.isDirigente}>{s.isDirigente ? <Navigate to="/acompanhamento/etapas" replace /> : <Team />}</Guard>} />
           <Route path="acompanhamento" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
+          <Route path="acompanhamento/proposta/:id" element={<Guard when={s.isDirigente}><ProposalPage /></Guard>} />
           <Route path="acompanhamento/:tab" element={<Guard when={s.isDirigente}><LeadersRoute /></Guard>} />
           <Route path="dirigentes" element={<LegacyLeaders />} />
           <Route path="dirigentes/:tab" element={<LegacyLeaders />} />

@@ -84,7 +84,14 @@ const progressRows = () => {
   return {
     adhesions: [{ membership_id: 'm-p1', decided_on: '2026-09-05', commitment_on: '2026-09-08', notes: null, is_historical: false, recorded_at: now }],
     stage_paths: [path],
-    stage_choices: [choice('fisico-desempenho', 'F'), choice('afetivo-autoestima', 'A'), choice('carater-autonomia', 'C'), choice('espiritual-servico', 'E', 'proposta')],
+    stage_choices: [
+      choice('fisico-desempenho', 'F'), choice('afetivo-autoestima', 'A'), choice('carater-autonomia', 'C'),
+      // Espiritual: uma proposta substituída e a troca por negociar (registos distintos).
+      { ...choice('espiritual-descoberta', 'E', 'substituida'), proposed_at: '2026-09-12T10:00:00Z', decided_at: '2026-09-20T10:00:00Z' },
+      { ...choice('espiritual-servico', 'E', 'proposta'), replaces_choice_id: 'c-espiritual-descoberta', decided_by: null, decided_at: null },
+      // Intelectual: proposta retirada pelo pioneiro.
+      { ...choice('intelectual-procura-do-conhecimento', 'I', 'retirada'), decided_by: 'u-p1', decision_comment: '—' },
+    ],
     trail_requests: [
       req('r-ok', 'fisico-desempenho', 'validado_equipa'),
       req('r-dev', 'afetivo-autoestima', 'devolvido', 'normal', 1),

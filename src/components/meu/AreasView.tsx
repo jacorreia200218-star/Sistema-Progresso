@@ -12,12 +12,15 @@ import type { Subject } from './useSubject';
 
 export const AREA_ICON: Record<string, typeof Heart> = { F: Activity, A: Heart, C: Shield, E: Sparkles, I: Lightbulb, S: Users };
 
-/** Três segmentos, um por trilho da área; preenchido = trilho validado. */
+/**
+ * Três segmentos, um por trilho da área; preenchido = trilho validado. É só
+ * visual: o mesmo número aparece em texto ao lado, que é o que os leitores de
+ * ecrã leem (não se repete a descrição).
+ */
 export function TrailSegments({ area, progress }: { area: CatalogArea; progress: MemberProgress }) {
   const cats = area.catalog_trails.map((t) => trailCategory(t, progress));
-  const done = cats.filter((c) => c === 'validado').length;
   return (
-    <span className="segments" role="img" aria-label={`${done} de ${cats.length} trilhos validados`}>
+    <span className="segments" aria-hidden="true">
       {[...cats].sort((a, b) => Number(b === 'validado') - Number(a === 'validado')).map((c, i) => (
         <span key={i} className={`seg ${c === 'validado' ? 'is-done' : c === 'em_validacao' ? 'is-pending' : ''}`} />
       ))}
@@ -53,7 +56,7 @@ function TrailRow({ trail, progress, subject }: { trail: CatalogTrail; progress:
 
 function AreaCard({ area, progress, subject, stageLine }: { area: CatalogArea; progress: MemberProgress; subject: Subject; stageLine?: string }) {
   const cats = area.catalog_trails.map((t) => trailCategory(t, progress));
-  const n = (c: string) => cats.filter((x) => x === c).length;
+  const done = cats.filter((x) => x === 'validado').length;
   const Icon = AREA_ICON[area.code] ?? Activity;
   return (
     <li>
@@ -61,16 +64,24 @@ function AreaCard({ area, progress, subject, stageLine }: { area: CatalogArea; p
         <span className="ac-icon" aria-hidden="true"><Icon size={20} /></span>
         <strong className="ac-name">{area.name}</strong>
         <TrailSegments area={area} progress={progress} />
-        <span className="ac-count">{n('validado')} de {cats.length} trilhos validados</span>
+        <span className="ac-count">{done} de {cats.length} trilhos validados</span>
         {stageLine && <span className="ac-stage faint">{stageLine}</span>}
-        {(n('em_validacao') > 0 || n('a_rever') > 0) && (
-          <span className="ac-states">
-            {n('a_rever') > 0 && <Badge label={`${n('a_rever')} a rever`} tone="attention" icon="return" />}
-            {n('em_validacao') > 0 && <Badge label={`${n('em_validacao')} em validação`} tone="progress" icon="clock" />}
-          </span>
-        )}
       </Link>
     </li>
+  );
+}
+
+/** Legenda curta, com a explicação completa disponível a pedido. */
+function Legend({ stageName }: { stageName?: string }) {
+  return (
+    <details className="legend">
+      <summary>Trilhos validados na área</summary>
+      <p className="faint prose">
+        Cada cartão tem três segmentos, um por trilho da área. Um segmento preenchido é um trilho validado pela reunião de Equipa
+        (histórico reconhecido). Os segmentos não contam objetivos nem etapas.
+        {stageName ? ` A última linha mostra o trilho escolhido para a etapa ${stageName}.` : ''}
+      </p>
+    </details>
   );
 }
 
@@ -84,7 +95,7 @@ export function AreasView({ subject, progress }: { subject: Subject; progress: M
   const stageLine = (code: string) => {
     const row = check?.rows.find((r) => r.area.code === code);
     if (!row || !stageName) return undefined;
-    return row.trail ? `${stageName}: ${row.trail.name} · ${STATUS_TEXT[row.status]}` : `${stageName}: ${STATUS_TEXT[row.status]}`;
+    return `${stageName}: ${row.trail ? row.trail.name : STATUS_TEXT[row.status]}`;
   };
 
   if (!area) {
@@ -93,7 +104,7 @@ export function AreasView({ subject, progress }: { subject: Subject; progress: M
         <ul className="area-grid" aria-label="Áreas de desenvolvimento FACEIS">
           {catalog.areas.map((a) => <AreaCard key={a.id} area={a} progress={progress} subject={subject} stageLine={stageLine(a.code)} />)}
         </ul>
-        <p className="faint prose legend">Cada segmento é um trilho validado na área (histórico reconhecido){stageName ? `; a linha de baixo mostra o trilho escolhido para a etapa ${stageName}` : ''}.</p>
+        <Legend stageName={stageName} />
       </>
     );
   }
@@ -106,7 +117,10 @@ export function AreasView({ subject, progress }: { subject: Subject; progress: M
           <h2 id={`h-area-${area.code}`} style={{ margin: 0 }}>Trilhos · {area.full_name}</h2>
           <span className="faint">{stageLine(area.code) ?? 'Escolhe o trilho para ver os objetivos e pedir a validação.'}</span>
         </div>
-        <TrailSegments area={area} progress={progress} />
+        <span className="panel-count">
+          <TrailSegments area={area} progress={progress} />
+          <span className="faint">{area.catalog_trails.filter((t) => trailCategory(t, progress) === 'validado').length} de {area.catalog_trails.length} validados</span>
+        </span>
       </div>
       <ul className="list">{area.catalog_trails.map((t) => <TrailRow key={t.id} trail={t} progress={progress} subject={subject} />)}</ul>
       <Link to={`?vista=areas${subject.q ? `&${subject.q}` : ''}`} className="btn ghost" style={{ marginTop: 8 }}><ArrowLeft size={16} aria-hidden="true" /> Voltar às áreas</Link>

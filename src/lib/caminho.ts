@@ -296,3 +296,25 @@ export function stageStatusFor(key: string, p: MemberProgress, catalog: Catalog)
   if (path.status === 'concluida') return { state: path.recognized_on ? 'reconhecida' : 'concluida', summary: s };
   return { state: s.openRequest ? 'em_validacao' : s.validatedCount === catalog.areas.length ? 'requisitos_cumpridos' : 'em_curso', summary: s };
 }
+
+/**
+ * Resumo curto da posição, para listas e cartões (ex.: «Aguarda Promessa» em vez de
+ * «Promessa · Adesão decidida · aguarda Promessa»). O detalhe completo fica no percurso.
+ */
+export function shortPosition(milestone: MilestoneKey, state: PositionState): string {
+  const m = milestoneByKey[milestone]?.short ?? milestone;
+  switch (state) {
+    case 'em_adesao': return 'Início de Pista';
+    case 'perfil_tracado': return 'Perfil traçado';
+    case 'aguarda_promessa': return 'Aguarda Promessa';
+    case 'aguarda_etapa': return 'Etapa por abrir';
+    case 'em_curso': return m;
+    case 'requisitos_cumpridos': return `${m} · pronta a validar`;
+    case 'em_validacao': return `${m} · em validação`;
+    case 'concluida': return `${m} concluída`;
+    case 'reconhecida': return `${m} reconhecida`;
+    case 'etapas_concluidas': return 'Etapas concluídas';
+    case 'anilha_atribuida': return 'Anilha de mérito';
+    default: return m;
+  }
+}

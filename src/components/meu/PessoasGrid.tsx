@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useTeams } from '../../lib/hooks';
-import { milestoneByKey, STATE_LABEL, type MilestoneKey, type PositionState } from '../../lib/caminho';
+import { shortPosition, type MilestoneKey, type PositionState } from '../../lib/caminho';
 import type { PathMember } from '../../lib/api';
 import { Avatar, Empty } from '../ui';
 import { rememberGridFilters } from './ConsultHeader';
@@ -73,11 +73,10 @@ export function PessoasGrid({ subject }: { subject: Subject }) {
             <li key={m.membership_id}>
               <Link to={`/meu-progresso?vista=areas&pioneiro=${m.membership_id}${suffix}`} className="person-card">
                 <Avatar name={m.full_name} photoPath={m.photo_path} size="lg" />
-                <strong className="person-name">{m.full_name}</strong>
-                <span className="faint">{teamName(m.team_id)}</span>
-                <span className="person-stage">
-                  {milestoneByKey[m.milestone as MilestoneKey]?.short ?? m.milestone}
-                  {STATE_LABEL[m.state as PositionState] && <span className="faint"> · {STATE_LABEL[m.state as PositionState].label}</span>}
+                <span className="person-text">
+                  <strong className="person-name">{m.full_name}</strong>
+                  <span className="faint">{teamName(m.team_id)}</span>
+                  <span className="person-stage">{shortPosition(m.milestone as MilestoneKey, m.state as PositionState)}</span>
                 </span>
               </Link>
             </li>
