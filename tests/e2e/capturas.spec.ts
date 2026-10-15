@@ -21,7 +21,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.screenshot({ path: `docs/capturas/inicio-pioneiro-${dev}-${t}.png`, ...full });
     // Em capturas de página inteira, a barra fixa do telemóvel ficaria a meio da imagem.
     const flat = (pg: typeof page) => pg.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; }' });
-    // Fluxo do pedido: áreas → trilhos → objetivos → justificação → resumo → enviado
+    // Fluxo do pedido: áreas → trilhos → objetivos e justificação → enviado
     await page.goto('/meu-progresso');
     await page.locator('.area-card').first().waitFor();
     await flat(page);
@@ -31,15 +31,11 @@ for (const theme of ['light', 'dark'] as const) {
     await flat(page);
     await page.screenshot({ path: `docs/capturas/meu-area-trilhos-${dev}-${t}.png`, ...full });
     await page.goto('/meu-progresso/trilho/fisico-autoconhecimento');
-    await page.getByRole('checkbox', { name: /F2/ }).check();
-    await page.getByRole('checkbox', { name: /F3/ }).check();
-    await page.getByLabel('Como demonstrei que atingi estes objetivos?').fill('No raid ajudei a equipa a adaptar o percurso a um colega com uma lesão. Percebi que aceitar os meus limites e os dos outros também é força.');
+    await page.getByLabel('Como demonstrei que alcancei este trilho?').fill('No raid ajudei a equipa a adaptar o percurso a um colega com uma lesão. Percebi que aceitar os meus limites e os dos outros também é força.');
     await flat(page);
-    await page.screenshot({ path: `docs/capturas/trilho-objetivos-${dev}-${t}.png`, ...full });
-    await page.getByRole('button', { name: 'Rever e enviar' }).click();
-    await flat(page);
-    await page.screenshot({ path: `docs/capturas/trilho-resumo-${dev}-${t}.png`, ...full });
-    await page.getByRole('button', { name: 'Enviar para validação' }).click();
+    await page.screenshot({ path: `docs/capturas/trilho-pedido-${dev}-${t}.png`, ...full });
+    await page.getByRole('button', { name: 'Pedir validação do trilho' }).click();
+    await page.getByRole('group', { name: 'Confirmação' }).getByRole('button', { name: 'Pedir validação do trilho' }).click();
     await page.getByText('Pedido enviado.').waitFor();
     await flat(page);
     await page.screenshot({ path: `docs/capturas/trilho-enviado-${dev}-${t}.png`, ...full });
@@ -51,8 +47,8 @@ for (const theme of ['light', 'dark'] as const) {
     await page.locator('.validated-item').first().waitFor();
     await flat(page);
     await page.screenshot({ path: `docs/capturas/meu-validado-${dev}-${t}.png`, ...full });
-    await page.goto('/meu-progresso/trilho/carater-responsabilidade');
-    await page.locator('.obj-check').first().waitFor();
+    await page.goto('/meu-progresso/trilho/afetivo-autoestima');
+    await page.locator('#justificacao').waitFor();
     await flat(page);
     await page.screenshot({ path: `docs/capturas/trilho-a-rever-${dev}-${t}.png`, ...full });
 
@@ -67,12 +63,34 @@ for (const theme of ['light', 'dark'] as const) {
     await p3.emulateMedia({ colorScheme: theme });
     await installMock(p3, leader());
     await p3.goto('/revisoes/pedido/r-obj');
-    await p3.getByRole('radiogroup', { name: 'Decisão sobre E1' }).getByText('Validado').click();
-    await p3.getByRole('radiogroup', { name: 'Decisão sobre E2' }).getByText('A rever').click();
-    await p3.getByLabel('O que falta em E2?').fill('Fala de um momento em que partilhaste a tua fé com outros.');
+    await p3.getByRole('radio', { name: /Devolver para revisão/ }).check();
+    await p3.locator('.obj-flags').getByText('E2').click();
+    await p3.getByLabel(/Fundamentação/).fill('Fala de um momento em que partilhaste a tua fé com outros.');
     await flat(p3);
-    await p3.screenshot({ path: `docs/capturas/revisao-objetivos-${dev}-${t}.png`, ...full });
-    await p3.goto('/meu-progresso?pioneiro=m-p1');
+    await p3.screenshot({ path: `docs/capturas/revisao-trilho-${dev}-${t}.png`, ...full });
+    await p3.goto('/meu-progresso');
+    await p3.locator('.person-card').first().waitFor();
+    await flat(p3);
+    await p3.screenshot({ path: `docs/capturas/pioneiros-grelha-${dev}-${t}.png`, ...full });
+    await p3.goto('/acompanhamento/seccao');
+    await p3.locator('.list-item').first().waitFor();
+    await flat(p3);
+    await p3.screenshot({ path: `docs/capturas/acompanhamento-seccao-${dev}-${t}.png`, ...full });
+    await p3.goto('/acompanhamento/pedidos');
+    await p3.locator('.inbox .type-tag').first().waitFor();
+    await flat(p3);
+    await p3.screenshot({ path: `docs/capturas/acompanhamento-pedidos-${dev}-${t}.png`, ...full });
+    await p3.goto('/acompanhamento/etapas?ver=trilhos');
+    await p3.getByText('Comunicação das decisões de trilhos das equipas').waitFor();
+    await flat(p3);
+    await p3.screenshot({ path: `docs/capturas/acompanhamento-etapas-${dev}-${t}.png`, ...full });
+    await p3.goto('/notificacoes');
+    await p3.locator('li.notif').first().waitFor();
+    await p3.locator('li.notif').nth(0).getByRole('checkbox').check();
+    await p3.locator('li.notif').nth(2).getByRole('checkbox').check();
+    await flat(p3);
+    await p3.screenshot({ path: `docs/capturas/notificacoes-${dev}-${t}.png`, ...full });
+    await p3.goto('/meu-progresso?vista=areas&pioneiro=m-p1');
     await p3.locator('.area-card').first().waitFor();
     await flat(p3);
     await p3.screenshot({ path: `docs/capturas/consulta-dirigente-${dev}-${t}.png`, ...full });

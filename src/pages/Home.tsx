@@ -133,13 +133,12 @@ function LeaderHome() {
   if (path.error) return <ErrorBox error={path.error} retry={path.refetch} />;
   const total = path.data?.total ?? 0;
   const activeTeams = (teams.data ?? []).filter((t) => !t.archived_at).length;
-  const pendingReqs = reqs.data?.length ?? 0;
-  const openStages = (stages.data ?? []).filter((x) => x.status === 'submetido' || x.status === 'decidido_conselho').length;
-  const historic = (reqs.data ?? []).filter((r) => r.kind === 'historico').length;
+  // Cada pedido conta uma vez (negociação, trilhos e progresso anterior), como na caixa de entrada.
+  const c = counts.data ?? {};
+  const pendingReqs = counts.data ? (c.negociacao ?? 0) + (c.trilhos ?? 0) + (c.anterior ?? 0) : (reqs.data?.length ?? 0) + (choices.data?.length ?? 0);
+  const openStages = counts.data ? c.etapas ?? 0 : (stages.data ?? []).filter((x) => x.status === 'submetido' || x.status === 'decidido_conselho').length;
   const others = [
-    { label: 'Propostas de trilho por negociar', n: choices.data?.length ?? 0, to: '/acompanhamento/negociacao' },
-    { label: 'Pedidos de progresso anterior', n: historic, to: '/acompanhamento/historico' },
-    ...(s.isAdmin ? [{ label: 'Pedidos de entrada por confirmar', n: counts.data?.gestao ?? 0, to: '/gestao/membros' }] : []),
+    ...(s.isAdmin ? [{ label: 'Pedidos de entrada por confirmar', n: c.gestao ?? 0, to: '/gestao/membros' }] : []),
   ].filter((i) => i.n > 0);
 
   if (total === 0) {
@@ -163,7 +162,7 @@ function LeaderHome() {
         { label: 'Pioneiros', value: total, to: '/caminho', tone: 'azul', icon: Users },
         { label: 'Equipas', value: activeTeams, to: s.isAdmin ? '/gestao/equipas' : '/caminho?vista=equipa', tone: 'verde', icon: UsersRound },
         { label: 'Pedidos pendentes', value: pendingReqs, to: '/acompanhamento/pedidos', tone: 'ambar', icon: ClipboardList },
-        { label: 'Etapas por validar', value: openStages, to: '/acompanhamento/conselho', tone: 'lilas', icon: Flag },
+        { label: 'Etapas por validar', value: openStages, to: '/acompanhamento/etapas', tone: 'lilas', icon: Flag },
       ]} />
 
       <section className="card" aria-labelledby="h-dist">
@@ -185,7 +184,7 @@ function LeaderHome() {
 
       {others.length > 0 ? (
         <section className="card" aria-labelledby="h-pend">
-          <h2 id="h-pend">Outros pendentes</h2>
+          <h2 id="h-pend">Gestão</h2>
           <ul className="list">
             {others.map((i) => (
               <li key={i.to}>

@@ -78,11 +78,13 @@ test('pioneiro não vê ecrãs de gestão', async ({ page }) => {
 test('dirigente e administração', async ({ page }, info) => {
   const mock = await installMock(page, leader());
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Outros pendentes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gestão' })).toBeVisible();
   await expect(page.getByText('Pedidos de entrada por confirmar')).toBeVisible();
   await noHorizontalScroll(page);
 
   await page.goto('/dirigentes/negociacao');
+  await expect(page).toHaveURL(/\/acompanhamento\/pedidos\?tipo=negociacao/);
+  await page.locator('.inbox').getByRole('button', { name: /Serviço/ }).click();
   await expect(page.getByText(/Proposta:/)).toBeVisible();
   await page.getByRole('button', { name: 'Não aceitar' }).isDisabled();
   await page.getByRole('button', { name: 'Confirmar' }).click();

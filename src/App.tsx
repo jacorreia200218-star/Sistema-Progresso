@@ -37,10 +37,26 @@ function LegacyTrail() {
   return <Navigate to={`/meu-progresso/trilho/${key}`} replace />;
 }
 
-// Endereços antigos («Revisões» → «Acompanhamento»); notificações já guardadas usam-nos.
+// Endereços antigos («Dirigentes» e os seis separadores do Acompanhamento) →
+// nova localização com o filtro correspondente. Notificações antigas usam-nos.
+const LEGACY_TABS: Record<string, string> = {
+  seccao: '/acompanhamento/seccao',
+  negociacao: '/acompanhamento/pedidos?tipo=negociacao',
+  pedidos: '/acompanhamento/pedidos?tipo=trilhos',
+  historico: '/acompanhamento/pedidos?tipo=anterior',
+  conselho: '/acompanhamento/etapas',
+  merito: '/acompanhamento/seccao?ver=merito',
+};
+
 function LegacyLeaders() {
   const { tab } = useParams();
-  return <Navigate to={tab ? `/acompanhamento/${tab}` : '/acompanhamento'} replace />;
+  return <Navigate to={(tab && LEGACY_TABS[tab]) || '/acompanhamento/seccao'} replace />;
+}
+
+function LeadersRoute() {
+  const { tab } = useParams();
+  if (tab && !['seccao', 'pedidos', 'etapas'].includes(tab)) return <LegacyLeaders />;
+  return <Leaders />;
 }
 
 function Guard({ when, children }: { when: boolean; children: ReactNode }) {
@@ -70,9 +86,9 @@ function Authenticated() {
           <Route path="pedidos/:id" element={<RequestPage />} />
           <Route path="revisoes/pedido/:id" element={<RequestPage />} />
           <Route path="equipa" element={<Guard when={s.isGuia}><Team /></Guard>} />
-          <Route path="conselho" element={<Guard when={s.isGuia || s.isDirigente}>{s.isDirigente ? <Leaders tab="conselho" /> : <Team />}</Guard>} />
+          <Route path="conselho" element={<Guard when={s.isGuia || s.isDirigente}>{s.isDirigente ? <Navigate to="/acompanhamento/etapas" replace /> : <Team />}</Guard>} />
           <Route path="acompanhamento" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
-          <Route path="acompanhamento/:tab" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
+          <Route path="acompanhamento/:tab" element={<Guard when={s.isDirigente}><LeadersRoute /></Guard>} />
           <Route path="dirigentes" element={<LegacyLeaders />} />
           <Route path="dirigentes/:tab" element={<LegacyLeaders />} />
           <Route path="membros/:id" element={<Guard when={s.isDirigente || s.isGuia}><MemberDetail /></Guard>} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { objectiveStates, progressCounts, stageChecklist, trailCategory, validatedObjectives, validationInfo } from './meuprogresso';
+import { flaggedObjectives, legacyObjectiveHistory, progressCounts, stageChecklist, trailCategory, validationInfo } from './meuprogresso';
 import type { Catalog, CatalogArea, MemberProgress, RequestObjective, StageChoice, StagePath, StageRequest, TrailDecision, TrailRequest } from './types';
 
 const names: Record<string, string> = { F: 'Físico', A: 'Afetivo', C: 'Caráter', E: 'Espiritual', I: 'Intelectual', S: 'Social' };
@@ -107,42 +107,29 @@ describe('histórico reconhecido vs. etapa atual', () => {
   });
 });
 
-describe('objetivos', () => {
+describe('trilho completo e histórico por objetivos', () => {
   const t = { ...catalog.trailByKey.get('F1')!, catalog_objectives: [
     { id: 'o2', trail_id: 't-F1', code: 'F2', text: 'Aceito-me', position: 1, pending_note: null },
     { id: 'o3', trail_id: 't-F1', code: 'F3', text: 'Respeito', position: 2, pending_note: null },
   ] };
-  const row = (request: string, objective: string, version: number, decision: RequestObjective['decision'], comment: string | null = null): RequestObjective => ({
+  const row = (request: string, objective: string, version: number, decision: RequestObjective['decision']): RequestObjective => ({
     id: `${request}-${objective}-${version}`, request_id: request, version_id: `${request}-v${version}`, objective_id: objective, objective_code: objective === 'o2' ? 'F2' : 'F3',
-    decision, comment, decided_at: decision ? '2026-03-01T10:00:00Z' : null, version_no: version,
+    decision, comment: null, decided_at: decision ? '2026-03-01T10:00:00Z' : null, version_no: version,
   });
   const r = (id: string, status: TrailRequest['status'], v = 1): TrailRequest => ({ ...req('F1', status), id, current_version: v });
-  const st = (p: MemberProgress) => Object.fromEntries([...objectiveStates(t, p)].map(([k, v]) => [k, v.state]));
+  const dec = (kind: TrailDecision['kind'], codes: string[] | null, at: string): TrailDecision => ({
+    id: `d-${at}`, request_id: 'a', version_id: 'a-v1', kind, meeting_date: null, comment: 'x', reference_date: null, recorded_by: 'g', recorded_as: 'guia', recorded_at: at, objective_codes: codes,
+  });
 
-  it('sem pedido: todos por validar', () => {
-    expect(st(prog({}))).toEqual({ o2: 'disponivel', o3: 'disponivel' });
-  });
-  it('seleção parcial em validação', () => {
-    expect(st(prog({ requests: [r('a', 'submetido')], objectives: [row('a', 'o2', 1, null)] }))).toEqual({ o2: 'em_validacao', o3: 'disponivel' });
-  });
-  it('validação parcial não fecha o trilho; o objetivo aceite fica validado', () => {
-    const p = prog({ requests: [r('a', 'objetivos_validados')], objectives: [row('a', 'o2', 1, 'aceite')] });
-    expect(st(p)).toEqual({ o2: 'validado', o3: 'disponivel' });
+  it('objetivos aceites no modelo anterior ficam como histórico e não fecham o trilho', () => {
+    const p = prog({ requests: [r('a', 'objetivos_validados')], objectives: [row('a', 'o2', 1, 'aceite'), row('a', 'o3', 1, null)] });
     expect(trailCategory(t, p)).toBe('por_fechar');
-    expect(validatedObjectives(t, p)).toBe(1);
+    expect(legacyObjectiveHistory(t, p).map((o) => o.objective_code)).toEqual(['F2']); // só as decisões
   });
-  it('a rever mostra o comentário e mantém o aceite; no rascunho de correção continua a rever', () => {
-    const p = prog({ requests: [r('a', 'devolvido')], objectives: [row('a', 'o2', 1, 'aceite'), row('a', 'o3', 1, 'rever', 'Falta um exemplo')] });
-    expect(st(p)).toEqual({ o2: 'validado', o3: 'a_rever' });
-    expect(objectiveStates(t, p).get('o3')?.comment).toBe('Falta um exemplo');
-    const draft = prog({ requests: [r('a', 'rascunho', 2)], objectives: [row('a', 'o2', 1, 'aceite'), row('a', 'o3', 1, 'rever', 'Falta um exemplo'), row('a', 'o3', 2, null)] });
-    expect(st(draft)).toEqual({ o2: 'validado', o3: 'a_rever' });
-  });
-  it('pedidos antigos por trilho aplicam o estado do pedido a todos os objetivos', () => {
-    expect(st(prog({ requests: [r('a', 'submetido')] }))).toEqual({ o2: 'em_validacao', o3: 'em_validacao' });
-    expect(st(prog({ requests: [r('a', 'validado_equipa')] }))).toEqual({ o2: 'validado', o3: 'validado' });
-  });
-  it('pedidos cancelados não contam', () => {
-    expect(st(prog({ requests: [r('a', 'cancelado')], objectives: [row('a', 'o2', 1, null)] }))).toEqual({ o2: 'disponivel', o3: 'disponivel' });
+  it('a devolução pode indicar objetivos a demonstrar; usa a mais recente', () => {
+    const decisions = [dec('devolvido_equipa', ['F3'], '2026-03-02'), dec('devolvido_equipa', ['F2', 'F3'], '2026-03-01')];
+    expect(flaggedObjectives(r('a', 'devolvido'), decisions)).toEqual(['F3']);
+    expect(flaggedObjectives(r('a', 'devolvido'), [dec('devolvido_equipa', null, '2026-03-02')])).toEqual([]);
+    expect(flaggedObjectives(undefined, decisions)).toEqual([]);
   });
 });

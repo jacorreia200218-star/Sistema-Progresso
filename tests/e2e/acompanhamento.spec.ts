@@ -1,0 +1,142 @@
+import { expect, test, type Page } from '@playwright/test';
+import { installMock, leader, pioneer } from './mock-api';
+
+async function noHorizontalScroll(page: Page) {
+  const width = page.viewportSize()!.width;
+  const overflow = await page.evaluate((w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w, width);
+  expect(overflow, 'sem deslocamento horizontal').toBeLessThanOrEqual(1);
+}
+
+test('acompanhamento: três separadores com contadores', async ({ page }, info) => {
+  await installMock(page, leader());
+  await page.goto('/acompanhamento');
+  const tabs = page.getByRole('navigation', { name: 'Secções do acompanhamento' }).getByRole('link');
+  await expect(tabs).toHaveCount(3);
+  await expect(tabs.nth(0)).toContainText('Secção');
+  await expect(tabs.nth(1)).toContainText('Pedidos');
+  await expect(tabs.nth(1)).toContainText('3');
+  await expect(tabs.nth(2)).toContainText('Etapas');
+  // Secção: pessoas por equipa, pesquisa e mérito secundário
+  await expect(page.getByRole('region', { name: 'Equipa Andorinha' })).toBeVisible();
+  await page.getByPlaceholder('Pesquisar por nome').fill('Pedro');
+  await expect(page.getByText('Pedro Teste').first()).toBeVisible();
+  await expect(page.getByText('Ana Fictícia')).toHaveCount(0);
+  await expect(page.getByText('Anilha de mérito').first()).toBeVisible();
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/acomp-seccao-${info.project.name}.png`, fullPage: true });
+});
+
+test('pedidos: caixa única com filtros por tipo, estado e equipa, sem duplicados', async ({ page }, info) => {
+  await installMock(page, leader());
+  await page.goto('/acompanhamento/pedidos');
+  const inbox = page.locator('.inbox');
+  // Pendentes: uma negociação, um pedido de trilho e um de progresso anterior
+  await expect(inbox.locator('> li')).toHaveCount(3);
+  await expect(inbox.locator('.type-tag')).toHaveText([/Negociação|Trilho|anterior/, /Negociação|Trilho|anterior/, /Negociação|Trilho|anterior/]);
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/acomp-pedidos-${info.project.name}.png`, fullPage: true });
+
+  await page.getByRole('radiogroup', { name: 'Tipo de pedido' }).getByRole('radio', { name: /^Trilhos/ }).click();
+  await expect(page).toHaveURL(/tipo=trilhos/);
+  await expect(inbox.locator('> li')).toHaveCount(1);
+  await expect(inbox).toContainText('Descoberta');
+
+  await page.getByRole('radiogroup', { name: 'Tipo de pedido' }).getByRole('radio', { name: /^Progresso anterior/ }).click();
+  await expect(inbox.locator('> li')).toHaveCount(1);
+  await expect(inbox).toContainText('Interação e cooperação');
+
+  // Decididos continuam acessíveis
+  await page.getByRole('radiogroup', { name: 'Tipo de pedido' }).getByRole('radio', { name: /^Trilhos/ }).click();
+  await page.getByLabel('Filtrar por estado').selectOption('decididos');
+  await expect(inbox).toContainText('Desempenho');
+  const keys = await inbox.locator('> li').allTextContents();
+  expect(new Set(keys).size).toBe(keys.length);
+
+  // Filtro por equipa
+  await page.getByLabel('Filtrar por estado').selectOption('todos');
+  await page.getByLabel('Filtrar por equipa').selectOption({ label: 'Equipa Bússola' });
+  await expect(inbox.locator('> li')).toHaveCount(0);
+});
+
+test('etapas: Conselho separado da comunicação das decisões de trilhos', async ({ page }, info) => {
+  await installMock(page, leader());
+  await page.goto('/acompanhamento/etapas?ver=trilhos');
+  await expect(page.getByText('Comunicação das decisões de trilhos das equipas')).toBeVisible();
+  await expect(page.locator('details[open]', { hasText: 'Comunicação das decisões de trilhos das equipas' })).toContainText('Desempenho');
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/acomp-etapas-${info.project.name}.png`, fullPage: true });
+});
+
+test('endereços antigos levam ao novo sítio e filtro', async ({ page }) => {
+  await installMock(page, leader());
+  for (const [from, to] of [
+    ['/dirigentes/negociacao', /\/acompanhamento\/pedidos\?tipo=negociacao/],
+    ['/acompanhamento/negociacao', /\/acompanhamento\/pedidos\?tipo=negociacao/],
+    ['/acompanhamento/historico', /\/acompanhamento\/pedidos\?tipo=anterior/],
+    ['/acompanhamento/conselho', /\/acompanhamento\/etapas/],
+    ['/acompanhamento/merito', /\/acompanhamento\/seccao\?ver=merito/],
+    ['/conselho', /\/acompanhamento\/etapas/],
+  ] as const) {
+    await page.goto(from);
+    await expect(page).toHaveURL(to);
+  }
+});
+
+test('notificações: eliminar uma, desfazer, eliminar lidas e limpar todas', async ({ page }, info) => {
+  const persona = leader();
+  const mock = await installMock(page, persona);
+  await page.goto('/notificacoes');
+  const items = page.locator('li.notif');
+  await expect(items).toHaveCount(4);
+  await expect(page.getByRole('link', { name: 'Notificações, 2 por ler' })).toBeVisible();
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/notificacoes-${info.project.name}.png`, fullPage: true });
+
+  // Uma: botão próprio fora da ligação; o contador de não lidas atualiza logo
+  const del = page.getByRole('button', { name: 'Eliminar «Novo pedido de validação»' });
+  expect(await del.evaluate((b) => !!b.closest('a'))).toBe(false);
+  await del.click();
+  await expect(items).toHaveCount(3);
+  await expect(page.getByRole('link', { name: 'Notificações, 1 por ler' })).toBeVisible();
+  await expect(page.getByText('Notificação eliminada.')).toBeVisible();
+  // Desfazer repõe
+  await page.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(items).toHaveCount(4);
+  await expect(page.getByRole('link', { name: 'Notificações, 2 por ler' })).toBeVisible();
+
+  // Selecionar várias
+  await items.nth(0).getByRole('checkbox').check();
+  await items.nth(1).getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Eliminar selecionadas (2)' }).click();
+  await expect(items).toHaveCount(2);
+  await page.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(items).toHaveCount(4);
+
+  // Lidas
+  await page.getByRole('button', { name: 'Eliminar lidas (2)' }).click();
+  await expect(items).toHaveCount(2);
+  // Não reaparecem depois de recarregar
+  await page.reload();
+  await expect(page.locator('li.notif')).toHaveCount(2);
+
+  // Limpar todas, com a quantidade na confirmação
+  await page.getByRole('button', { name: 'Limpar todas' }).click();
+  await expect(page.getByText(/Vais eliminar 2 notificações/)).toBeVisible();
+  await page.getByRole('group', { name: 'Confirmação' }).getByRole('button', { name: 'Eliminar 2 notificações' }).click();
+  await expect(page.locator('li.notif')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Notificações' , exact: true })).toBeVisible();
+
+  // Só notificações: nenhuma outra chamada que mexa em pedidos ou decisões
+  const fns = mock.calls.map((c) => c.fn);
+  expect(fns.filter((f) => !['remove_notifications', 'restore_notifications', 'mark_notifications_read'].includes(f) && !f.startsWith('GET'))
+    .filter((f) => /request|decision|delete|DELETE/.test(f))).toEqual([]);
+  expect(persona.tables.trail_requests.length).toBeGreaterThan(0);
+});
+
+test('pioneiro: notificações com ligações atuais', async ({ page }) => {
+  await installMock(page, pioneer());
+  await page.goto('/notificacoes');
+  await expect(page.locator('li.notif')).toHaveCount(3);
+  await page.getByRole('link', { name: /Trilho a rever/ }).click();
+  await expect(page).toHaveURL(/\/pedidos\/r-dev/);
+});

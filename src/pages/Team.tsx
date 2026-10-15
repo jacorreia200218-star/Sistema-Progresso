@@ -26,7 +26,7 @@ export default function Team() {
   const all = (reqs.data ?? []).filter((r) => ids.includes(r.membership_id) && r.kind === 'normal');
   const queue = all.filter((r) => (r.status === 'submetido' || r.status === 'em_revisao') && r.membership_id !== membership.id);
   const mineWaiting = all.filter((r) => (r.status === 'submetido' || r.status === 'em_revisao') && r.membership_id === membership.id);
-  const recent = all.filter((r) => r.status === 'validado_equipa' || r.status === 'devolvido' || r.status === 'objetivos_validados').slice(0, 10);
+  const recent = all.filter((r) => r.status === 'validado_equipa' || r.status === 'devolvido').slice(0, 10);
 
   return (
     <>

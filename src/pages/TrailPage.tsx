@@ -1,21 +1,24 @@
-// Página do trilho: os objetivos oficiais e o pedido de validação por objetivos
-// (Objetivos → Justificação → Enviar). A escolha para a etapa e as vivências
-// continuam disponíveis, mas não são passos obrigatórios do pedido.
+// Página do trilho: área e nome do trilho, todos os objetivos oficiais e o
+// pedido de validação do trilho completo (justificação → Pedir validação).
+// A associação à etapa (negociação) e as vivências continuam disponíveis, mas
+// não são passos obrigatórios do pedido.
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, NotebookPen, Trash2 } from 'lucide-react';
+import { ArrowLeft, NotebookPen, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useSubject } from '../components/meu/useSubject';
 import { call } from '../lib/api';
 import { useAction } from '../lib/useAction';
 import { errorMessage } from '../lib/errors';
-import { activeRequest, openPath } from '../lib/progress';
-import { activeChoice, CATEGORY_LABEL, objectiveStates, trailCategory } from '../lib/meuprogresso';
-import { formatDate, todayIso } from '../lib/labels';
+import { openPath } from '../lib/progress';
+import { activeChoice, CATEGORY_LABEL, legacyObjectiveHistory, trailCategory } from '../lib/meuprogresso';
+import { formatDate, formatDateTime, todayIso } from '../lib/labels';
 import type { CatalogTrail, MemberProgress } from '../lib/types';
 import { Badge, ConfirmButton, ErrorBox, Field, Loading, Notice } from '../components/ui';
 import { Crumbs } from '../components/nav';
-import { ObjectiveList, PedidoObjetivos } from '../components/meu/PedidoObjetivos';
+import { PedidoTrilho, TrailObjectives } from '../components/meu/PedidoTrilho';
+import { ConsultHeader } from '../components/meu/ConsultHeader';
+import { AREA_ICON } from '../components/meu/AreasView';
 import { stageName } from '../components/StagePanel';
 import NotFound from './NotFound';
 
@@ -51,7 +54,7 @@ export default function TrailPage() {
     <nav className="row page-links" aria-label="Navegação">
       <Link to={areaTo} className="btn ghost"><ArrowLeft size={16} aria-hidden="true" /> Voltar aos trilhos</Link>
       <Link to={areasTo} className="btn ghost">Voltar às áreas</Link>
-      {p && <Link to={pedidosTo} className="btn ghost">{subject.isSelf ? 'Os meus pedidos' : 'Pedidos'}</Link>}
+      {p && <Link to={pedidosTo} className="btn ghost">{subject.isSelf ? 'Os meus pedidos' : 'Pedidos deste pioneiro'}</Link>}
     </nav>
   );
 
@@ -69,28 +72,47 @@ export default function TrailPage() {
   }
 
   const cat = trailCategory(trail, p);
-  const r = activeRequest(p.requests, trail.key);
   const exps = subject.experiences.filter((e) => e.trail_key === trail.key);
+  const choice = activeChoice(p, trail.key);
+  const choiceStage = choice ? stageName(catalog, p.paths.find((x) => x.id === choice.stage_path_id)?.stage_key ?? '') : null;
+  const legacy = legacyObjectiveHistory(trail, p);
+  const Icon = AREA_ICON[area.code];
 
   return (
     <div className="trail-page">
       {crumbs}
-      <header className="trail-head">
-        <span className="area-code" aria-hidden="true">{area.code}</span>
-        <h1 className="grow" style={{ margin: 0 }}>{trail.name}</h1>
+      <ConsultHeader subject={subject} />
+      <header className={`trail-head area-${area.code}`}>
+        <span className="ac-icon" aria-hidden="true">{Icon && <Icon size={20} />}</span>
+        <div className="grow">
+          <span className="faint">Área {area.name}</span>
+          <h1 style={{ margin: 0 }}>{trail.name}</h1>
+        </div>
         <Badge {...CATEGORY_LABEL[cat]} />
       </header>
-      {subject.consulted && <p className="consult-note">Modo de consulta · {subject.consulted.full_name}</p>}
+      <p className="faint trail-stage">
+        {choice
+          ? `${choice.status === 'confirmada' ? 'Associado à etapa' : 'Proposto para a etapa'} ${choiceStage}${choice.status === 'proposta' ? ' (aguarda negociação)' : ''}.`
+          : 'Ainda não associado a uma etapa. A validação do trilho e a associação à etapa são passos diferentes.'}
+      </p>
 
-      {subject.isSelf ? (
-        <PedidoObjetivos key={trail.key} trail={trail} area={area} progress={p} membershipId={subject.membership.id} pedidosTo={pedidosTo}
-          historicalEnabled={!!subject.settings?.historical_progress_enabled} />
-      ) : (
-        <section className="card" id="pedido" aria-labelledby="h-obj">
-          <h2 id="h-obj">Objetivos</h2>
-          <ObjectiveList trail={trail} states={objectiveStates(trail, p)} />
-          {r ? <Link to={`/revisoes/pedido/${r.id}`} className="btn ghost">Ver o pedido</Link> : <p className="faint">Ainda não há pedido de validação para este trilho.</p>}
-        </section>
+      <PedidoTrilho key={trail.key} trail={trail} progress={p} membershipId={subject.isSelf ? subject.membership.id : subject.subjectId ?? ''} pedidosTo={pedidosTo}
+        historicalEnabled={!!subject.settings?.historical_progress_enabled} readOnly={!subject.isSelf} />
+
+      {legacy.length > 0 && (
+        <details className="card more-card">
+          <summary>Histórico por objetivos (modelo anterior)</summary>
+          <p className="faint prose">Decisões registadas objetivo a objetivo antes de a validação passar a ser feita por trilho. Ficam como histórico e não fecham o trilho.</p>
+          <ul className="list">
+            {legacy.map((o) => (
+              <li key={o.id} className="list-item">
+                <span className="code">{o.objective_code}</span>
+                <span className="grow">{o.decision === 'aceite' ? 'Aceite' : 'A rever'}{o.comment ? ` · «${o.comment}»` : ''}</span>
+                <span className="faint nowrap">{formatDateTime(o.decided_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       <TrailMore trail={trail} />
@@ -110,15 +132,7 @@ function Objectives({ trail }: { trail: CatalogTrail }) {
   return (
     <section className="card" aria-labelledby="h-obj">
       <h2 id="h-obj">Objetivos</h2>
-      {trail.catalog_objectives.map((o) => (
-        <div key={o.id} className="objective">
-          <span className="code">{o.code}</span>
-          <div>
-            <p className="prose" style={{ margin: 0 }}>{o.text}</p>
-            {o.pending_note && <p className="faint" style={{ margin: '4px 0 0' }}><AlertTriangle size={13} aria-hidden="true" /> Pendente: {o.pending_note}</p>}
-          </div>
-        </div>
-      ))}
+      <TrailObjectives trail={trail} />
     </section>
   );
 }
@@ -208,7 +222,7 @@ function ExperiencesSection({ trail, membershipId, items }: { trail: CatalogTrai
   return (
     <section className="sub-section" id="vivencias" aria-labelledby="h-viv">
       <div className="card-title"><NotebookPen size={18} aria-hidden="true" color="var(--green-ink)" /><h3 id="h-viv" style={{ margin: 0 }}>Vivências registadas</h3></div>
-      <p className="faint prose">Um diário opcional, só teu. Não é preciso registar vivências para pedir a validação de objetivos.</p>
+      <p className="faint prose">Um diário opcional, só teu. Não é preciso registar vivências para pedir a validação do trilho.</p>
       {items.length > 0 ? (
         <ul className="list">
           {items.map((x) => (

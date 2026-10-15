@@ -107,7 +107,7 @@ test('início do dirigente: cartões com ligações filtradas, marcos e atividad
   const stats = page.getByRole('list', { name: 'Resumo da secção' });
   await expect(stats.getByRole('link', { name: /Pioneiros/ })).toHaveAttribute('href', '/caminho');
   await expect(stats.getByRole('link', { name: /Pedidos pendentes/ })).toHaveAttribute('href', '/acompanhamento/pedidos');
-  await expect(stats.getByRole('link', { name: /Etapas por validar/ })).toHaveAttribute('href', '/acompanhamento/conselho');
+  await expect(stats.getByRole('link', { name: /Etapas por validar/ })).toHaveAttribute('href', '/acompanhamento/etapas');
   await page.getByRole('list', { name: 'Pessoas por marco do caminho' }).getByRole('link', { name: /Conhecimento/ }).click();
   await expect(page.getByRole('dialog', { name: /Conhecimento · 4/ })).toBeVisible();
   await page.goto('/');
@@ -132,7 +132,7 @@ test('tema guardado sem flash e endereços antigos', async ({ page }) => {
   await installMock(page, leader());
   await page.addInitScript(() => localStorage.setItem('pioneiros.tema', 'dark'));
   await page.goto('/dirigentes/negociacao');
-  await expect(page).toHaveURL(/\/acompanhamento\/negociacao/);
+  await expect(page).toHaveURL(/\/acompanhamento\/pedidos\?tipo=negociacao/);
   expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('dark');
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(bg).toBe('rgb(20, 22, 25)');
