@@ -4,9 +4,11 @@ import { ChevronRight } from 'lucide-react';
 import { FUTURE_AREAS } from '../lib/futuras';
 import { PageTitle } from '../components/ui';
 import { useNavItems } from '../components/Layout';
+import { moduleTag, useMyModules } from '../modules/common';
 
 export default function More() {
   const { overflow } = useNavItems();
+  const modules = useMyModules();
   return (
     <>
       <PageTitle title="Mais" />
@@ -26,18 +28,21 @@ export default function More() {
           </ul>
         </nav>
       )}
-      <h2 className="section-title">Em desenvolvimento</h2>
-      <nav className="card more-list" aria-label="Áreas em desenvolvimento">
+      <h2 className="section-title">Módulos</h2>
+      <nav className="card more-list" aria-label="Módulos">
         <ul className="list">
-          {FUTURE_AREAS.map((a) => (
-            <li key={a.key}>
-              <Link to={a.to} className="list-item">
-                <a.icon size={20} aria-hidden="true" />
-                <span className="grow">{a.name}</span>
-                <span className="badge tone-muted">Em desenvolvimento</span>
-              </Link>
-            </li>
-          ))}
+          {FUTURE_AREAS.map((a) => {
+            const tag = moduleTag(modules.data?.find((m) => m.module === a.key));
+            return (
+              <li key={a.key}>
+                <Link to={a.to} className="list-item">
+                  <a.icon size={20} aria-hidden="true" />
+                  <span className="grow">{a.name}</span>
+                  {tag && <span className={`badge ${tag === 'Em teste' ? 'tone-progress' : 'tone-muted'}`}>{tag}</span>}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
     </>

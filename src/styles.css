@@ -1005,3 +1005,17 @@ dl.summary-list .quote { margin-top: 0; }
 .future-area > .faint { margin-top: 18px; }
 .more-list .list-item { gap: 12px; }
 .nav-count-inline { background: var(--accent); color: var(--on-accent); font-size: var(--fs-xs); font-weight: 700; border-radius: 99px; padding: 0 7px; line-height: 18px; }
+
+/* Módulos */
+.nav-tag { margin-left: auto; font-size: var(--fs-xs); color: var(--ink-faint); white-space: nowrap; }
+.nav-tag-test { color: var(--accent-ink); font-weight: 700; }
+.test-banner { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 8px 12px; border-radius: 10px;
+  background: var(--amber-tint); color: var(--ink); border: 1px dashed var(--amber); font-size: var(--fs-small); }
+.module-admin + .module-admin { margin-top: 16px; }
+.radio-row { display: flex; flex-wrap: wrap; gap: 8px 18px; border: 0; padding: 0; margin: 6px 0 10px; }
+.chip-list { list-style: none; padding: 0; margin: 6px 0 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 99px; background: var(--surface-3); font-size: var(--fs-small); }
+.chip-x { border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 99px; min-height: 0; }
+.chip-x:hover { background: var(--line); }
+.radio { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-size: var(--fs-body); }
+.radio input { accent-color: var(--accent); width: 18px; height: 18px; }

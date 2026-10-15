@@ -32,8 +32,12 @@ const Caminho = lazyPage(() => import('./pages/Caminho'));
 const Trilhos = lazyPage(() => import('./pages/Trilhos'));
 const Atividade = lazyPage(() => import('./pages/Atividade'));
 const NotFound = lazyPage(() => import('./pages/NotFound'));
-const FutureArea = lazyPage(() => import('./pages/FutureArea'));
 const More = lazyPage(() => import('./pages/More'));
+const Calendario = lazyPage(() => import('./modules/calendario'));
+const Inventario = lazyPage(() => import('./modules/inventario'));
+const Tesouraria = lazyPage(() => import('./modules/tesouraria'));
+const Equipas = lazyPage(() => import('./modules/equipas'));
+const Secretaria = lazyPage(() => import('./modules/secretaria'));
 
 function LegacyTrail() {
   const { key } = useParams();
@@ -101,8 +105,12 @@ function Authenticated() {
           <Route path="perfil" element={<Profile />} />
           <Route path="notificacoes" element={<Notifications />} />
           <Route path="mais" element={<More />} />
-          {/* Áreas em desenvolvimento: só páginas de apresentação, separadas das funcionalidades operacionais. */}
-          {['calendario', 'inventario', 'tesouraria', 'equipas-e-cargos', 'secretaria'].map((p) => <Route key={p} path={p} element={<FutureArea />} />)}
+          {/* Módulos: cada um decide no servidor se a pessoa vê o módulo (teste ou disponível) ou só a apresentação. */}
+          <Route path="calendario/*" element={<Calendario />} />
+          <Route path="inventario/*" element={<Inventario />} />
+          <Route path="tesouraria/*" element={<Tesouraria />} />
+          <Route path="equipas-e-cargos/*" element={<Equipas />} />
+          <Route path="secretaria/*" element={<Secretaria />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
