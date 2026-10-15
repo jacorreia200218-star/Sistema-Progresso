@@ -7,7 +7,7 @@ import { useAction } from '../../lib/useAction';
 import { Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { formatDay } from '../common';
 import { removeModuleFile, uploadModuleFile } from '../files';
-import { inYear, membersInYear, sortAppointments, TEAM_COLORS, useEquipas, useSectionId, yearBounds, yearOptions, type EqTeam } from './data';
+import { appointmentState, inYear, membersInYear, sortAppointments, TEAM_COLORS, useEquipas, useSectionId, yearBounds, yearOptions, type EqTeam } from './data';
 import { AppointForm, AppointmentList, BASE, Emblem, Result, teamLabel, useParam, YearSelect } from './parts';
 
 export default function TeamPage() {
@@ -26,6 +26,12 @@ export default function TeamPage() {
   const members = current ? o.members.filter((m) => m.status === 'ativo' && m.team_id === team.id) : membersInYear(team.id, y, o.members, o.moves);
   const [from, to] = yearBounds(y);
   const moves = o.moves.filter((m) => (m.from_team_id === team.id || m.to_team_id === team.id) && m.on >= from && m.on < to && m.from_team_id);
+
+  // Cargos de cada membro nesta equipa no ano escolhido (em funções no ano atual).
+  const rolesOf = (membership: string) => appointments
+    .filter((a) => a.membership_id === membership && !a.cancelled_at && (!current || appointmentState(a, o.today) === 'ativo'))
+    .map((a) => o.roles.find((r) => r.id === a.role_id)?.name ?? 'Cargo')
+    .filter((n, i, all) => all.indexOf(n) === i);
 
   return (
     <div className="eq-team-page" style={{ ['--team' as string]: team.color ?? 'var(--line)' }}>
@@ -59,6 +65,7 @@ export default function TeamPage() {
               <li key={m.membership_id}>
                 <Link to={`${BASE}/pessoa/${m.membership_id}`} className="list-item">
                   <span className="grow"><strong>{m.full_name}</strong>{m.totem ? <span className="faint"> · {m.totem}</span> : null}</span>
+                  {rolesOf(m.membership_id).map((r) => <span key={r} className="badge tone-progress">{r}</span>)}
                   <ChevronRight size={18} className="row-arrow" aria-hidden="true" />
                 </Link>
               </li>
@@ -106,9 +113,9 @@ function IdentityEditor({ team }: { team: EqTeam }) {
   const upload = (f: File | undefined) => {
     if (!f) return;
     act.run(async () => {
-      if (!['image/png', 'image/jpeg', 'image/webp'].includes(f.type)) throw new Error('O emblema tem de ser uma imagem PNG, JPG ou WebP.');
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(f.type)) throw new Error('O símbolo ou fotografia tem de ser uma imagem PNG, JPG ou WebP.');
       await uploadModuleFile(section, 'equipas', 'equipa', team.id, f);
-    }, 'Emblema carregado.').finally(() => { if (file.current) file.current.value = ''; });
+    }, 'Símbolo carregado.').finally(() => { if (file.current) file.current.value = ''; });
   };
   return (
     <details className="card eq-panel">
@@ -135,13 +142,13 @@ function IdentityEditor({ team }: { team: EqTeam }) {
         <button type="submit" className="btn" disabled={act.busy} aria-busy={act.busy}>Guardar identidade</button>
       </form>
       <div className="field" style={{ marginTop: 14 }}>
-        <label htmlFor={`emb-${team.id}`}>Emblema (opcional)</label>
+        <label htmlFor={`emb-${team.id}`}>Símbolo ou fotografia (opcional)</label>
         <span className="hint prose">Imagem PNG, JPG ou WebP até 10 MB. Fica guardada num espaço privado da secção.</span>
         <input ref={file} id={`emb-${team.id}`} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => upload(e.target.files?.[0])} />
       </div>
       {team.emblem && (
         <button type="button" className="btn ghost" disabled={act.busy}
-          onClick={() => act.run(() => removeModuleFile(team.emblem!.path), 'Emblema retirado.')}>Retirar emblema</button>
+          onClick={() => act.run(() => removeModuleFile(team.emblem!.path), 'Símbolo retirado.')}>Retirar símbolo</button>
       )}
       <Result error={act.error} success={act.success} />
       {team.color === null && !color && <Notice kind="info"><p>Sem cor, a equipa aparece em tons neutros.</p></Notice>}
