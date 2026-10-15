@@ -66,6 +66,10 @@ test('página do membro em separadores, sem repetir informação', async ({ page
   await expect(page.locator('.tabpanel, [role=tabpanel]').getByRole('link')).toHaveCount(18);
   await page.getByRole('tab', { name: 'Histórico' }).click();
   await expect(page.getByRole('heading', { name: 'Início de Pista e Promessa' })).toBeVisible();
-  await expect(page.getByText('Registado em')).toBeVisible();
+  // Só duas datas: adesão (passagem a pioneiro) e Promessa
+  const adh = page.locator('section.card', { has: page.getByRole('heading', { name: 'Início de Pista e Promessa' }) });
+  await expect(adh.locator('dt')).toHaveText(['Data de adesão', 'Data da Promessa']);
+  await expect(adh).not.toContainText('Perfil traçado');
+  await expect(adh).not.toContainText('Registado em');
   await noHorizontalScroll(page);
 });
