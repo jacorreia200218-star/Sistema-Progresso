@@ -32,6 +32,8 @@ const Caminho = lazyPage(() => import('./pages/Caminho'));
 const Trilhos = lazyPage(() => import('./pages/Trilhos'));
 const Atividade = lazyPage(() => import('./pages/Atividade'));
 const NotFound = lazyPage(() => import('./pages/NotFound'));
+const FutureArea = lazyPage(() => import('./pages/FutureArea'));
+const More = lazyPage(() => import('./pages/More'));
 
 function LegacyTrail() {
   const { key } = useParams();
@@ -98,6 +100,9 @@ function Authenticated() {
           <Route path="gestao/:tab" element={<Guard when={s.isAdmin}><Admin /></Guard>} />
           <Route path="perfil" element={<Profile />} />
           <Route path="notificacoes" element={<Notifications />} />
+          <Route path="mais" element={<More />} />
+          {/* Áreas em desenvolvimento: só páginas de apresentação, separadas das funcionalidades operacionais. */}
+          {['calendario', 'inventario', 'tesouraria', 'equipas-e-cargos', 'secretaria'].map((p) => <Route key={p} path={p} element={<FutureArea />} />)}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

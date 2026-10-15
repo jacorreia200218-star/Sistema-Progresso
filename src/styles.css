@@ -992,3 +992,16 @@ dl.summary-list .quote { margin-top: 0; }
 .legacy-objs { margin-top: 12px; }
 .legacy-objs summary { cursor: pointer; }
 .empty-short { color: var(--ink-soft); margin: 16px 2px; }
+
+/* Áreas em desenvolvimento */
+.nav-group { display: flex; flex-direction: column; gap: 2px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.nav-group-title { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .04em; padding: 0 12px 6px; }
+.side-nav .nav-future { color: var(--ink-soft); font-size: var(--fs-small); min-height: 34px; }
+.future-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.future-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 14px; background: var(--accent-tint); color: var(--accent-ink); }
+.future-badge { gap: 6px; }
+.future-list { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 10px; line-height: 1.5; }
+.future-area .card + .card { margin-top: 16px; }
+.future-area > .faint { margin-top: 18px; }
+.more-list .list-item { gap: 12px; }
+.nav-count-inline { background: var(--accent); color: var(--on-accent); font-size: var(--fs-xs); font-weight: 700; border-radius: 99px; padding: 0 7px; line-height: 18px; }

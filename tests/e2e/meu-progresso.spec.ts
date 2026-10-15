@@ -29,7 +29,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.locator('.legend summary').click();
     await expect(page.locator('.legend')).toContainText('Um segmento preenchido é um trilho validado');
     await expect(fisico).toContainText('1 de 3 trilhos validados');
-    await expect(page.getByText('Em desenvolvimento')).toHaveCount(0);
+    await expect(page.locator('main').getByText('Em desenvolvimento')).toHaveCount(0);
     await noHorizontalScroll(page);
 
     // 2. Os três trilhos da área com códigos e estado

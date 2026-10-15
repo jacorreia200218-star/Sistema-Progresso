@@ -36,7 +36,7 @@ test('pioneiro: início, progresso, trilho e pedido', async ({ page }, info) => 
   await expect(stats.getByRole('link', { name: /Trilhos validados/ })).toHaveAttribute('href', '/meu-progresso?vista=validado');
   await expect(stats.getByRole('link', { name: /Pedidos em validação/ })).toHaveAttribute('href', '/meu-progresso?vista=pedidos&pfiltro=aguarda');
   await expect(stats.getByRole('link', { name: /Pedidos a rever/ })).toHaveAttribute('href', '/meu-progresso?vista=pedidos&pfiltro=revisao');
-  await expect(page.getByText('Em desenvolvimento')).toHaveCount(0);
+  await expect(page.locator('main').getByText('Em desenvolvimento')).toHaveCount(0);
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/inicio-${info.project.name}.png`, fullPage: true });
 
