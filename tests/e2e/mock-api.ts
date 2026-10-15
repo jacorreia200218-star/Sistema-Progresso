@@ -274,6 +274,7 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
     localStorage.setItem('sb-mock-auth-token', JSON.stringify(s));
   }, session);
 
+  const pushEndpoints = new Set<string>();
   await page.route('http://mock.supabase.test/**', async (route: Route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -359,7 +360,10 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
       if (fn === 'mark_notifications_read') {
         for (const n of T.notifications ?? []) if (!n.read_at && (!body.p_ids || body.p_ids.includes(n.id))) n.read_at = now;
       }
+      if (fn === 'save_push_subscription') pushEndpoints.add(String(body.p_endpoint));
+      if (fn === 'remove_push_subscription') pushEndpoints.delete(String(body.p_endpoint));
       const result = persona.rpc && fn in persona.rpc ? persona.rpc[fn]
+        : fn === 'has_push_subscription' ? pushEndpoints.has(String(body.p_endpoint))
         : fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? ((n: number) => `TST${n}-PQR${n}`)(calls.filter((c) => c.fn === 'create_invite').length) : null;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
     }

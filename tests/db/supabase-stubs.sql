@@ -43,3 +43,10 @@ create or replace function storage.foldername(name text) returns text[] language
   select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
 $$;
 grant execute on function storage.foldername(text) to authenticated;
+
+-- pg_net: regista os pedidos em vez de os enviar.
+create schema if not exists net;
+create table net.test_requests (id bigint generated always as identity, url text, body jsonb, headers jsonb, created_at timestamptz default now());
+create or replace function net.http_post(url text, body jsonb default '{}'::jsonb, params jsonb default '{}'::jsonb,
+  headers jsonb default '{}'::jsonb, timeout_milliseconds integer default 5000) returns bigint language sql
+as $$ insert into net.test_requests (url, body, headers) values (url, body, headers) returning id $$;
