@@ -12,7 +12,8 @@ describe('estados e testers', () => {
   it('começa tudo em desenvolvimento, sem acesso para ninguém (nem administração)', async () => {
     const m = await mods('Ana');
     expect(m.calendario).toMatchObject({ status: 'desenvolvimento', space: null });
-    expect(await rpc(w.users.Ana, 'module_admin_overview', { p_section: w.section })).toHaveLength(5);
+    expect(m.presencas).toMatchObject({ status: 'desenvolvimento', space: null });
+    expect(await rpc(w.users.Ana, 'module_admin_overview', { p_section: w.section })).toHaveLength(6);
   });
 
   it('só a administração muda estados, testers e permissões', async () => {

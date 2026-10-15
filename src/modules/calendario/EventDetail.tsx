@@ -278,7 +278,7 @@ function Linked({ e }: { e: CalDetail }) {
           <h3 className="label"><FileText size={16} aria-hidden="true" /> Reuniões</h3>
           <ul className="list">
             {l.reunioes!.map((m) => (
-              <li key={m.id}><Link className="list-item" to={`/secretaria/reunioes/${m.id}`}>
+              <li key={m.id}><Link className="list-item" to={`/reunioes-e-tarefas/reunioes/${m.id}`}>
                 <span className="grow ellipsis">{m.title}</span><span className="faint">{formatLisbon(m.starts_at)}</span>
               </Link></li>
             ))}

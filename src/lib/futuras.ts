@@ -1,7 +1,7 @@
 // Áreas futuras da app, ainda em desenvolvimento. Só páginas de apresentação:
 // nada aqui guarda, lê ou altera dados. O estado «Em desenvolvimento» é exclusivo
 // destas áreas e não se aplica ao progresso pedagógico dos pioneiros.
-import { CalendarDays, FileText, Package, UserCog, Wallet } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, FileText, Package, UserCog, Wallet } from 'lucide-react';
 
 export type FutureArea = {
   key: string;
@@ -17,35 +17,45 @@ export type FutureArea = {
 export const FUTURE_AREAS: FutureArea[] = [
   {
     key: 'calendario', to: '/calendario', name: 'Calendário escutista', short: 'Calendário', icon: CalendarDays,
-    description: 'Atividades, reuniões e prazos da secção num só calendário, com o que falta tratar para cada atividade.',
+    description: 'O ano inteiro numa só vista, com fins de semana, feriados e atividades, para planear sem percorrer listas.',
     features: [
-      'Atividades, reuniões e prazos.',
-      'Confirmação de presença.',
-      'Alertas antes de cada atividade e de cada prazo.',
-      'Pendências por atividade: autorização, pagamento, inscrição ou material necessário.',
-      'Cada pessoa recebe apenas os alertas que lhe dizem respeito.',
+      'Calendário anual e por ano escutista, com fins de semana e feriados assinalados.',
+      'Atividades marcadas diretamente nas datas, de um ou vários dias.',
+      'Alertas antes de cada atividade.',
+      'Lista curta das próximas atividades.',
     ],
   },
   {
-    key: 'inventario', to: '/inventario', name: 'Inventário', short: 'Inventário', icon: Package,
-    description: 'O material da sede, onde está, em que estado se encontra e quem o tem emprestado.',
+    key: 'presencas', to: '/presencas', name: 'Presenças', short: 'Presenças', icon: ClipboardCheck,
+    description: 'A assiduidade de cada pessoa nas reuniões e atividades, para acompanhamento e sem rankings.',
     features: [
-      'Material com quantidade, localização e estado.',
-      'Empréstimos e devoluções.',
-      'Necessidades de reparação ou reposição.',
+      'Quadro com membros e reuniões ou atividades.',
+      'Presente, falta justificada, falta injustificada ou por registar.',
+      'Taxa de assiduidade com a fórmula visível.',
+      'Resumo por equipa e por período.',
+    ],
+    access: ['Só dirigentes e responsáveis autorizados registam ou corrigem presenças; as justificações são reservadas.'],
+  },
+  {
+    key: 'inventario', to: '/inventario', name: 'Inventário', short: 'Inventário', icon: Package,
+    description: 'O material da sede, onde está guardado, em que estado se encontra, quem o tem emprestado e o que falta comprar.',
+    features: [
+      'Material com tipo, quantidade, estado e local exato.',
+      'Empréstimos e devoluções, totais ou parciais.',
+      'Lista «A comprar», ligada à Tesouraria sem duplicações.',
     ],
   },
   {
     key: 'tesouraria', to: '/tesouraria', name: 'Tesouraria', short: 'Tesouraria', icon: Wallet,
-    description: 'As contas da secção e das atividades, com consulta aberta e registo reservado a quem tem essa responsabilidade.',
+    description: 'As contas da secção num painel claro, com consulta aberta e registo reservado a quem tem essa responsabilidade.',
     features: [
-      'Receitas, despesas e saldo.',
-      'Quotas.',
-      'Contas de cada atividade.',
+      'Saldo atual, receitas e despesas do período.',
+      'Evolução do saldo e últimos movimentos.',
+      'Resultado de cada atividade.',
     ],
     access: [
-      'Só dirigentes e tesoureiros autorizados criam, editam ou removem movimentos; os restantes apenas consultam.',
-      'Dados pessoais, situações individuais de pagamento e comprovativos têm acesso restrito.',
+      'Só dirigentes e tesoureiros autorizados alteram dados; os restantes apenas consultam.',
+      'Dados pessoais e comprovativos têm acesso restrito.',
       'As permissões são verificadas no servidor, e não apenas escondendo botões.',
     ],
   },
@@ -53,22 +63,21 @@ export const FUTURE_AREAS: FutureArea[] = [
     key: 'equipas', to: '/equipas-e-cargos', name: 'Equipas e cargos', short: 'Cargos', icon: UserCog,
     description: 'Quem faz parte de cada equipa e que cargos e responsabilidades tem, ano após ano.',
     features: [
-      'Membros de cada equipa.',
+      'Ficha de cada equipa, com membros e cargos.',
       'Guia, subguia e restantes cargos, com as respetivas responsabilidades.',
       'Histórico por ano escutista.',
-      'Datas de início e de fim de cada cargo.',
     ],
     access: ['Um cargo de equipa não dá, por si só, permissões de administração da aplicação.'],
   },
   {
-    key: 'secretaria', to: '/secretaria', name: 'Secretaria', short: 'Secretaria', icon: FileText,
-    description: 'As atas das reuniões, desde o rascunho até à versão final aprovada.',
+    key: 'secretaria', to: '/reunioes-e-tarefas', name: 'Reuniões e tarefas', short: 'Reuniões', icon: FileText,
+    description: 'Todas as atas num só sítio, com o sumário do que ficou decidido e um quadro das tarefas a fazer.',
     features: [
-      'Ata por reunião, com data e participantes.',
-      'Decisões, tarefas, responsáveis e prazos.',
-      'Rascunho, aprovação e versão final.',
+      'Atas com participantes, assuntos, decisões e anexos.',
+      'Sumário revisto antes de ser publicado.',
+      'Quadro de tarefas com responsáveis e prazos.',
     ],
-    access: ['O acesso a cada ata depende do tipo de reunião e do papel de cada pessoa.'],
+    access: ['O acesso a cada ata depende do tipo de reunião; o resumo partilhado não mostra conteúdo reservado.'],
   },
 ];
 
