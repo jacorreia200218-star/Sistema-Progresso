@@ -11,7 +11,7 @@ export type RequestStatus =
   | 'aprovado'
   | 'recusado'
   | 'cancelado'
-  /** Todos os objetivos do pedido aceites, mas o trilho ainda tem objetivos por validar. */
+  /** Modelo anterior (histórico): objetivos aceites que não fecharam o trilho. */
   | 'objetivos_validados';
 export type DecisionKind =
   | 'em_revisao'
@@ -222,6 +222,8 @@ export interface TrailDecision {
   recorded_by: string;
   recorded_as: 'guia' | 'dirigente';
   recorded_at: string;
+  /** Numa devolução: objetivos que ainda precisam de ser demonstrados (informativo). */
+  objective_codes?: string[] | null;
 }
 
 export interface StageRequest {
@@ -287,8 +289,7 @@ export interface Invite {
   created_at: string;
 }
 
-/** Progresso de um membro, carregado de uma vez para cálculo dos estados. */
-/** Objetivo incluído numa versão de um pedido, com a decisão da reunião de Equipa. */
+/** Objetivo de um pedido do modelo anterior (por objetivo), guardado como histórico. */
 export interface RequestObjective {
   id: string;
   request_id: string;
@@ -302,6 +303,7 @@ export interface RequestObjective {
   version_no?: number;
 }
 
+/** Progresso de um membro, carregado de uma vez para cálculo dos estados. */
 export interface MemberProgress {
   adhesion: Adhesion | null;
   paths: StagePath[];
@@ -311,6 +313,6 @@ export interface MemberProgress {
   merit: MeritAward | null;
   /** Decisões de resultado sobre os pedidos (datas e autoria da validação). */
   decisions?: TrailDecision[];
-  /** Objetivos dos pedidos (todas as versões). Pedidos antigos, por trilho, não têm. */
+  /** Decisões por objetivo do modelo anterior (histórico; não fecham trilhos). */
   objectives?: RequestObjective[];
 }

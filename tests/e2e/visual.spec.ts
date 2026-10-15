@@ -31,7 +31,6 @@ test('tipografia partilhada e cartões do painel', async ({ page }, info) => {
 test('parágrafos de leitura justificados só onde há largura; textos curtos à esquerda', async ({ page }, info) => {
   await installMock(page, pioneer());
   await page.goto('/meu-progresso/trilho/afetivo-autoestima');
-  await page.getByRole('checkbox', { name: /A5/ }).check();
   const objective = page.locator('.obj-item .obj-text').first();
   const align = await objective.evaluate((e) => getComputedStyle(e).textAlign);
   expect(align).toBe(info.project.name === 'telemovel' ? 'start' : 'justify');

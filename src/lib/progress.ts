@@ -5,7 +5,7 @@ import type { Catalog, CatalogArea, CatalogTrail, MemberProgress, StageChoice, S
 
 export type TrailUiState = 'validado' | 'pendente' | 'devolvido' | 'rascunho' | 'selecionado' | 'proposto' | 'por_trabalhar';
 
-// «objetivos_validados»: os objetivos aceites contam, mas o pedido já não está ativo.
+// «objetivos_validados» (modelo anterior, por objetivos): histórico inativo; não fecha o trilho.
 const INACTIVE: TrailRequest['status'][] = ['recusado', 'cancelado', 'objetivos_validados'];
 
 export function activeRequest(requests: TrailRequest[], trailKey: string): TrailRequest | undefined {
@@ -156,7 +156,7 @@ export function nextAction(catalog: Catalog, p: MemberProgress, viewer: Viewer =
     return { title: 'Abrir a próxima etapa', detail: 'A Equipa de Animação abre a etapa e entrega a insígnia.', to: leader ? memberTo('etapa') : undefined, label: leader ? 'Abrir etapa' : undefined };
   }
   const s = stageSummary(path, catalog, p);
-  if (s.openRequest) return { title: s.openRequest.status === 'submetido' ? 'Etapa no Conselho de Guias' : 'Etapa a aguardar a opinião final', to: leader ? '/acompanhamento/conselho' : undefined, label: leader ? 'Acompanhar' : undefined };
+  if (s.openRequest) return { title: s.openRequest.status === 'submetido' ? 'Etapa no Conselho de Guias' : 'Etapa a aguardar a opinião final', to: leader ? '/acompanhamento/etapas' : undefined, label: leader ? 'Acompanhar' : undefined };
   if (s.ready) return { title: 'Pedir a validação da etapa', to: leader ? memberTo('etapa') : progress('caminho'), label: 'Pedir validação' };
 
   // Trilhos já validados/reconhecidos que ainda não estão em nenhuma etapa e que
@@ -183,7 +183,7 @@ export function nextAction(catalog: Catalog, p: MemberProgress, viewer: Viewer =
     };
   }
   const proposed = s.slots.filter((slot) => slot.proposed && !slot.confirmed);
-  if (proposed.length) return { title: 'Negociar as propostas de trilho', to: leader ? '/acompanhamento/negociacao' : undefined, label: leader ? 'Negociar' : undefined };
+  if (proposed.length) return { title: 'Negociar as propostas de trilho', to: leader ? '/acompanhamento/pedidos?tipo=negociacao' : undefined, label: leader ? 'Negociar' : undefined };
   const revise = s.slots.find((slot) => slot.state === 'devolvido');
   if (revise?.trail) return { title: `Rever o pedido de «${revise.trail.name}»`, to: trailTo(revise.trail.key, '#pedido'), label: 'Ver pedido' };
   const toWork = s.slots.filter((slot) => slot.confirmed && !slot.validated && !activeRequest(p.requests, slot.confirmed.trail_key));

@@ -89,3 +89,34 @@ de um pioneiro lê os dados com as políticas RLS já existentes.
    (incluindo a opção para o desativar, que não afeta este reconhecimento).
 
 Nenhum registo, validação ou aprovação existente foi apagado ou alterado.
+
+## 6. Validação por trilho (19/10/2026)
+
+O **trilho é a unidade de validação**. Os objetivos educativos descrevem o que é preciso demonstrar
+nesse trilho (ex.: Desempenho = F1; Autoconhecimento = F2 e F3; Bem-estar físico = F4).
+
+- **Pedido do pioneiro**: Área FACEIS → Trilho → Objetivos e justificação → «Pedir validação do trilho».
+  O ecrã mostra a área, o trilho e **todos** os objetivos (código e texto oficial), sempre visíveis.
+  Não se escolhem objetivos. Uma justificação comum, obrigatória («Como demonstrei que alcancei este
+  trilho?»), anexos opcionais. O texto fica guardado no dispositivo se houver erro ou se voltar atrás.
+- **Estados**: Por fechar → Em validação → Validado, e «A rever» quando a reunião devolve. Enviar
+  **nunca** fecha o trilho.
+- **Decisão da reunião de Equipa** (`record_team_decision`): sobre o trilho completo — validar ou devolver
+  com fundamentação obrigatória. Ao devolver pode indicar os objetivos ainda por demonstrar; isso é
+  só um comentário, não uma decisão por objetivo. Um guia nunca decide o seu próprio pedido; quando um
+  dirigente regista em nome da reunião, o guia da equipa é avisado.
+- Validação do trilho, associação a uma etapa e validação da etapa (Conselho de Guias → opinião final da
+  Equipa de Animação → reconhecimento público) continuam a ser passos separados.
+- **Registos anteriores**: os pedidos e decisões por objetivo ficam como «Histórico por objetivos»,
+  visíveis no trilho e no pedido. Não são convertidos em trilhos concluídos.
+
+## 7. Acompanhamento e notificações (19/10/2026)
+
+- Acompanhamento em três separadores: **Secção** (pessoas por equipa, pesquisa, filtros por equipa e etapa,
+  mérito e exportação como secundários), **Pedidos** (caixa única com filtros Todos / Negociação / Trilhos /
+  Progresso anterior, estado e equipa; cada pedido aparece uma vez) e **Etapas** (Conselho de Guias,
+  comunicação das decisões de trilhos em secção própria). Os endereços antigos (`/dirigentes/*`,
+  `/acompanhamento/negociacao`, etc.) redirecionam para o novo sítio e filtro.
+- Notificações: eliminar uma, várias, as lidas ou todas, com «Desfazer». A remoção é apenas uma marca
+  (`deleted_at`) nas notificações do próprio utilizador; pedidos, decisões e justificações não são tocados.
+  O mesmo evento não é repetido para a mesma pessoa enquanto houver uma notificação igual por ler.

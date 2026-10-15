@@ -193,6 +193,13 @@ export async function fetchNotifications(): Promise<NotificationRow[]> {
   return check(await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100)) as NotificationRow[];
 }
 
+/** Total de notificações visíveis (a lista mostra as 100 mais recentes). */
+export async function fetchNotificationCount(): Promise<number | null> {
+  const res = await supabase.from('notifications').select('id', { count: 'exact', head: true });
+  if (res.error) throw new Error(errorMessage(res.error));
+  return res.count ?? null;
+}
+
 export async function fetchInvites(sectionId: string): Promise<Invite[]> {
   return check(await supabase.from('invites').select('id, section_id, code, team_id, label, expires_at, max_uses, use_count, revoked_at, created_at, replaced_by').eq('section_id', sectionId).order('created_at', { ascending: false })) as Invite[];
 }

@@ -137,7 +137,11 @@ export function pioneer(): Persona {
       catalog_areas: c.areas,
       catalog_stages: c.stages,
       teams,
-      notifications: [{ id: 'n1', kind: 'decisao_equipa', title: 'Pedido devolvido para continuar a trabalhar', body: 'Autoestima', link: '/pedidos/r-dev', read_at: null, created_at: now }],
+      notifications: [
+        { id: 'n1', kind: 'decisao_equipa', title: 'Trilho a rever', body: 'Autoestima', link: '/pedidos/r-dev', read_at: null, created_at: now },
+        { id: 'n2', kind: 'decisao_equipa', title: 'Trilho validado na Equipa', body: 'Desempenho', link: '/pedidos/r-ok', read_at: now, created_at: now },
+        { id: 'n3', kind: 'escolha_decidida', title: 'Escolha confirmada', body: 'Autonomia', link: '/meu-progresso', read_at: now, created_at: now },
+      ],
       experiences: [],
       ...progressRows(),
     },
@@ -165,12 +169,17 @@ export function leader(): Persona {
       catalog_areas: c.areas,
       catalog_stages: c.stages,
       teams,
-      notifications: [],
+      notifications: [
+        { id: 'nl1', kind: 'pedido_submetido', title: 'Novo pedido de validação', body: 'Pedro Teste · Descoberta', link: '/revisoes/pedido/r-obj', read_at: null, created_at: now },
+        { id: 'nl2', kind: 'escolha_proposta', title: 'Nova proposta de trilho', body: 'Pedro Teste · Serviço', link: '/acompanhamento/pedidos?tipo=negociacao', read_at: null, created_at: now },
+        { id: 'nl3', kind: 'comunicacao_conselho', title: 'Trilho validado na Equipa', body: 'Pedro Teste · Desempenho', link: '/acompanhamento/etapas?ver=trilhos', read_at: now, created_at: now },
+        { id: 'nl4', kind: 'pedido_historico', title: 'Progresso anterior por decidir', body: 'Pedro Teste · Interação e cooperação', link: '/acompanhamento/pedidos?tipo=anterior', read_at: now, created_at: now },
+      ],
       ...rows,
     },
     rpc: {
       section_path: { scope: 'seccao', total: pathMembers.length, counts, members: pathMembers },
-      my_pending_counts: { acompanhamento: 3, gestao: 1 },
+      my_pending_counts: { negociacao: 1, trilhos: 1, anterior: 1, etapas: 0, acompanhamento: 3, gestao: 1 },
       section_activity: [
         { at: now, kind: 'validado_equipa', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Desempenho', ref: 'r-ok' },
         { at: now, kind: 'etapa_aberta', membership_id: 'm-p1', member: 'Pedro Teste', subject: 'Conhecimento', ref: 'path1' },
@@ -299,15 +308,13 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
       }
       const fail = (message: string) => route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'P0001', message }) });
       const versionOf = (r: Row, no = r.current_version) => (T.trail_request_versions ?? []).find((x) => x.request_id === r.id && x.version_no === no);
-      if (fn === 'submit_objectives_request') {
+      if (fn === 'submit_trail_validation') {
         const r = (T.trail_requests ?? []).find((x) => x.id === body.p_request);
         if (!r || r.status !== 'rascunho') return fail('Este pedido já foi enviado. Atualiza a página.');
         if (body.p_expected_version !== r.current_version) return fail('O pedido mudou entretanto. Atualiza a página.');
-        if (!String(body.p_justification ?? '').trim()) return fail('Explica como demonstraste que atingiste estes objetivos.');
+        if (!String(body.p_justification ?? '').trim()) return fail('Explica como demonstraste que alcançaste este trilho.');
         const v = versionOf(r)!;
-        T.request_objectives = [...(T.request_objectives ?? []).filter((o) => o.version_id !== v.id), ...(body.p_objectives as string[]).map((id, i) => ({
-          id: `ro-${Date.now()}-${i}`, request_id: r.id, version_id: v.id, objective_id: id, objective_code: id.replace(/^o-/, ''), decision: null, comment: null, decided_by: null, decided_at: null,
-        }))];
+        T.request_objectives = (T.request_objectives ?? []).filter((o) => !(o.version_id === v.id && o.decision === null));
         Object.assign(v, { evidence: body.p_justification, submitted_at: now });
         r.status = 'submetido';
       }
@@ -317,23 +324,33 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
         const v = versionOf(r)!;
         const nv = { ...v, id: `${v.id}-${r.current_version + 1}`, version_no: r.current_version + 1, submitted_at: null, withdrawn_at: null };
         T.trail_request_versions = [...T.trail_request_versions, nv];
-        T.request_objectives = [...(T.request_objectives ?? []), ...(T.request_objectives ?? []).filter((o) => o.version_id === v.id && o.decision !== 'aceite')
-          .map((o) => ({ ...o, id: `${o.id}-n`, version_id: nv.id, decision: null, comment: null, decided_by: null, decided_at: null }))];
         Object.assign(r, { current_version: r.current_version + 1, status: 'rascunho' });
       }
-      if (fn === 'record_objectives_decision') {
+      if (fn === 'record_objectives_decision' || fn === 'submit_objectives_request') {
+        return fail('A validação é feita por trilho completo.');
+      }
+      if (fn === 'record_team_decision') {
         const r = (T.trail_requests ?? []).find((x) => x.id === body.p_request)!;
+        if (!['submetido', 'em_revisao'].includes(r.status)) return fail('Já foi registada uma decisão para este pedido. Atualiza a página.');
         const v = versionOf(r)!;
-        for (const d of body.p_decisions as Row[]) {
-          const row = (T.request_objectives ?? []).find((o) => o.version_id === v.id && o.objective_id === d.objective_id);
-          if (row) Object.assign(row, { decision: d.accepted ? 'aceite' : 'rever', comment: d.comment || null, decided_by: persona.userId, decided_at: now });
-        }
-        const trailObjectives = catalogJson.areas.flatMap((a: Row) => a.trails).find((t: Row) => t.key === r.trail_key).objectives.map((o: Row) => `o-${o.code}`);
-        const accepted = new Set((T.request_objectives ?? []).filter((o) => o.decision === 'aceite' && (T.trail_requests ?? []).some((x) => x.id === o.request_id && x.membership_id === r.membership_id)).map((o) => o.objective_id));
-        const review = (body.p_decisions as Row[]).some((d) => !d.accepted);
-        r.status = review ? 'devolvido' : trailObjectives.every((id: string) => accepted.has(id)) ? 'validado_equipa' : 'objetivos_validados';
-        T.trail_decisions = [{ id: `d-${Date.now()}`, request_id: r.id, version_id: v.id, kind: review ? 'devolvido_equipa' : r.status === 'validado_equipa' ? 'validado_equipa' : 'objetivos_equipa', meeting_date: body.p_meeting_date, comment: body.p_comment || null, reference_date: null, recorded_by: persona.userId, recorded_as: 'dirigente', recorded_at: now }, ...(T.trail_decisions ?? [])];
+        const ok = !!body.p_validated;
+        r.status = ok ? 'validado_equipa' : 'devolvido';
+        T.trail_decisions = [{ id: `d-${Date.now()}`, request_id: r.id, version_id: v.id, kind: ok ? 'validado_equipa' : 'devolvido_equipa', meeting_date: body.p_meeting_date, comment: body.p_comment || null, objective_codes: body.p_objective_codes ?? null, reference_date: null, recorded_by: persona.userId, recorded_as: 'dirigente', recorded_at: now }, ...(T.trail_decisions ?? [])];
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(r.status) });
+      }
+      if (fn === 'remove_notifications') {
+        const visible = (T.notifications ?? []).filter((n) => !n.deleted_at);
+        const gone = body.p_scope === 'todas' ? visible : body.p_scope === 'lidas' ? visible.filter((n) => n.read_at) : visible.filter((n) => (body.p_ids ?? []).includes(n.id));
+        for (const n of gone) n.deleted_at = now;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(gone.map((n) => n.id)) });
+      }
+      if (fn === 'restore_notifications') {
+        const back = (T.notifications ?? []).filter((n) => n.deleted_at && (body.p_ids ?? []).includes(n.id));
+        for (const n of back) n.deleted_at = null;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(back.length) });
+      }
+      if (fn === 'mark_notifications_read') {
+        for (const n of T.notifications ?? []) if (!n.read_at && (!body.p_ids || body.p_ids.includes(n.id))) n.read_at = now;
       }
       const result = persona.rpc && fn in persona.rpc ? persona.rpc[fn]
         : fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? 'codigo-de-teste' : null;
@@ -341,7 +358,10 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
     }
     if (p.startsWith('/rest/v1/')) {
       const table = p.replace('/rest/v1/', '');
-      const rows = (persona.tables[table] ?? []).filter((r) => matches(r, url.searchParams));
+      const rows = (persona.tables[table] ?? []).filter((r) => matches(r, url.searchParams) && !(table === 'notifications' && r.deleted_at));
+      if (req.method() === 'HEAD') {
+        return route.fulfill({ status: 200, headers: { 'content-range': `0-${Math.max(rows.length - 1, 0)}/${rows.length}` }, body: '' });
+      }
       if (req.method() !== 'GET') {
         const posted = req.postDataJSON?.() ?? {};
         calls.push({ fn: `${req.method()} ${table}`, body: posted });

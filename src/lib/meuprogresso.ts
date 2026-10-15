@@ -19,8 +19,8 @@ export function activeChoice(p: MemberProgress, trailKey: string): StageChoice |
 }
 
 /**
- * Estado de um trilho. «Validado» só depois da decisão pedagógica (todos os
- * objetivos); enviar não é concluir. Rascunhos, escolhas e vivências não mudam
+ * Estado de um trilho. «Validado» só depois da decisão da reunião de Equipa
+ * sobre o trilho completo; enviar não é concluir. Rascunhos, escolhas e vivências não mudam
  * o estado: o trilho continua «Por fechar».
  */
 export function trailCategory(trail: CatalogTrail, p: MemberProgress): TrailCategory {
@@ -33,72 +33,23 @@ export function trailCategory(trail: CatalogTrail, p: MemberProgress): TrailCate
   return 'por_fechar';
 }
 
-export type ObjectiveState = 'disponivel' | 'em_validacao' | 'a_rever' | 'validado';
-
-export const OBJECTIVE_LABEL: Record<ObjectiveState, { label: string; tone: 'muted' | 'progress' | 'attention' | 'ok' | 'neutral'; icon: string }> = {
-  disponivel: { label: 'Por validar', tone: 'muted', icon: 'circle' },
-  em_validacao: { label: 'Em validação', tone: 'progress', icon: 'clock' },
-  a_rever: { label: 'A rever', tone: 'attention', icon: 'return' },
-  validado: { label: 'Validado', tone: 'ok', icon: 'check' },
-};
-
-export interface ObjectiveInfo {
-  state: ObjectiveState;
-  /** Comentário de quem decidiu (para «A rever»). */
-  comment?: string | null;
-  /** Data da validação. */
-  date?: string | null;
+/**
+ * Objetivos indicados na última devolução como ainda por demonstrar (só
+ * informativo: a decisão formal é sobre o trilho completo).
+ */
+export function flaggedObjectives(r: TrailRequest | undefined, decisions: TrailDecision[] = []): string[] {
+  if (!r) return [];
+  const d = decisions.find((x) => x.request_id === r.id && (x.kind === 'devolvido_equipa' || x.kind === 'devolvido_conselho'));
+  return d?.objective_codes ?? [];
 }
-
-const CLOSED: TrailRequest['status'][] = ['cancelado', 'recusado'];
 
 /**
- * Estado de cada objetivo oficial de um trilho, a partir dos pedidos e das
- * decisões guardadas. Pedidos antigos (por trilho, sem objetivos) aplicam o
- * estado do pedido a todos os objetivos, sem os reinterpretar.
+ * Decisões por objetivo registadas no modelo anterior (histórico). Nunca
+ * fecham o trilho: só um pedido do trilho completo, validado, o fecha.
  */
-export function objectiveStates(trail: CatalogTrail, p: MemberProgress): Map<string, ObjectiveInfo> {
-  const out = new Map<string, ObjectiveInfo>();
-  const r = activeRequest(p.requests, trail.key);
-  const rows = (p.objectives ?? []).filter((o) => p.requests.some((x) => x.id === o.request_id && x.trail_key === trail.key && !CLOSED.includes(x.status)));
-  const ids = trail.catalog_objectives.map((o) => o.id);
-  if (r && isValidated(r)) {
-    const v = validationInfo(r, p.decisions);
-    for (const id of ids) out.set(id, { state: 'validado', date: rows.find((x) => x.objective_id === id && x.decision === 'aceite')?.decided_at ?? v?.date });
-    return out;
-  }
-  for (const row of rows) if (row.decision === 'aceite') out.set(row.objective_id, { state: 'validado', date: row.decided_at });
-  if (r) {
-    const cur = rows.filter((x) => x.request_id === r.id && x.version_no === r.current_version);
-    const prev = rows.filter((x) => x.request_id === r.id && x.version_no === r.current_version - 1);
-    const fb = lastFeedback(r, p.decisions)?.comment ?? null;
-    const legacy = !rows.some((x) => x.request_id === r.id);
-    for (const id of ids) {
-      if (out.has(id)) continue;
-      if (r.status === 'submetido' || r.status === 'em_revisao') {
-        if (legacy || cur.some((x) => x.objective_id === id)) out.set(id, { state: 'em_validacao' });
-      } else if (r.status === 'devolvido') {
-        const row = cur.find((x) => x.objective_id === id);
-        if (legacy) out.set(id, { state: 'a_rever', comment: fb });
-        else if (row?.decision === 'rever') out.set(id, { state: 'a_rever', comment: row.comment ?? fb });
-      } else if (r.status === 'rascunho') {
-        const row = prev.find((x) => x.objective_id === id && x.decision === 'rever');
-        if (row) out.set(id, { state: 'a_rever', comment: row.comment ?? fb });
-      }
-    }
-  }
-  for (const id of ids) if (!out.has(id)) out.set(id, { state: 'disponivel' });
-  return out;
-}
-
-/** Quantos objetivos do trilho já estão validados. */
-export function validatedObjectives(trail: CatalogTrail, p: MemberProgress): number {
-  return [...objectiveStates(trail, p).values()].filter((x) => x.state === 'validado').length;
-}
-
-/** Objetivos de uma versão de um pedido (códigos ordenados). */
-export function requestObjectiveCodes(p: { objectives?: RequestObjective[] }, r: TrailRequest, version = r.current_version): string[] {
-  return (p.objectives ?? []).filter((o) => o.request_id === r.id && o.version_no === version).map((o) => o.objective_code);
+export function legacyObjectiveHistory(trail: CatalogTrail, p: MemberProgress): RequestObjective[] {
+  const ids = new Set(p.requests.filter((r) => r.trail_key === trail.key).map((r) => r.id));
+  return (p.objectives ?? []).filter((o) => ids.has(o.request_id) && o.decision);
 }
 
 const OUTCOME_KINDS = ['validado_equipa', 'aprovado_historico', 'reconhecido_negociacao'];

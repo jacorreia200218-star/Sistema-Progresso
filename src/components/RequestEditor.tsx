@@ -8,49 +8,48 @@ import { call, signedUrl, type RequestDetail } from '../lib/api';
 import { useAction } from '../lib/useAction';
 import { prepareAttachment, safeFileName } from '../lib/image';
 import { errorMessage } from '../lib/errors';
-import { formatDate, todayIso } from '../lib/labels';
+import { formatDate, formatDateTime, JUSTIFICATION_LABEL, todayIso } from '../lib/labels';
 import type { RequestObjective, RequestVersion } from '../lib/types';
 import { Link } from 'react-router-dom';
 import { Badge, ConfirmButton, ErrorBox, Field, Notice } from './ui';
 
-/** Objetivos de uma versão do pedido, com a decisão e o comentário de cada um. */
-export function VersionObjectives({ rows, trailId }: { rows: RequestObjective[]; trailId: string }) {
-  const s = useActiveSection();
-  const trail = s.catalog.trailById.get(trailId);
+/** Decisões por objetivo de uma versão do modelo anterior (histórico; não fecham o trilho). */
+export function LegacyObjectives({ rows }: { rows: RequestObjective[] }) {
   return (
-    <ul className="obj-list" aria-label="Objetivos do pedido">
-      {rows.map((row) => {
-        const o = trail?.catalog_objectives.find((x) => x.id === row.objective_id);
-        return (
-          <li key={row.id} className="obj-item">
-            <span className="code">{row.objective_code}</span>
-            <span className="grow">
-              <span className="prose obj-text">{o?.text}</span>
-              {row.comment && <span className={row.decision === 'rever' ? 'feedback-inline' : 'faint'} style={{ display: 'block' }}>«{row.comment}»</span>}
-            </span>
-            {row.decision === 'aceite' ? <Badge label="Validado" tone="ok" icon="check" />
-              : row.decision === 'rever' ? <Badge label="A rever" tone="attention" icon="return" />
-              : <Badge label="Em validação" tone="progress" icon="clock" />}
-          </li>
-        );
-      })}
+    <ul className="obj-list" aria-label="Objetivos escolhidos no modelo anterior">
+      {rows.map((row) => (
+        <li key={row.id} className="obj-item">
+          <span className="code">{row.objective_code}</span>
+          <span className="grow">{row.comment && <span className={row.decision === 'rever' ? 'feedback-inline' : 'faint'} style={{ display: 'block' }}>«{row.comment}»</span>}</span>
+          {row.decision === 'aceite' ? <Badge label="Aceite" tone="muted" icon="check" />
+            : row.decision === 'rever' ? <Badge label="A rever" tone="muted" icon="return" />
+            : <Badge label="Sem decisão" tone="muted" icon="circle" />}
+        </li>
+      ))}
     </ul>
   );
 }
 
-export function VersionContent({ version, attachments, historic, compact, objectives = [], trailId }: {
-  version: RequestVersion; attachments: RequestDetail['attachments']; historic: boolean; compact?: boolean; objectives?: RequestObjective[]; trailId?: string;
+/** Conteúdo de uma versão: justificação conjunta (ou os campos de reflexão dos pedidos antigos), anexos e data. */
+export function VersionContent({ version, attachments, historic, compact, objectives = [] }: {
+  version: RequestVersion; attachments: RequestDetail['attachments']; historic: boolean; compact?: boolean; objectives?: RequestObjective[];
 }) {
-  const rows = objectives.filter((o) => o.version_id === version.id);
-  if (rows.length && trailId) {
-    // Pedido por objetivos: objetivos escolhidos e uma justificação comum.
+  const legacy = objectives.filter((o) => o.version_id === version.id);
+  const sentOn = version.submitted_at ? <p className="faint" style={{ margin: '8px 0 0' }}>Enviado em {formatDateTime(version.submitted_at)}.</p> : null;
+  if (!historic && (version.evidence || legacy.length) && !version.reflection) {
     return (
       <section className={compact ? 'version-content' : 'card version-content'}>
-        {!compact && <h2>Objetivos e justificação</h2>}
-        <VersionObjectives rows={rows} trailId={trailId} />
-        <p className="label">Como demonstrei que atingi estes objetivos?</p>
+        {!compact && <h2>Justificação</h2>}
+        {legacy.length > 0 && (
+          <>
+            <p className="label">Objetivos escolhidos (modelo anterior, por objetivo)</p>
+            <LegacyObjectives rows={legacy} />
+          </>
+        )}
+        <p className="label">{JUSTIFICATION_LABEL}</p>
         <div className="quote prose">{version.evidence || '—'}</div>
         <AttachmentList attachments={attachments} />
+        {sentOn}
       </section>
     );
   }
@@ -78,6 +77,7 @@ export function VersionContent({ version, attachments, historic, compact, object
         )}
       </dl>
       <AttachmentList attachments={attachments} />
+      {sentOn}
     </section>
   );
 }
@@ -201,7 +201,7 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
   if (request.status === 'rascunho' && request.kind === 'normal') {
     return (
       <section className="card flat">
-        <p className="prose">Este pedido ainda não foi enviado. Escolhe os objetivos e escreve a justificação na página do trilho.</p>
+        <p className="prose">Este pedido ainda não foi enviado. Escreve a justificação e pede a validação na página do trilho.</p>
         <div className="btn-row">
           <Link to={trailTo} className="btn">Continuar no trilho</Link>
           <ConfirmButton className="btn ghost" confirmLabel="Cancelar pedido" description="O pedido fica no histórico como cancelado." disabled={action.busy}
@@ -344,7 +344,7 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
       )}
       {request.status === 'validado_equipa' && <p className="prose">Trilho validado na reunião de Equipa. A decisão foi comunicada ao Conselho de Guias.</p>}
       {request.status === 'objetivos_validados' && (
-        <p className="prose">Os objetivos deste pedido foram validados. O trilho continua por fechar: <Link to={trailTo}>pede os restantes objetivos no trilho</Link>.</p>
+        <p className="prose">Pedido do modelo anterior, por objetivos. As decisões ficam como histórico e não fecham o trilho: <Link to={trailTo}>pede a validação do trilho completo</Link>.</p>
       )}
       {request.status === 'aprovado' && request.kind === 'historico' && (
         <p className="prose">Progresso anterior reconhecido pelos dirigentes{request.approved_reference_date ? ` (referência: ${formatDate(request.approved_reference_date)})` : ''}.</p>

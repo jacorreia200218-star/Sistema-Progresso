@@ -19,7 +19,7 @@ export const requestStatusLabel: Record<RequestStatus, { label: string; tone: To
   em_revisao: { label: 'Em validação', tone: 'progress', icon: 'clock' },
   validado_equipa: { label: 'Validado', tone: 'ok', icon: 'check' },
   devolvido: { label: 'A rever', tone: 'attention', icon: 'return' },
-  objetivos_validados: { label: 'Objetivos validados', tone: 'ok', icon: 'check' },
+  objetivos_validados: { label: 'Histórico por objetivos', tone: 'muted', icon: 'clock' },
   aprovado: { label: 'Reconhecido', tone: 'ok', icon: 'check' },
   recusado: { label: 'Não reconhecido', tone: 'muted', icon: 'x' },
   cancelado: { label: 'Cancelado', tone: 'muted', icon: 'x' },
@@ -28,14 +28,14 @@ export const requestStatusLabel: Record<RequestStatus, { label: string; tone: To
 export const decisionLabel: Record<DecisionKind, string> = {
   em_revisao: 'Colocado em revisão',
   validado_equipa: 'Validado na reunião de Equipa',
-  devolvido_equipa: 'A rever, por decisão da reunião de Equipa',
+  devolvido_equipa: 'Devolvido para revisão pela reunião de Equipa',
   devolvido_conselho: 'Devolvido após o Conselho de Guias',
   revisao_animacao: 'Nota da Equipa de Animação',
   aprovado_historico: 'Progresso anterior reconhecido',
   recusado_historico: 'Progresso anterior não reconhecido',
   devolvido_historico: 'Progresso anterior devolvido para correção',
   reconhecido_negociacao: 'Reconhecido na negociação pela Equipa de Animação',
-  objetivos_equipa: 'Objetivos validados na reunião de Equipa (o trilho continua por fechar)',
+  objetivos_equipa: 'Objetivos aceites na reunião de Equipa (modelo anterior; não fecha o trilho)',
 };
 
 export const stageRequestLabel: Record<StageRequestStatus, { label: string; tone: Tone; icon: string }> = {
@@ -94,3 +94,7 @@ export const requestKindLabel: Record<string, string> = {
   historico: 'Progresso anterior',
   negociacao: 'Reconhecido na negociação',
 };
+
+/** Pedido de validação do trilho: campo da justificação conjunta. */
+export const JUSTIFICATION_LABEL = 'Como demonstrei que alcancei este trilho?';
+export const JUSTIFICATION_HINT = 'Explica o que fizeste, em que situações e como isso demonstra os objetivos acima.';
