@@ -1,11 +1,22 @@
-// Módulo Calendário escutista (por implementar).
+// Módulo Calendário escutista: próximas atividades, vista mensal, detalhe com respostas
+// e pendências, e formulário (só para quem gere). O servidor verifica tudo.
+import { Route, Routes } from 'react-router-dom';
 import { ModuleShell } from '../ModuleShell';
-import { PageTitle } from '../../components/ui';
+import { Overview } from './Overview';
+import { EventDetail } from './EventDetail';
+import { EventForm } from './EventForm';
+import './calendario.css';
 
 export default function Module() {
   return (
     <ModuleShell module="calendario">
-      <PageTitle title="Calendário escutista" />
+      <Routes>
+        <Route index element={<Overview />} />
+        <Route path="nova" element={<EventForm />} />
+        <Route path="evento/:id" element={<EventDetail />} />
+        <Route path="evento/:id/editar" element={<EventForm />} />
+        <Route path="*" element={<Overview />} />
+      </Routes>
     </ModuleShell>
   );
 }
