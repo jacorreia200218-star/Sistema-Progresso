@@ -56,7 +56,10 @@ function ModuleCard({ name, o, members, section }: { name: string; o: Overview; 
           </label>
         ))}
       </fieldset>
-      {changed && status === 'disponivel' && (
+      {changed && status === 'disponivel' && o.module === 'equipas' && (
+        <p className="faint">Em Equipas e cargos os dados de teste não passam a reais: as equipas e os membros já são os reais, e as nomeações e mudanças fazem-se de novo no espaço real.</p>
+      )}
+      {changed && status === 'disponivel' && o.module !== 'equipas' && (
         <label className="checkbox">
           <input type="checkbox" checked={move} onChange={(e) => setMove(e.target.checked)} /> Passar os dados de teste para reais (por omissão, os dados reais começam vazios)
         </label>

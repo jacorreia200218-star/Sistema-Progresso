@@ -286,9 +286,15 @@ begin
   -- Passar os dados de teste para reais só por escolha explícita, ao publicar.
   if coalesce(p_move_test_data, false) then
     if p_status <> 'disponivel' then raise exception 'Os dados de teste só passam a reais ao publicar.'; end if;
-    foreach v_t in array private.module_tables(p_module) loop
-      execute format('update public.%I set space = ''real'' where section_id = $1 and space = ''teste''', v_t) using p_section;
-    end loop;
+    -- Um módulo pode definir private.<módulo>_publish_move(secção) quando a passagem
+    -- precisa de regras próprias (ou não é permitida); senão, passam todas as tabelas.
+    if to_regprocedure('private.' || p_module || '_publish_move(uuid)') is not null then
+      execute format('select private.%I($1)', p_module || '_publish_move') using p_section;
+    else
+      foreach v_t in array private.module_tables(p_module) loop
+        execute format('update public.%I set space = ''real'' where section_id = $1 and space = ''teste''', v_t) using p_section;
+      end loop;
+    end if;
     update public.module_files set space = 'real' where section_id = p_section and module = p_module and space = 'teste';
   end if;
   perform private.audit(p_section, 'modulo_estado', 'module', p_module,

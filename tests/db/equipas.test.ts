@@ -209,6 +209,11 @@ describe('mudanças de equipa e isolamento teste/real', () => {
     expect(Number((await admin(`select count(*) from public.module_grants where section_id = $1`, [w.section]))[0].count)).toBe(grantsBefore);
   });
 
+  it('ao publicar, as simulações de teste não passam a reais', async () => {
+    await expectError(rpc(w.users.Ana, 'set_module_status', { ...S(), p_module: 'equipas', p_status: 'disponivel', p_move_test_data: true }), 'não passam a reais');
+    expect(Number((await admin(`select count(*) from public.eq_team_moves where section_id = $1 and space = 'teste'`, [w.section]))[0].count)).toBe(1);
+  });
+
   it('desativar não apaga dados', async () => {
     await setupModule(w, 'equipas', 'desenvolvimento');
     await expectDenied(ov('Ana'));

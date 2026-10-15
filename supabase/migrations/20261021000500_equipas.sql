@@ -603,6 +603,17 @@ begin
 end
 $$;
 
+-- Ao publicar, as simulações do espaço de teste não passam a reais: as equipas e os
+-- membros já são os reais, e nomeações ou mudanças de teste podiam contradizer o
+-- que entretanto aconteceu. Ficam guardadas no espaço de teste.
+create or replace function private.equipas_publish_move(p_section uuid) returns void
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  raise exception 'Em Equipas e cargos os dados de teste não passam a reais. Publica sem essa opção e regista as nomeações no espaço real.';
+end
+$$;
+
 revoke execute on all functions in schema public from public, anon;
 grant execute on all functions in schema public to authenticated;
 revoke execute on function public.process_due_reminders() from authenticated;
