@@ -156,3 +156,22 @@ export async function validateTrail(w: World, who: string, trail: string, record
   await rpc(w.users[recorder], 'record_team_decision', { p_request: req, p_expected_version: 1, p_validated: true, p_meeting_date: today(), p_comment: 'Validado em reunião' });
   return req;
 }
+
+/** Módulos: estado, testers e permissões (como a administração, Ana). */
+export async function setupModule(
+  w: World, module: string, status: 'desenvolvimento' | 'teste' | 'disponivel',
+  testers: string[] = [], grants: [string, string][] = [],
+) {
+  await rpc(w.users.Ana, 'set_module_status', { p_section: w.section, p_module: module, p_status: status });
+  for (const t of testers) await rpc(w.users.Ana, 'set_module_tester', { p_section: w.section, p_module: module, p_profile: w.users[t], p_on: true });
+  for (const [perm, who] of grants) await rpc(w.users.Ana, 'set_module_grant', { p_section: w.section, p_permission: perm, p_profile: w.users[who], p_on: true });
+}
+
+/** Espera que a chamada falhe com uma mensagem que contenha o texto indicado. */
+export async function expectDenied(p: Promise<unknown>, text: string | RegExp = /não está disponível|permissão|Reservado|Sem permissão/) {
+  let err: unknown;
+  try { await p; } catch (e) { err = e; }
+  if (!err) throw new Error('Esperava uma recusa, mas a chamada foi aceite.');
+  const msg = (err as Error).message;
+  if (typeof text === 'string' ? !msg.includes(text) : !text.test(msg)) throw new Error(`Recusa inesperada: ${msg}`);
+}

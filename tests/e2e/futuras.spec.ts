@@ -10,7 +10,7 @@ async function noHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-test('áreas em desenvolvimento: no menu, separadas, só apresentação', async ({ page }, info) => {
+test('módulos em desenvolvimento: no menu, separados, só apresentação', async ({ page }, info) => {
   await installMock(page, leader());
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Olá/ })).toBeVisible();
@@ -19,15 +19,15 @@ test('áreas em desenvolvimento: no menu, separadas, só apresentação', async 
     const bottom = page.getByRole('navigation', { name: 'Navegação principal' });
     await expect(bottom.getByRole('link')).toHaveCount(5);
     await bottom.getByRole('link', { name: /Mais/ }).click();
-    const list = page.getByRole('navigation', { name: 'Áreas em desenvolvimento' });
+    const list = page.getByRole('navigation', { name: 'Módulos' });
     for (const a of AREAS) await expect(list.getByRole('link', { name: new RegExp(a) })).toContainText('Em desenvolvimento');
     await expect(page.getByRole('navigation', { name: 'Outras secções' })).toContainText('Caminho da secção');
     await noHorizontalScroll(page);
     await page.screenshot({ path: `test-results/mais-${info.project.name}.png`, fullPage: true });
     await list.getByRole('link', { name: /Tesouraria/ }).click();
   } else {
-    const group = page.getByRole('group', { name: 'Em desenvolvimento' });
-    for (const a of AREAS) await expect(group.getByRole('link', { name: new RegExp(`${a}.*em desenvolvimento`) })).toBeVisible();
+    const group = page.getByRole('group', { name: 'Módulos' });
+    for (const a of AREAS) await expect(group.getByRole('link', { name: new RegExp(`${a}.*Em desenvolvimento`) })).toBeVisible();
     await group.getByRole('link', { name: /Tesouraria/ }).click();
   }
   await expect(page).toHaveURL(/\/tesouraria$/);

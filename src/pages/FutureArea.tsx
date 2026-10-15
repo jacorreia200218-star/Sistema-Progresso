@@ -2,7 +2,7 @@
 // funcionalidades previstas. Sem formulários, números nem botões de ação.
 import { Construction } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { futureAreaByPath } from '../lib/futuras';
+import { futureAreaByPath, type FutureArea as Area } from '../lib/futuras';
 import { PageTitle } from '../components/ui';
 import NotFound from './NotFound';
 
@@ -10,6 +10,10 @@ export default function FutureArea() {
   const { pathname } = useLocation();
   const area = futureAreaByPath.get(pathname.replace(/\/$/, ''));
   if (!area) return <NotFound />;
+  return <FutureAreaView area={area} />;
+}
+
+export function FutureAreaView({ area }: { area: Area }) {
   const Icon = area.icon;
   return (
     <div className="future-area">

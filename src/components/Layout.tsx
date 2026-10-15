@@ -4,6 +4,7 @@ import rosaUrl from '../assets/rosa-dos-ventos.svg';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, ClipboardCheck, Compass, Ellipsis, Home, ListTree, Route as RouteIcon, Settings, User, Users } from 'lucide-react';
 import { FUTURE_AREAS } from '../lib/futuras';
+import { moduleTag, useMyModules } from '../modules/common';
 import { useSection } from '../lib/session';
 import { fetchNotifications, fetchPendingCounts } from '../lib/api';
 import { useProgress } from '../lib/hooks';
@@ -137,6 +138,7 @@ export default function Layout() {
   const notes = useQuery({ queryKey: ['notifications'], queryFn: fetchNotifications, refetchInterval: 60_000 });
   const unread = notes.data?.filter((n) => !n.read_at).length ?? 0;
   const { items, mobileItems } = useNavItems();
+  const modules = useMyModules();
 
   const link = (i: NavItem, compact: boolean) => (
     <NavLink key={i.to} to={i.to} end={i.end} className="nav-link">
@@ -172,14 +174,17 @@ export default function Layout() {
         <nav className="side-nav" aria-label="Navegação principal">
           {items.map((i) => link(i, false))}
           <div className="nav-group" role="group" aria-labelledby="nav-futuras">
-            <span id="nav-futuras" className="nav-group-title">Em desenvolvimento</span>
-            {FUTURE_AREAS.map((a) => (
-              <NavLink key={a.key} to={a.to} className="nav-link nav-future">
-                <span className="nav-icon"><a.icon size={20} aria-hidden="true" /></span>
-                <span>{a.name}</span>
-                <span className="sr-only">, em desenvolvimento</span>
-              </NavLink>
-            ))}
+            <span id="nav-futuras" className="nav-group-title">Módulos</span>
+            {FUTURE_AREAS.map((a) => {
+              const tag = moduleTag(modules.data?.find((m) => m.module === a.key));
+              return (
+                <NavLink key={a.key} to={a.to} className="nav-link nav-future">
+                  <span className="nav-icon"><a.icon size={20} aria-hidden="true" /></span>
+                  <span>{a.name}</span>
+                  {tag && <span className={`nav-tag${tag === 'Em teste' ? ' nav-tag-test' : ''}`}><span className="sr-only">, </span>{tag}</span>}
+                </NavLink>
+              );
+            })}
           </div>
         </nav>
         <main id="conteudo" className="main" tabIndex={-1}>

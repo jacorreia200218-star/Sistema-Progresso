@@ -10,12 +10,14 @@ import type { MemberFunction, Team } from '../lib/types';
 import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
 import { InviteShare } from '../components/InviteShare';
 import { PersonalInvites } from '../components/PersonalInvites';
+import { AdminModules } from '../modules/AdminModules';
 
 const TABS = [
   ['membros', 'Membros'],
   ['equipas', 'Equipas'],
   ['convites', 'Convites'],
   ['configuracoes', 'Configurações'],
+  ['modulos', 'Módulos'],
   ['registo', 'Histórico'],
 ] as const;
 
@@ -33,6 +35,7 @@ export default function Admin() {
       {tab === 'equipas' && <Teams />}
       {tab === 'convites' && <Invites />}
       {tab === 'configuracoes' && <Settings />}
+      {tab === 'modulos' && <AdminModules />}
       {tab === 'registo' && <Log />}
     </>
   );
