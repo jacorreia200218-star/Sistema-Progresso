@@ -353,7 +353,7 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
         for (const n of T.notifications ?? []) if (!n.read_at && (!body.p_ids || body.p_ids.includes(n.id))) n.read_at = now;
       }
       const result = persona.rpc && fn in persona.rpc ? persona.rpc[fn]
-        : fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? 'codigo-de-teste' : null;
+        : fn === 'merit_eligibility' ? { validated: 1, total: 18, last_stage_concluded: false, eligible: false } : fn === 'create_invite' ? ((n: number) => `TST${n}-PQR${n}`)(calls.filter((c) => c.fn === 'create_invite').length) : null;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
     }
     if (p.startsWith('/rest/v1/')) {

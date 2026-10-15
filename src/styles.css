@@ -955,3 +955,10 @@ dl.summary-list .quote { margin-top: 0; }
 .notif .notif-check { margin: 0 4px; }
 .btn.danger { color: var(--danger-ink); }
 .undo-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 10px; border-radius: 10px; background: var(--accent-tint); font-size: var(--fs-body); animation: appear 200ms var(--ease); }
+
+/* Links pessoais: lista arejada, link legível e botão de copiar alinhado. */
+.personal-invites .btn { margin-top: 4px; }
+.created-links { margin-top: 18px; display: grid; gap: 12px; }
+.created-link { display: flex; align-items: center; gap: 12px; padding: 12px 2px; }
+.created-link + .created-link { border-top: 1px solid var(--line); }
+.created-link .link-text { word-break: break-all; font-size: var(--fs-xs); }

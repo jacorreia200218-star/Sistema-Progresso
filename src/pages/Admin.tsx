@@ -9,6 +9,7 @@ import { formatDate, formatDateTime, functionLabel, memberStatusLabel } from '..
 import type { MemberFunction, Team } from '../lib/types';
 import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
 import { InviteShare } from '../components/InviteShare';
+import { PersonalInvites } from '../components/PersonalInvites';
 
 const TABS = [
   ['membros', 'Membros'],
@@ -276,9 +277,10 @@ function Invites() {
 
   return (
     <>
+      <PersonalInvites sectionId={membership.section_id} teams={(teams.data ?? []).filter((t) => !t.archived_at)} />
       <details className="card">
-        <summary className="row" style={{ cursor: 'pointer' }}><strong>Novo convite</strong></summary>
-        <p className="faint prose" style={{ marginTop: 8 }}>O convite permite pedir entrada; cada pessoa usa a sua conta e o pedido continua a precisar da tua confirmação. Nunca dá funções de dirigente nem de administração.</p>
+        <summary className="row" style={{ cursor: 'pointer' }}><strong>Convite de grupo (um link para várias pessoas)</strong></summary>
+        <p className="faint prose" style={{ marginTop: 8 }}>Um só link que várias pessoas podem usar, útil para afixar ou enviar a um grupo. Cada pessoa usa a sua conta e o pedido continua a precisar da tua confirmação. Nunca dá funções de dirigente nem de administração.</p>
         <ErrorBox error={action.error} />
         {action.success && <Notice kind="success">{action.success}</Notice>}
         <Field label="Descrição (para ti)" htmlFor="il"><input id="il" type="text" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex.: Pioneiros 2026/27" /></Field>
@@ -289,10 +291,10 @@ function Invites() {
           </select>
         </Field>
         <div className="grid-2">
-          <Field label="Validade (dias)" htmlFor="id"><input id="id" type="number" min={1} max={180} value={days} onChange={(e) => setDays(Number(e.target.value))} /></Field>
-          <Field label="Limite de utilizações" htmlFor="iu"><input id="iu" type="number" min={1} max={500} value={uses} onChange={(e) => setUses(Number(e.target.value))} /></Field>
+          <Field label="Validade (dias)" htmlFor="id" hint="Durante quantos dias o link funciona. Depois expira."><input id="id" type="number" min={1} max={180} aria-describedby="id-hint" value={days} onChange={(e) => setDays(Number(e.target.value))} /></Field>
+          <Field label="Limite de utilizações" htmlFor="iu" hint="Quantas pessoas, no máximo, podem entrar com este link."><input id="iu" type="number" min={1} max={500} aria-describedby="iu-hint" value={uses} onChange={(e) => setUses(Number(e.target.value))} /></Field>
         </div>
-        <button type="button" className="btn" disabled={action.busy || days < 1 || uses < 1} onClick={create}>Criar convite</button>
+        <button type="button" className="btn" disabled={action.busy || days < 1 || uses < 1} onClick={create}>Criar convite de grupo</button>
       </details>
       <h2 className="section-title">Convites</h2>
       <div className="card">
@@ -300,7 +302,7 @@ function Invites() {
           <ul className="list">
             {(q.data ?? []).map((i) => {
               const expired = new Date(i.expires_at) <= new Date();
-              const state = i.revoked_at ? (i.replaced_by ? 'Substituído' : 'Revogado') : expired ? 'Expirado' : i.use_count >= i.max_uses ? 'Esgotado' : 'Ativo';
+              const state = i.revoked_at ? (i.replaced_by ? 'Substituído' : 'Revogado') : expired ? 'Expirado' : i.use_count >= i.max_uses ? (i.max_uses === 1 ? 'Usado' : 'Esgotado') : 'Ativo';
               const active = state === 'Ativo';
               return (
                 <li key={i.id} className="invite-item">
@@ -308,7 +310,7 @@ function Invites() {
                     <span className="grow">
                       <strong>{i.label || 'Convite'}</strong>
                       <br />
-                      <span className="faint">{teamName(i.team_id) ?? 'Secção'} · {i.use_count}/{i.max_uses} utilizações · válido até {formatDate(i.expires_at)}</span>
+                      <span className="faint">{teamName(i.team_id) ?? 'Secção'} · {i.max_uses === 1 ? (i.use_count ? 'link pessoal usado' : 'link pessoal por usar') : `${i.use_count}/${i.max_uses} utilizações`} · válido até {formatDate(i.expires_at)}</span>
                     </span>
                     <Badge label={state} tone={active ? 'ok' : 'muted'} icon={active ? 'check' : 'x'} />
                   </div>
