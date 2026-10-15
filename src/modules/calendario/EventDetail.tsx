@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, CalendarClock, Check, Download, FileText, MapPin, Paperclip, Pencil, User, Users } from 'lucide-react';
+import { Bell, CalendarClock, Check, Download, FileText, Link2, MapPin, Package, Paperclip, Pencil, User, Users, Wallet } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
 import { ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { downloadFile, formatLisbon } from '../common';
+import { downloadFile, formatEuros, formatLisbon } from '../common';
 import { listModuleFiles, openModuleFile, uploadModuleFile } from '../files';
 import { MISSING_LABEL, RESPONSE_LABEL, reminderLabel, whenLabel, type CalDetail, type CalParticipant, type PendingItem, type Response } from './cal';
 import { buildIcs, icsFileName } from './ics';
@@ -80,6 +80,7 @@ export function EventDetail() {
 
       {(e.involved || e.can_respond) && <MyResponse e={e} />}
       <Participants e={e} />
+      <Linked e={e} />
       <Attachments e={e} />
       {e.can_manage && !cancelled && <ManageBox e={e} />}
     </>
@@ -223,6 +224,68 @@ function ParticipantRow({ e, p }: { e: CalDetail; p: CalParticipant }) {
       <ErrorBox error={action.error} />
       {action.success && <p className="cal-saved" role="status">{action.success}</p>}
     </li>
+  );
+}
+
+type Links = {
+  reservas?: { id: string; item_id: string; item: string; unit: string; quantity: number; status: string }[];
+  financas?: { orcamento: Totals; efetivo: Totals; por_confirmar: Totals } | null;
+  reunioes?: { id: string; title: string; kind: string; starts_at: string }[];
+};
+type Totals = { receitas: number; despesas: number; resultado: number };
+
+// Registos de outros módulos ligados a esta atividade (só os módulos a que a pessoa tem
+// acesso, no mesmo espaço). Cada registo vive no seu módulo; aqui só se mostra a ligação.
+function Linked({ e }: { e: CalDetail }) {
+  const section = useActiveSection().membership.section_id;
+  const { space } = useModuleCtx();
+  const q = useQuery({
+    queryKey: ['cal-links', section, space, e.id],
+    queryFn: () => call<Links>('cal_event_links', { p_section: section, p_event: e.id }),
+    retry: false,
+  });
+  const l = q.data;
+  if (!l) return null;
+  const hasRes = !!l.reservas?.length, hasMeet = !!l.reunioes?.length, hasFin = !!l.financas;
+  if (!hasRes && !hasMeet && !hasFin) return null;
+  return (
+    <section className="card" aria-labelledby="cal-links-h">
+      <h2 id="cal-links-h"><Link2 size={18} aria-hidden="true" /> Ligado a esta atividade</h2>
+      {hasRes && (
+        <>
+          <h3 className="label"><Package size={16} aria-hidden="true" /> Material reservado</h3>
+          <ul className="list">
+            {l.reservas!.map((r) => (
+              <li key={r.id}><Link className="list-item" to={`/inventario/artigo/${r.item_id}`}>
+                <span className="grow ellipsis">{r.item}</span><span className="faint">{r.quantity} {r.unit}{r.status === 'concluida' ? ' · concluída' : ''}</span>
+              </Link></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasFin && (
+        <>
+          <h3 className="label"><Wallet size={16} aria-hidden="true" /> Finanças</h3>
+          <p className="faint">
+            Orçamento: {formatEuros(l.financas!.orcamento.resultado)} · Efetivo: {formatEuros(l.financas!.efetivo.resultado)}
+            {l.financas!.por_confirmar.resultado !== 0 && <> · Por confirmar: {formatEuros(l.financas!.por_confirmar.resultado)}</>}
+            {' '}<Link to="/tesouraria/atividades">Ver na Tesouraria</Link>
+          </p>
+        </>
+      )}
+      {hasMeet && (
+        <>
+          <h3 className="label"><FileText size={16} aria-hidden="true" /> Reuniões</h3>
+          <ul className="list">
+            {l.reunioes!.map((m) => (
+              <li key={m.id}><Link className="list-item" to={`/secretaria/reunioes/${m.id}`}>
+                <span className="grow ellipsis">{m.title}</span><span className="faint">{formatLisbon(m.starts_at)}</span>
+              </Link></li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
 

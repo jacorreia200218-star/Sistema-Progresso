@@ -274,7 +274,7 @@ $$;
 create or replace function public.set_module_status(p_section uuid, p_module text, p_status text, p_move_test_data boolean default false)
 returns void language plpgsql security definer set search_path = ''
 as $$
-declare v_old text; v_t text;
+declare v_old text; v_t text; v_c text;
 begin
   if not private.is_admin(p_section) then raise exception 'Reservado à administração.' using errcode = '42501'; end if;
   if p_status not in ('desenvolvimento', 'teste', 'disponivel') then raise exception 'Estado inválido.'; end if;
@@ -296,6 +296,26 @@ begin
       end loop;
     end if;
     update public.module_files set space = 'real' where section_id = p_section and module = p_module and space = 'teste';
+    -- Lembretes ainda por enviar passam com os dados (senão nunca seriam enviados).
+    update public.module_reminders set space = 'real'
+     where section_id = p_section and module = p_module and space = 'teste' and sent_at is null;
+    -- Registos agora reais não ficam ligados a atividades do Calendário que continuam
+    -- de teste: a ligação opcional é retirada (o registo mantém-se).
+    if to_regclass('public.cal_events') is not null and p_module <> 'calendario' then
+      for v_t, v_c in
+        select c.conrelid::regclass::text, a.attname::text
+          from pg_constraint c
+          join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+         where c.contype = 'f' and c.confrelid = 'public.cal_events'::regclass and not a.attnotnull
+           and c.conrelid::regclass::text like 'public.' || private.module_prefix(p_module) || '%'
+            or c.contype = 'f' and c.confrelid = 'public.cal_events'::regclass and not a.attnotnull
+           and c.conrelid::regclass::text like private.module_prefix(p_module) || '%'
+      loop
+        execute format('update %s t set %I = null where t.section_id = $1 and t.space = ''real'' and t.%I is not null
+                          and not exists (select 1 from public.cal_events e where e.id = t.%I and e.space = ''real'')', v_t, v_c, v_c, v_c)
+          using p_section;
+      end loop;
+    end if;
   end if;
   perform private.audit(p_section, 'modulo_estado', 'module', p_module,
     jsonb_build_object('de', v_old, 'para', p_status, 'dados_teste_para_reais', coalesce(p_move_test_data, false)));
