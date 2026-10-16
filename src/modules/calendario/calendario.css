@@ -191,3 +191,6 @@
 .cal-time-row { display: grid; grid-template-columns: 140px 140px minmax(0, 220px); gap: 0 12px; }
 @media (max-width: 520px) { .cal-time-row { grid-template-columns: 1fr 1fr; } .cal-time-row > .field:last-child { grid-column: 1 / -1; } }
 .cal-time-row .time-field { max-width: none; }
+.cal-repeat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 12px; }
+.cal-repeat .checkbox { margin: 0; }
+.cal-repeat .date-input { max-width: 190px; }

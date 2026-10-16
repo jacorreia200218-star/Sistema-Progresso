@@ -2,12 +2,12 @@
 // semana, dias com atividades e dias livres; lista curta das próximas atividades e
 // «O que te falta». Vista secundária: lista completa das próximas atividades.
 import { useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Download, Plus, Settings, X } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
-import { Empty, ErrorBox, Loading, MoreMenu, PageTitle } from '../../components/ui';
+import { Empty, ErrorBox, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
 import { downloadFile, formatDay, formatLisbon, MONTHS, todayLisbon } from '../common';
 import {
@@ -45,6 +45,7 @@ export function Overview() {
   const { can } = useModuleCtx();
   const canManage = can('calendario.gerir', true);
   const current = view === 'lista' ? 'lista' : mode === 'escutista' ? 'escutista' : 'civil';
+  const flash = (useLocation().state as { flash?: string } | null)?.flash;
   return (
     <div className="cal-page">
       <PageTitle title="Calendário escutista" actions={canManage && (
@@ -55,6 +56,7 @@ export function Overview() {
           </MoreMenu>
         </>
       )} />
+      {flash && <Notice kind="success">{flash}</Notice>}
       <div className="cal-toolbar">
         <div className="tabs" role="tablist" aria-label="Vistas do calendário">
           <button type="button" role="tab" className="tab" aria-selected={current === 'civil'} onClick={() => setView('ano', { tipo: '', ano: '', dia: '' })}>Ano civil</button>

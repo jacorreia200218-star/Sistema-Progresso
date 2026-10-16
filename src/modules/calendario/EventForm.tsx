@@ -8,7 +8,8 @@ import { useActiveSection } from '../../lib/session';
 import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
 import { isoToLisbon, lisbonToIso, MEETING_DEFAULT, nextSaturday } from '../common';
-import { REMINDER_OPTIONS, type CalDetail } from './cal';
+import { period, REMINDER_OPTIONS, yearOf, type CalDetail } from './cal';
+import { useCalConfig } from './Overview';
 import { DateInput, DateTimeInput, TimeInput } from '../../components/DateInput';
 import { parseTimeText } from '../../lib/dates';
 
@@ -105,6 +106,13 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
   const preset = params.get('dia');
   const [f, setF] = useState<FormState>(() => (event ? fromEvent(event) : empty(preset && /^\d{4}-\d{2}-\d{2}$/.test(preset) ? preset : undefined)));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Nova atividade: por omissão repete todas as semanas até ao fim do ano escutista (a reunião de sábado).
+  const cfg = useCalConfig();
+  const startMonth = cfg.data?.year_start_month ?? 9;
+  const yearEnd = f.startDay ? period('escutista', yearOf(f.startDay, 'escutista', startMonth), startMonth).to : '';
+  const [repeat, setRepeat] = useState(!event);
+  const [until, setUntil] = useState('');
+  const untilDay = until || yearEnd;
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
   const toggleIn = (k: 'reminder_minutes' | 'deadline_reminder_minutes', m: number) =>
     set(k, f[k].includes(m) ? f[k].filter((x) => x !== m) : [...f[k], m].sort((a, b) => b - a));
@@ -112,6 +120,10 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const err = validate(f);
+    if (!event && repeat) {
+      if (!untilDay) err.until = 'Indica até quando se repete.';
+      else if (untilDay < f.startDay) err.until = 'A repetição tem de terminar depois da data.';
+    }
     setErrors(err);
     if (Object.keys(err).length) return;
     const t = times(f);
@@ -124,6 +136,17 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
       needs_authorization: f.needs_authorization, needs_payment: f.needs_payment, needs_registration: f.needs_registration,
       material: f.material, reminder_minutes: f.reminder_minutes, deadline_reminder_minutes: f.deadline_reminder_minutes,
     };
+    if (!event && repeat) {
+      const w = await action.run(() => call<number>('cal_create_weekly', { p_section: section, p_data: data, p_until: untilDay }));
+      if (w.ok) {
+        const n = w.value ?? 0;
+        navigate(`/calendario?ano=${f.startDay.slice(0, 4)}`, {
+          replace: true,
+          state: { flash: n === 0 ? 'Estas datas já estavam no calendário.' : n === 1 ? '1 atividade criada. Os envolvidos foram avisados.' : `${n} atividades criadas, uma por semana. Os envolvidos foram avisados.` },
+        });
+      }
+      return;
+    }
     const r = await action.run(() => event
       ? call('cal_update_event', { p_section: section, p_event: event.id, p_data: data, p_expected_updated_at: event.updated_at }).then(() => event.id)
       : call<string>('cal_create_event', { p_section: section, p_data: data }));
@@ -155,6 +178,14 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
           <DateInput id="cal-sd" value={f.startDay} onChange={(e) => set('startDay', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} />
         </Field>
         <Err k="start" />
+        {!event && (
+          <div className="cal-repeat">
+            <label className="checkbox"><input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} /> Repetir todas as semanas até</label>
+            <DateInput id="cal-until" aria-label="Repetir até" value={untilDay} min={f.startDay} disabled={!repeat}
+              onChange={(e) => setUntil(e.target.value)} aria-invalid={!!errors.until} aria-describedby={errId('until')} />
+          </div>
+        )}
+        <Err k="until" />
         <Field label="Notas (opcional)" htmlFor="cal-desc">
           <textarea id="cal-desc" rows={3} maxLength={5000} value={f.description} onChange={(e) => set('description', e.target.value)} />
         </Field>

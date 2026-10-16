@@ -374,3 +374,32 @@ describe('publicar passando os dados de teste a reais', () => {
       .toEqual([{ title: 'Lembrete: Atividade de teste' }]);
   });
 });
+
+describe('atividade semanal (reunião de sábado)', () => {
+  const weekly = (who: string, data: Record<string, unknown>, until: string) =>
+    rpc<number>(w.users[who], 'cal_create_weekly', { p_section: S(), p_data: data, p_until: until });
+  // Sábado 17/10/2026, 14:30–16:00 em Lisboa (WEST, UTC+1); a 25/10 muda a hora.
+  const sat = { title: 'Reunião semanal', all_day: false, starts_at: '2026-10-17T13:30:00Z', ends_at: '2026-10-17T15:00:00Z' };
+
+  it('cria uma atividade por semana, mantém 14:30 depois da mudança de hora e avisa uma vez', async () => {
+    await expectDenied(weekly('P1', sat, '2026-11-07'), 'permissão');
+    await admin(`delete from public.notifications where section_id = $1`, [S()]);
+    expect(await weekly('Rui', sat, '2026-11-07')).toBe(4); // 17/10, 24/10, 31/10, 07/11
+    const rows = await admin<{ starts_at: Date; ends_at: Date }>(
+      `select starts_at, ends_at from public.cal_events where section_id = $1 and title = 'Reunião semanal' and status = 'ativo' order by starts_at`, [S()]);
+    expect(rows.map((r) => r.starts_at.toISOString())).toEqual([
+      '2026-10-17T13:30:00.000Z', '2026-10-24T13:30:00.000Z', '2026-10-31T14:30:00.000Z', '2026-11-07T14:30:00.000Z',
+    ]);
+    expect(rows[3].ends_at.toISOString()).toBe('2026-11-07T16:00:00.000Z');
+    const n = await admin<{ profile_id: string; body: string }>(
+      `select profile_id, body from public.notifications where section_id = $1 and kind = 'cal_evento_novo'`, [S()]);
+    expect(new Set(n.map((x) => x.profile_id)).size).toBe(n.length); // uma por pessoa
+    expect(n[0].body).toContain('4 semanas, de 17/10/2026 a 07/11/2026');
+  });
+
+  it('volta a correr sem duplicar e recusa datas inválidas', async () => {
+    expect(await weekly('Rui', sat, '2026-11-14')).toBe(1); // só 14/11 é nova
+    await expectDenied(weekly('Rui', sat, '2026-10-10'), 'depois da primeira data');
+    await expectDenied(weekly('Rui', sat, '2027-12-31'), 'mais de um ano');
+  });
+});
