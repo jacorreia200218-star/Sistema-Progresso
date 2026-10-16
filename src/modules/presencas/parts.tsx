@@ -7,16 +7,21 @@ import {
   type Category, type HistoryRow, type Period, type PresStatus, type Stats,
 } from './api';
 import { DateInput } from '../../components/DateInput';
+import { Filters as FilterBar } from '../../components/ui';
 
 const ICON: Record<Category, typeof Check> = {
   presente: Check, justificada: FileText, injustificada: X, por_registar: Minus, futura: CalendarClock, cancelada: Ban,
 };
 
+/** Texto do estado (com «parcial» quando for o caso). */
+export const markLabel = (category: Category, partial?: boolean) =>
+  category === 'presente' && partial ? 'Presente (parcial)' : CATEGORY_LABEL[category];
+
 /** Estado de uma presença: ícone e texto (no modo compacto, o texto fica só para leitores de ecrã). */
 export function StatusMark({ category, partial, compact }: { category: Category; partial?: boolean; compact?: boolean }) {
   const isPartial = category === 'presente' && partial;
   const Icon = isPartial ? Clock3 : ICON[category];
-  const label = isPartial ? 'Presente (parcial)' : CATEGORY_LABEL[category];
+  const label = markLabel(category, partial);
   return (
     <span className={`pres-mark pres-${category}${isPartial ? ' pres-partial' : ''}${compact ? ' compact' : ''}`} title={compact ? label : undefined}>
       <Icon size={compact ? 16 : 15} aria-hidden="true" />
@@ -106,6 +111,22 @@ export function periodQuery(): string {
   return s ? `?${s}` : '';
 }
 
+/** Legenda curta dos símbolos do quadro (uma linha). */
+export function Legend() {
+  const items: [Category, string, boolean?][] = [
+    ['presente', 'Presente'], ['presente', 'Parcial', true], ['justificada', 'Justificada'], ['injustificada', 'Injustificada'],
+    ['por_registar', 'Por registar'], ['futura', 'Futura'],
+  ];
+  return (
+    <p className="pres-legend" aria-label="Legenda">
+      {items.map(([c, t, p]) => (
+        <span key={t} className="pres-legend-item"><StatusMark category={c} partial={p} compact /><span aria-hidden="true">{t}</span></span>
+      ))}
+      <span className="pres-legend-item"><span className="pres-na-dot" aria-hidden="true">·</span><span>Não se aplica</span></span>
+    </p>
+  );
+}
+
 /** Filtros: ano escutista, mês ou datas livres e (para quem regista) equipa. */
 export function Filters({ today, teams }: { today: string; teams?: { id: string; name: string }[] }) {
   const [params, setParams] = useSearchParams();
@@ -118,8 +139,9 @@ export function Filters({ today, teams }: { today: string; teams?: { id: string;
       return next;
     }, { replace: true });
   const mode = custom ? 'datas' : p.month || '';
+  const active = (p.year !== periodFrom(new URLSearchParams(), today).year ? 1 : 0) + (mode ? 1 : 0) + (params.get('equipa') ? 1 : 0);
   return (
-    <form className="card flat pres-filters" aria-label="Filtros" onSubmit={(e) => e.preventDefault()}>
+    <FilterBar active={active}>
       <label className="field">
         <span className="label">Ano escutista</span>
         <select value={String(p.year)} onChange={(e) => update({ ano: e.target.value, de: '', ate: '' })}>
@@ -159,7 +181,7 @@ export function Filters({ today, teams }: { today: string; teams?: { id: string;
           </select>
         </label>
       )}
-    </form>
+    </FilterBar>
   );
 }
 

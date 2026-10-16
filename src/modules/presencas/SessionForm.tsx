@@ -72,13 +72,12 @@ export function SessionForm() {
   if (id && existing.isLoading) return <Loading />;
   return (
     <>
-      <PageTitle title={id ? 'Editar sessão' : 'Nova sessão'} back="/presencas"
-        subtitle="Uma reunião ou atividade em que se registam presenças." />
+      <PageTitle title={id ? 'Editar sessão' : 'Nova sessão'} back={id ? `/presencas/sessoes/${id}` : '/presencas'} />
       <ErrorBox error={existing.error} />
       <form className="card pres-form" noValidate onSubmit={(e) => { e.preventDefault(); void submit(); }}>
         <fieldset className="pres-origin">
           <legend>Origem</legend>
-          <label className="pres-check"><input type="radio" name="origin" checked={origin === 'propria'} onChange={() => { setOrigin('propria'); setEvent(''); }} /> Sessão própria (reunião ou sessão só para presenças)</label>
+          <label className="pres-check"><input type="radio" name="origin" checked={origin === 'propria'} onChange={() => { setOrigin('propria'); setEvent(''); }} /> Sessão própria (reunião ou só para presenças)</label>
           <label className="pres-check"><input type="radio" name="origin" checked={origin === 'calendario'} onChange={() => setOrigin('calendario')} /> Atividade do Calendário</label>
         </fieldset>
         {origin === 'calendario' && (
@@ -119,6 +118,7 @@ export function SessionForm() {
         {a.error && <Notice kind="error">{a.error}</Notice>}
         <div className="btn-row">
           <button type="submit" className="btn" disabled={a.busy} aria-busy={a.busy}>{id ? 'Guardar' : 'Criar sessão'}</button>
+          <button type="button" className="btn secondary" onClick={() => nav(id ? `/presencas/sessoes/${id}` : '/presencas')}>Cancelar</button>
         </div>
       </form>
     </>

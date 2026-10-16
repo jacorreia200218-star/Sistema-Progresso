@@ -8,7 +8,7 @@ import { formatDay, todayLisbon } from '../common';
 import { useModuleCtx } from '../ModuleShell';
 import { formatRate, KIND_LABEL, useBoard, useNarrow, type Board, type Cell, type Stats } from './api';
 import { MemberView } from './MemberPage';
-import { Filters, Formula, periodQuery, StatsTiles, StatusMark, useParam, usePeriod } from './parts';
+import { Filters, Formula, Legend, markLabel, periodQuery, StatsTiles, StatusMark, useParam, usePeriod } from './parts';
 
 type View = 'quadro' | 'sessoes' | 'pessoas' | 'resumo';
 
@@ -21,7 +21,7 @@ function MyHome() {
   const me = useActiveSection().membership.id;
   return (
     <>
-      <PageTitle title="Presenças" subtitle="As tuas presenças e a tua taxa de assiduidade." />
+      <PageTitle title="Presenças" />
       <MemberView membershipId={me} self />
     </>
   );
@@ -44,7 +44,9 @@ function RegisterHome() {
   const d = board.data;
   return (
     <div className="pres-wide">
-      <PageTitle title="Presenças" subtitle={`Assiduidade de pioneiros e guias · ${period.label}.`} />
+      <PageTitle title="Presenças"
+        actions={<Link to="/presencas/nova" className="btn"><Plus size={16} aria-hidden="true" /> Nova sessão</Link>}
+        info={<p>Assiduidade de pioneiros e guias. Cada sessão (reunião ou atividade) conta para quem estava ativo nessa data.</p>} />
       <Filters today={today} teams={d?.teams ?? []} />
       <div className="pres-toolbar">
         <nav className="tabs" aria-label="Vistas das presenças">
@@ -54,7 +56,7 @@ function RegisterHome() {
             </button>
           ))}
         </nav>
-        <Link to="/presencas/nova" className="btn"><Plus size={16} aria-hidden="true" /> Nova sessão</Link>
+        <span className="faint pres-small pres-period">{period.label[0].toUpperCase() + period.label.slice(1)}</span>
       </div>
       {board.isLoading && <Loading />}
       <ErrorBox error={board.error} retry={() => board.refetch()} />
@@ -71,7 +73,7 @@ function NoSessions() {
   return (
     <div className="card">
       <Empty title="Não há sessões neste período.">
-        <p className="faint prose pres-center">Cria uma sessão com «Nova sessão» (a partir de uma atividade do Calendário ou só para registo de presenças) ou escolhe outro período.</p>
+        <p className="faint pres-small pres-center">Cria uma com «Nova sessão» ou escolhe outro período.</p>
       </Empty>
     </div>
   );
@@ -81,14 +83,15 @@ function NoMembers() {
   return (
     <div className="card">
       <Empty title="Não há pioneiros nem guias neste filtro.">
-        <p className="faint prose pres-center">As presenças contam para pioneiros e guias ativos. Experimenta outra equipa ou outro período.</p>
+        <p className="faint pres-small pres-center">Experimenta outra equipa ou outro período.</p>
       </Empty>
     </div>
   );
 }
 
 const cellKey = (s: string, m: string) => `${s}|${m}`;
-const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+/** Dia curto («16/10») para cabeçalhos compactos; a data completa vai no title/aria-label. */
+const dm = (d: string) => formatDay(d).slice(0, 5);
 
 /** Quadro (computador): membros nas linhas, sessões nas colunas. */
 function BoardTable({ d }: { d: Board }) {
@@ -102,60 +105,67 @@ function BoardTable({ d }: { d: Board }) {
     if (groups.at(-1)?.team !== t) groups.push({ team: t, rows: [] });
     groups.at(-1)!.rows.push(m);
   }
-  const cols = d.sessions.length + 6;
+  const cols = d.sessions.length + 7;
   return (
-    <div className="pres-table-wrap card flat" role="region" aria-label="Quadro de presenças" tabIndex={0}>
-      <table className="pres-table">
-        <caption className="sr-only">Presenças por membro (linhas) e sessão (colunas), ordenadas por equipa e nome.</caption>
-        <thead>
-          <tr>
-            <th scope="col" className="pres-name-col">Membro</th>
-            {d.sessions.map((s) => (
-              <th key={s.id} scope="col" className={`pres-sess-col${s.status === 'cancelada' ? ' cancelled' : ''}${s.future ? ' future' : ''}`}>
-                <Link to={`/presencas/sessoes/${s.id}${q}`} title={`${formatDay(s.date)} · ${s.title}${s.team_name ? ` · ${s.team_name}` : ''}${s.status === 'cancelada' ? ' (cancelada)' : ''}`}>
-                  <span className="pres-col-date">{dm(s.date)}</span>
-                  <span className="pres-col-title">{s.title}</span>
-                  {s.status === 'cancelada' && <span className="sr-only"> (cancelada)</span>}
-                </Link>
-              </th>
-            ))}
-            <th scope="col" className="pres-num" title="Presenças">P</th>
-            <th scope="col" className="pres-num" title="Faltas justificadas">FJ</th>
-            <th scope="col" className="pres-num" title="Faltas injustificadas">FI</th>
-            <th scope="col" className="pres-num" title="Por registar">PR</th>
-            <th scope="col" className="pres-num" title="Taxa de assiduidade">Taxa</th>
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((g) => [
-            <tr key={`g-${g.team}`} className="pres-group"><th scope="rowgroup" colSpan={cols}>{g.team}</th></tr>,
-            ...g.rows.map((m) => (
-              <tr key={m.membership_id}>
-                <th scope="row" className="pres-name-col">
-                  <Link to={`/presencas/pessoas/${m.membership_id}${q}`}>{m.name}</Link>
-                  {!m.active && <span className="faint pres-small"> (saiu)</span>}
-                </th>
-                {d.sessions.map((s) => {
-                  const c = cells.get(cellKey(s.id, m.membership_id));
-                  if (!c) return <td key={s.id} className="pres-cell na"><span aria-hidden="true">·</span><span className="sr-only">Não se aplica</span></td>;
-                  return (
-                    <td key={s.id} className="pres-cell">
-                      <Link to={`/presencas/sessoes/${s.id}${q}${q ? '&' : '?'}pessoa=${m.membership_id}`} aria-label={`${m.name}, ${dm(s.date)}`}>
-                        <StatusMark category={c.category} partial={c.partial} compact />
-                      </Link>
-                    </td>
-                  );
-                })}
-                <Nums s={m.stats} />
-              </tr>
-            )),
-          ])}
-        </tbody>
-      </table>
-      <p className="pres-legend faint pres-small">
-        <StatusMark category="presente" /> <StatusMark category="presente" partial /> <StatusMark category="justificada" />{' '}
-        <StatusMark category="injustificada" /> <StatusMark category="por_registar" /> <span>· Não se aplica</span>
-      </p>
+    <div className="card flat pres-board">
+      <div className="pres-table-wrap" role="region" aria-label="Quadro de presenças" tabIndex={0}>
+        <table className="pres-table">
+          <caption className="sr-only">Presenças por membro (linhas) e sessão (colunas), ordenadas por equipa e nome.</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="pres-name-col">Membro</th>
+              {d.sessions.map((s) => {
+                const full = `${formatDay(s.date)} · ${s.title}${s.team_name ? ` · ${s.team_name}` : ''}${s.status === 'cancelada' ? ' (cancelada)' : s.future ? ' (futura)' : ''}`;
+                return (
+                  <th key={s.id} scope="col" className={`pres-sess-col${s.status === 'cancelada' ? ' cancelled' : ''}${s.future ? ' future' : ''}`}>
+                    <Link to={`/presencas/sessoes/${s.id}${q}`} title={full}>
+                      <span className="pres-col-date" aria-hidden="true">{dm(s.date)}</span>
+                      {d.sessions.length <= 10 && <span className="pres-col-title" aria-hidden="true">{s.title}</span>}
+                      <span className="sr-only">{full}</span>
+                    </Link>
+                  </th>
+                );
+              })}
+              <th scope="col" className="pres-num pres-num-first" title="Presenças">P</th>
+              <th scope="col" className="pres-num" title="Faltas justificadas">FJ</th>
+              <th scope="col" className="pres-num" title="Faltas injustificadas">FI</th>
+              <th scope="col" className="pres-num" title="Por registar">PR</th>
+              <th scope="col" className="pres-num" title="Taxa de assiduidade">Taxa</th>
+              <th className="pres-fill" aria-hidden="true" />
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => [
+              <tr key={`g-${g.team}`} className="pres-group"><th scope="rowgroup" colSpan={cols}><span>{g.team}</span></th></tr>,
+              ...g.rows.map((m) => (
+                <tr key={m.membership_id}>
+                  <th scope="row" className="pres-name-col" title={`${m.name}${m.active ? '' : ' (saiu)'}`}>
+                    <span className="pres-name">
+                      <Link to={`/presencas/pessoas/${m.membership_id}${q}`}>{m.name}</Link>
+                      {!m.active && <span className="faint pres-small"> (saiu)</span>}
+                    </span>
+                  </th>
+                  {d.sessions.map((s) => {
+                    const c = cells.get(cellKey(s.id, m.membership_id));
+                    if (!c) return <td key={s.id} className="pres-cell na"><span aria-hidden="true">·</span><span className="sr-only">Não se aplica</span></td>;
+                    return (
+                      <td key={s.id} className="pres-cell">
+                        <Link to={`/presencas/sessoes/${s.id}${q}${q ? '&' : '?'}pessoa=${m.membership_id}`}
+                          aria-label={`${m.name}, ${formatDay(s.date)}: ${markLabel(c.category, c.partial)}`}>
+                          <StatusMark category={c.category} partial={c.partial} compact />
+                        </Link>
+                      </td>
+                    );
+                  })}
+                  <Nums s={m.stats} />
+                  <td className="pres-fill" aria-hidden="true" />
+                </tr>
+              )),
+            ])}
+          </tbody>
+        </table>
+      </div>
+      <Legend />
     </div>
   );
 }
@@ -163,7 +173,7 @@ function BoardTable({ d }: { d: Board }) {
 function Nums({ s }: { s: Stats }) {
   return (
     <>
-      <td className="pres-num">{s.presencas}{s.parciais > 0 && <span className="faint pres-small" title="parciais"> ({s.parciais}p)</span>}</td>
+      <td className="pres-num pres-num-first">{s.presencas}{s.parciais > 0 && <span className="faint pres-small" title="parciais"> ({s.parciais}p)</span>}</td>
       <td className="pres-num">{s.justificadas}</td>
       <td className="pres-num">{s.injustificadas}</td>
       <td className="pres-num">{s.por_registar}</td>

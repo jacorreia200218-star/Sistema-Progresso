@@ -1,6 +1,6 @@
 // Presenças: períodos (ano escutista de setembro a agosto, mês ou datas livres) e
 // formatação da taxa de assiduidade. Funções puras (testadas em period.test.ts).
-import { MONTHS } from '../common';
+import { formatDay, MONTHS } from '../common';
 
 export interface RateInput { presencas: number; contadas: number; taxa: number | string | null }
 
@@ -29,7 +29,7 @@ export function periodFrom(params: URLSearchParams, today: string): Period {
   const yParam = Number(params.get('ano'));
   const year = Number.isInteger(yParam) && yParam >= 2000 && yParam <= 2100 ? yParam : scoutYearOf(today);
   if (valid(de) && valid(ate) && de <= ate) {
-    return { from: de, to: ate, label: `${fmt(de)} a ${fmt(ate)}`, year, month: '' };
+    return { from: de, to: ate, label: `${formatDay(de)} a ${formatDay(ate)}`, year, month: '' };
   }
   const month = /^(0[1-9]|1[0-2])$/.test(params.get('mes') ?? '') ? params.get('mes')! : '';
   if (month) {
@@ -43,7 +43,6 @@ export function periodFrom(params: URLSearchParams, today: string): Period {
   return { from: `${year}-09-01`, to: `${year + 1}-08-31`, label: `ano escutista ${scoutYearLabel(year)}`, year, month: '' };
 }
 
-const fmt = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 
 /** Anos escutistas para escolher: do atual para trás (até 2024/25) e o seguinte. */
 export function yearOptions(today: string): number[] {

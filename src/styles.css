@@ -1073,3 +1073,8 @@ dl.summary-list .quote { margin-top: 0; }
 .time-input { text-align: center; font-variant-numeric: tabular-nums; }
 .btn.danger-solid { background: var(--danger-ink); color: var(--card); }
 .btn.danger-solid:hover { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); }
+/* Coluna principal pode encolher (quadros largos deslocam-se por dentro, não alargam a página). */
+.layout > .main { min-width: 0; }
+/* Menu lateral: a etiqueta do módulo passa para a linha seguinte quando não cabe, sem sair da coluna. */
+.side-nav .nav-link:has(.nav-tag) { white-space: normal; flex-wrap: wrap; row-gap: 0; }
+.side-nav .nav-tag { flex: none; }

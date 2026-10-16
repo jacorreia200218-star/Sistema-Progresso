@@ -26,14 +26,14 @@ export function MemberView({ membershipId, self }: { membershipId: string; self?
   const counts = fn === 'pioneiro' || fn === 'guia';
   return (
     <>
-      {!self && <PageTitle title={d?.member.name ?? 'Presenças'} back="/presencas" subtitle={d ? `${d.member.team_name ?? 'Sem equipa'} · ${period.label}` : undefined} />}
+      {!self && <PageTitle title={d?.member.name ?? 'Presenças'} back="/presencas" subtitle={d ? (d.member.team_name ?? 'Sem equipa') : undefined} />}
       <Filters today={today} />
       {q.isLoading && <Loading />}
       <ErrorBox error={q.error} retry={() => q.refetch()} />
       {d && (
         <>
           <section className="card">
-            <h2 className="pres-h2">{self ? `As tuas presenças · ${period.label}` : 'Indicadores do período'}</h2>
+            <h2 className="pres-h2">{self ? 'As tuas presenças' : 'Indicadores'} <span className="faint pres-small pres-normal">· {period.label}</span></h2>
             <StatsTiles stats={d.stats} label="Indicadores" />
             {d.member.entry_date && (
               <p className="faint pres-small pres-center">Conta a partir de {formatDay(d.member.entry_date)} (data de entrada na secção).</p>
@@ -46,7 +46,7 @@ export function MemberView({ membershipId, self }: { membershipId: string; self?
             <h2 className="pres-h2">Datas</h2>
             {d.entries.length === 0 ? (
               <Empty title="Sem sessões neste período.">
-                <p className="faint prose pres-center">Quando houver reuniões ou atividades em que contes, aparecem aqui.</p>
+                <p className="faint pres-small pres-center">Quando houver reuniões ou atividades em que contes, aparecem aqui.</p>
               </Empty>
             ) : (
               <ul className="list pres-entries" aria-label="Datas e estados">
