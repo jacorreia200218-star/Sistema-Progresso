@@ -6,7 +6,7 @@ import { Search } from 'lucide-react';
 import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
-import { formatLisbon, isoToLisbon, lisbonToIso } from '../common';
+import { formatLisbon, isoToLisbon, lisbonToIso, MEETING_DEFAULT, nextSaturday } from '../common';
 import { BASE, KIND_AUDIENCE, KIND_LABEL, useEventOptions, useMeeting, usePeople, useSectionId, type MeetingKind, type People } from './api';
 import { DateTimeInput } from '../../components/DateInput';
 
@@ -50,8 +50,9 @@ export function MeetingForm() {
   // Por omissão, Conselho de Guias (veem os participantes e os dirigentes autorizados); muda-se em «Mais opções».
   const [kind, setKind] = useState<MeetingKind | ''>('conselho_guias');
   const [team, setTeam] = useState('');
-  const [title, setTitle] = useState('');
-  const [when, setWhen] = useState('');
+  // Por omissão, a reunião de sábado às 14:30 (ao alterar, os valores vêm da reunião).
+  const [title, setTitle] = useState<string>(id ? '' : MEETING_DEFAULT.title);
+  const [when, setWhen] = useState(id ? '' : `${nextSaturday()}T${MEETING_DEFAULT.start}`);
   const [location, setLocation] = useState('');
   const [agenda, setAgenda] = useState('');
   const [event, setEvent] = useState('');

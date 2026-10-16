@@ -7,7 +7,7 @@ import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
 import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { isoToLisbon, lisbonToIso, todayLisbon } from '../common';
+import { isoToLisbon, lisbonToIso, MEETING_DEFAULT, nextSaturday } from '../common';
 import { REMINDER_OPTIONS, type CalDetail } from './cal';
 import { DateInput, DateTimeInput, TimeInput } from '../../components/DateInput';
 import { parseTimeText } from '../../lib/dates';
@@ -23,10 +23,10 @@ interface FormState {
   reminder_minutes: number[]; deadline_reminder_minutes: number[];
 }
 
-/** Nova atividade; «day» (AAAA-MM-DD) vem do dia escolhido no calendário anual. */
-const empty = (day = todayLisbon()): FormState => ({
-  title: '', description: '', location: '',
-  startDay: day, endDay: '', startTime: '', endTime: '',
+/** Nova atividade: por omissão, a reunião de sábado (14:30–16:00); «day» (AAAA-MM-DD) vem do dia escolhido no calendário anual. */
+const empty = (day = nextSaturday()): FormState => ({
+  title: MEETING_DEFAULT.title, description: '', location: '',
+  startDay: day, endDay: '', startTime: MEETING_DEFAULT.start, endTime: MEETING_DEFAULT.end,
   audience: 'seccao', team_id: '', responsible_id: '', deadline: '',
   needs_authorization: false, needs_payment: false, needs_registration: false, material: '',
   reminder_minutes: [1440], deadline_reminder_minutes: [1440],

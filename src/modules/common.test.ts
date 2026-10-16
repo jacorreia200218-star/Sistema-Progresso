@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatEuros, isoToLisbon, lisbonToIso, parseEuros, toCsv } from './common';
+import { formatEuros, isoToLisbon, lisbonToIso, parseEuros, toCsv, nextSaturday } from './common';
 
 describe('datas em Lisboa', () => {
   it('converte nos dois sentidos, no verão e no inverno', () => {
@@ -32,4 +32,13 @@ describe('euros em cêntimos', () => {
 
 it('CSV com separador ; e aspas', () => {
   expect(toCsv([['a;b', 'c"d', 1]])).toBe('﻿"a;b";"c""d";1\r\n');
+});
+
+describe('nextSaturday', () => {
+  it('devolve o próprio dia ao sábado e o sábado seguinte nos outros dias', () => {
+    expect(nextSaturday('2026-10-17')).toBe('2026-10-17'); // sábado
+    expect(nextSaturday('2026-10-16')).toBe('2026-10-17'); // sexta
+    expect(nextSaturday('2026-10-18')).toBe('2026-10-24'); // domingo
+    expect(nextSaturday('2026-12-28')).toBe('2027-01-02'); // muda de ano
+  });
 });

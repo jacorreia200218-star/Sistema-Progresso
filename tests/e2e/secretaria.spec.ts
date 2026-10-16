@@ -293,6 +293,9 @@ test('criar reunião e ata, registos por definir, aprovar, corrigir com nova ver
   await expect(main.locator('.page-actions').getByRole('link', { name: 'Nova reunião' })).toBeVisible();
   await main.getByRole('link', { name: 'Nova reunião' }).click();
   await expect(page).toHaveURL(new RegExp(`${BASE}/nova$`));
+  await expect(main.getByLabel('Reunião', { exact: true })).toHaveValue('Reunião');
+  await expect(main.getByLabel('Hora da reunião')).toHaveValue('14:30');
+  await main.getByLabel('Reunião', { exact: true }).fill('');
   await main.getByRole('button', { name: 'Criar reunião' }).click();
   await expect(main.getByText('Indica o nome da reunião.')).toBeVisible();
   // Formulário simples: reunião, data e notas; o resto fica em «Mais opções».
