@@ -2,24 +2,49 @@
 import { useQuery } from '@tanstack/react-query';
 import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
-import { formatDay } from '../common';
+import { MONTHS, todayLisbon } from '../common';
 
 export type Kind = 'receita' | 'despesa';
 export type MovState = 'previsto' | 'pendente' | 'efetivo';
 export type Totals = { receitas: number; despesas: number; saldo: number };
 
 export type Account = { id: string; name: string; kind: 'conta' | 'caixa'; archived: boolean };
-export type Options = { can_manage: boolean; space: 'teste' | 'real'; accounts: Account[]; categories: string[] };
+export type Options = {
+  can_manage: boolean; space: 'teste' | 'real'; accounts: Account[]; categories: string[];
+  opening: { account_id: string | null; reference_date: string }[];
+};
 export type ActivityOption = { id: string; title: string; status: string; day: string | null };
 export type Member = { profile_id: string; full_name: string; function: string | null; team_id: string | null };
 
-export type Summary = {
-  can_manage: boolean;
+export type Opening = {
+  id: string; account_id: string | null; account_name: string | null; reference_date: string; amount_cents: number;
+  notes?: string | null; created_by_name?: string | null; created_at?: string; updated_by_name?: string | null; updated_at?: string;
+  voided_at?: string | null; void_reason?: string | null;
+};
+
+/** Movimento como aparece na lista partilhada (quem gere recebe o Movement completo). */
+export type SharedMovement = {
+  id: string; kind: Kind; occurred_on: string; description: string; category: string; amount_cents: number; state: MovState;
+  activity_id: string | null; activity_title: string | null; voided_at: string | null; files: number;
+  individual?: boolean; mine?: boolean; before_opening?: boolean;
+  member_name?: string | null; account_name?: string | null; replaced_by?: string | null; notes?: string | null;
+};
+export type SearchResult = { can_manage: boolean; total: number; limit: number; items: SharedMovement[] };
+
+export type EvolutionPoint = { date: string; kind: 'inicio' | 'mes' | 'dia'; saldo: number };
+export type Dashboard = {
+  can_manage: boolean; space: 'teste' | 'real'; today: string;
+  opening: { mode: 'nenhum' | 'global' | 'conta'; total: number; reference_date: string | null; items: Opening[] };
+  current: { saldo_inicial: number; receitas: number; despesas: number; saldo: number };
+  before_opening: { count: number; receitas: number; despesas: number };
   totals: Record<MovState, Totals>;
-  by_category: { category: string; kind: Kind; efetivo: number; pendente: number; previsto: number }[];
-  by_activity: { activity_id: string; title: string; receitas: number; despesas: number; saldo: number; pendente_saldo: number }[];
-  accounts: { id: string; name: string; kind: string; saldo: number }[];
   count: number;
+  evolution: { granularity: 'mes' | 'dia' | null; from: string | null; to: string | null; points: EvolutionPoint[] };
+  latest: SharedMovement[];
+  by_category: { category: string; kind: Kind; efetivo: number; pendente: number; previsto: number }[];
+  activity: ActivityResult | null;
+  accounts: { id: string; name: string; kind: 'conta' | 'caixa'; archived: boolean; opening: Opening | null; movimentos: number; saldo: number }[];
+  years: number[];
 };
 
 export type Movement = {
@@ -65,23 +90,53 @@ export function useSectionId() {
   return useActiveSection().membership.section_id;
 }
 
-/** Filtros partilhados (no URL): período, categoria, atividade e estado. */
-export type Filters = { de: string | null; ate: string | null; categoria: string | null; atividade: string | null; estado: string | null };
-export function filtersFrom(params: URLSearchParams): Filters {
-  const day = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+/** Ano escutista (setembro a agosto) a que pertence um dia: devolve o ano em que começa. */
+export function scoutYearOf(day: string): number {
+  const [y, m] = day.split('-').map(Number);
+  return m >= 9 ? y : y - 1;
+}
+export const scoutYearLabel = (y: number) => `${y}/${String((y + 1) % 100).padStart(2, '0')}`;
+/** Meses de um ano escutista, de setembro a agosto, como «AAAA-MM». */
+export function scoutMonths(y: number): string[] {
+  return Array.from({ length: 12 }, (_, i) => {
+    const m = ((8 + i) % 12) + 1;
+    return `${m >= 9 ? y : y + 1}-${String(m).padStart(2, '0')}`;
+  });
+}
+export const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} de ${ym.slice(0, 4)}`;
+const lastDay = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number);
+  return `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
+};
+
+/**
+ * Filtros partilhados (no URL): ano escutista («ano», por omissão o atual; «todos» = todo o
+ * período), mês («mes» = AAAA-MM), atividade, categoria, estado e pesquisa («q»).
+ */
+export type Filters = {
+  ano: number | 'todos'; mes: string | null; atividade: string | null; categoria: string | null; estado: string | null; q: string | null;
+  de: string | null; ate: string | null;
+};
+export function filtersFrom(params: URLSearchParams, today = todayLisbon()): Filters {
+  const anoRaw = params.get('ano');
+  const ano: number | 'todos' = anoRaw === 'todos' ? 'todos' : anoRaw && /^\d{4}$/.test(anoRaw) ? Number(anoRaw) : scoutYearOf(today);
+  const mesRaw = params.get('mes');
+  const mes = ano !== 'todos' && mesRaw && /^\d{4}-(0[1-9]|1[0-2])$/.test(mesRaw) && scoutMonths(ano).includes(mesRaw) ? mesRaw : null;
   const estado = params.get('estado');
+  const q = (params.get('q') ?? '').trim();
+  const de = mes ? `${mes}-01` : ano === 'todos' ? null : `${ano}-09-01`;
+  const ate = mes ? lastDay(mes) : ano === 'todos' ? null : `${ano + 1}-08-31`;
   return {
-    de: day(params.get('de')), ate: day(params.get('ate')), categoria: params.get('categoria') || null,
-    atividade: params.get('atividade') || null, estado: estado && ['previsto', 'pendente', 'efetivo'].includes(estado) ? estado : null,
+    ano, mes, de, ate, atividade: params.get('atividade') || null, categoria: params.get('categoria') || null,
+    estado: estado && ['previsto', 'pendente', 'efetivo'].includes(estado) ? estado : null, q: q ? q.slice(0, 100) : null,
   };
 }
-export const filterArgs = (f: Filters) => ({ p_from: f.de, p_to: f.ate, p_category: f.categoria, p_activity: f.atividade });
+export const filterArgs = (f: Filters) => ({ p_from: f.de, p_to: f.ate, p_activity: f.atividade });
 
 export function periodLabel(f: Filters) {
-  if (f.de && f.ate) return `${formatDay(f.de)} a ${formatDay(f.ate)}`;
-  if (f.de) return `desde ${formatDay(f.de)}`;
-  if (f.ate) return `até ${formatDay(f.ate)}`;
-  return 'todo o período';
+  if (f.mes) return monthLabel(f.mes);
+  if (f.ano === 'todos') return 'todo o período';
+  return `ano escutista ${scoutYearLabel(f.ano)}`;
 }
 
 export function useOptions() {
@@ -96,16 +151,31 @@ export function useMembersFin(enabled: boolean) {
   const s = useSectionId();
   return useQuery({ queryKey: ['fin', 'members', s], queryFn: () => call<Member[]>('fin_members', { p_section: s }), enabled });
 }
-export function useSummary(f: Filters) {
+export function useDashboard(f: Filters) {
   const s = useSectionId();
-  return useQuery({ queryKey: ['fin', 'summary', s, f], queryFn: () => call<Summary>('fin_summary', { p_section: s, ...filterArgs(f) }) });
+  return useQuery({ queryKey: ['fin', 'dashboard', s, f.de, f.ate, f.atividade], queryFn: () => call<Dashboard>('fin_dashboard', { p_section: s, ...filterArgs(f) }) });
 }
-export function useMovements(f: Filters, enabled = true) {
+/** Lista partilhada com pesquisa (quem gere recebe também os dados privados e os anulados). */
+export function useSearchMovements(f: Filters, includeVoided: boolean) {
   const s = useSectionId();
   return useQuery({
-    queryKey: ['fin', 'movements', s, f], enabled,
-    queryFn: () => call<Movement[]>('fin_list_movements', { p_section: s, ...filterArgs(f), p_state: f.estado, p_include_voided: true }),
+    queryKey: ['fin', 'search', s, f, includeVoided],
+    queryFn: () => call<SearchResult>('fin_search_movements', {
+      p_section: s, ...filterArgs(f), p_category: f.categoria, p_state: f.estado, p_search: f.q, p_include_voided: includeVoided, p_limit: 300,
+    }),
   });
+}
+/** Todos os movimentos com os dados privados (só quem gere). */
+export function useAllMovements(enabled = true) {
+  const s = useSectionId();
+  return useQuery({
+    queryKey: ['fin', 'movements', s], enabled,
+    queryFn: () => call<Movement[]>('fin_list_movements', { p_section: s, p_include_voided: true }),
+  });
+}
+export function useOpeningBalances() {
+  const s = useSectionId();
+  return useQuery({ queryKey: ['fin', 'opening', s], queryFn: () => call<Opening[]>('fin_list_opening_balances', { p_section: s }) });
 }
 export function useQuotas(enabled = true) {
   const s = useSectionId();
