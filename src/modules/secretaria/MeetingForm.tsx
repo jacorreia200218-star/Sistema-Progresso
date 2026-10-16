@@ -8,6 +8,7 @@ import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatLisbon, isoToLisbon, lisbonToIso } from '../common';
 import { BASE, KIND_AUDIENCE, KIND_LABEL, useEventOptions, useMeeting, usePeople, useSectionId, type MeetingKind, type People } from './api';
+import { DateTimeInput } from '../../components/DateInput';
 
 export function PeoplePicker({ id, label, people, value, onChange }: {
   id: string; label: string; people: People['people']; value: string[]; onChange: (v: string[]) => void;
@@ -129,7 +130,7 @@ export function MeetingForm() {
         </Field>
         <div className="grid-2">
           <Field label="Data e hora" htmlFor="sec-when">
-            <input id="sec-when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} aria-invalid={!!errors.when} />
+            <DateTimeInput timeLabel="Hora da reunião" id="sec-when" value={when} onChange={(e) => setWhen(e.target.value)} aria-invalid={!!errors.when} />
             {errors.when && <span className="sec-error">{errors.when}</span>}
           </Field>
           <Field label="Local (opcional)" htmlFor="sec-location">

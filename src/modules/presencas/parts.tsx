@@ -6,6 +6,7 @@ import {
   CATEGORY_LABEL, formatRate, periodFrom, rateSentence, SCOUT_MONTHS, scoutYearLabel, STATUS_LABEL, yearOptions,
   type Category, type HistoryRow, type Period, type PresStatus, type Stats,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 const ICON: Record<Category, typeof Check> = {
   presente: Check, justificada: FileText, injustificada: X, por_registar: Minus, futura: CalendarClock, cancelada: Ban,
@@ -141,11 +142,11 @@ export function Filters({ today, teams }: { today: string; teams?: { id: string;
         <>
           <label className="field">
             <span className="label">De</span>
-            <input type="date" value={p.from} onChange={(e) => e.target.value && update({ de: e.target.value })} />
+            <DateInput value={p.from} onChange={(e) => e.target.value && update({ de: e.target.value })} />
           </label>
           <label className="field">
             <span className="label">Até</span>
-            <input type="date" value={p.to} onChange={(e) => e.target.value && update({ ate: e.target.value })} />
+            <DateInput value={p.to} onChange={(e) => e.target.value && update({ ate: e.target.value })} />
           </label>
         </>
       )}

@@ -3,6 +3,7 @@
 // com atrasos, «O que me diz respeito», telemóvel e computador. API simulada; as regras do
 // servidor estão em tests/db/secretaria.test.ts.
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 type Row = Record<string, any>;
@@ -240,7 +241,7 @@ test('nome novo, caminho novo e lista com pesquisa e filtros no endereço', asyn
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Reuniões e tarefas', level: 1 })).toBeVisible();
   await expect(main.getByText('Secretaria')).toHaveCount(0);
-  await expect(main.getByText('Ambiente de teste.')).toBeVisible();
+  await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
   const tabs = main.getByRole('navigation', { name: 'Reuniões e tarefas' });
   await expect(tabs.getByRole('link')).toHaveText([/Atas e reuniões/, /Quadro de tarefas/, /O que me diz respeito/]);
   const row = main.getByRole('link', { name: /Reunião de equipa de outubro/ });
@@ -295,7 +296,7 @@ test('criar reunião e ata, registos por definir, aprovar, corrigir com nova ver
   await main.getByRole('button', { name: 'Criar reunião' }).click();
   await expect(main.getByRole('heading', { name: 'Conselho de novembro' })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`${BASE}/reunioes/`));
-  await expect(main).toContainText('07/11/2026, 15:00');
+  await expect(main).toContainText('07/11/2026 · 15:00');
   await expect(main).toContainText('Atividade: Acampamento de outono');
 
   await main.getByRole('button', { name: 'Criar ata' }).click();
@@ -391,7 +392,7 @@ test('ata → sumário pré-preenchido (sem inventar) → rever → publicar', a
   const entries = next.getByRole('listitem');
   await expect(entries).toHaveCount(2);
   await expect(entries.nth(0).getByLabel('Responsável', { exact: true })).toHaveValue('u-p1');
-  await expect(entries.nth(0).getByLabel('Prazo')).toHaveValue('2020-01-10');
+  await expect(entries.nth(0).getByLabel('Prazo')).toHaveValue('10/01/2020');
   await expect(entries.nth(1).getByLabel('Tarefa')).toHaveValue('Comprar mapas');
   await expect(entries.nth(1).getByLabel('Responsável', { exact: true })).toHaveValue('');
   await expect(entries.nth(1).getByLabel('Responsável', { exact: true }).locator('option:checked')).toHaveText('Por definir');
@@ -535,4 +536,28 @@ test('sem acesso ao módulo: só a página «Em desenvolvimento», com o nome no
   await expect(main.getByRole('heading', { name: 'Reuniões e tarefas', level: 1 })).toBeVisible();
   await expect(main.getByText('Em desenvolvimento')).toBeVisible();
   await expect(main.locator('form, button, input')).toHaveCount(0);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`reuniões e tarefas ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await installSec(page);
+      await page.goto(BASE);
+      await shoot(page, info, theme, 'reunioes-lista');
+      await page.goto(`${BASE}/reunioes/mt1`);
+      await shoot(page, info, theme, 'reunioes-reuniao');
+      await page.goto(`${BASE}/atas/at1`);
+      await shoot(page, info, theme, 'reunioes-ata');
+      await page.goto(`${BASE}/tarefas`);
+      await shoot(page, info, theme, 'reunioes-tarefas');
+      await page.goto(`${BASE}/tarefas/i2`);
+      await shoot(page, info, theme, 'reunioes-tarefa');
+      await page.goto(`${BASE}/nova`);
+      await shoot(page, info, theme, 'reunioes-formulario');
+    });
+  }
 });

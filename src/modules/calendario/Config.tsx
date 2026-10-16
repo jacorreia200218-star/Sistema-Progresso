@@ -9,6 +9,7 @@ import { useModuleCtx } from '../ModuleShell';
 import { formatDay, MONTHS } from '../common';
 import { useCalConfig, type CalConfig } from './Overview';
 import type { SpecialDay } from './holidays';
+import { DateInput } from '../../components/DateInput';
 
 export function Config() {
   const { can } = useModuleCtx();
@@ -118,7 +119,7 @@ function SpecialDays({ cfg }: { cfg: CalConfig }) {
         <h3 className="label">{f.id ? 'Corrigir dia' : 'Acrescentar dia'}</h3>
         <div className="grid-2">
           <Field label="Data" htmlFor="cal-sd-date">
-            <input id="cal-sd-date" type="date" value={f.day} onChange={(e) => set('day', e.target.value)} aria-invalid={!!errors.day} />
+            <DateInput id="cal-sd-date" value={f.day} onChange={(e) => set('day', e.target.value)} aria-invalid={!!errors.day} />
           </Field>
           <Field label="Nome" htmlFor="cal-sd-name">
             <input id="cal-sd-name" maxLength={120} value={f.name} onChange={(e) => set('name', e.target.value)} aria-invalid={!!errors.name} placeholder="ex.: Feriado municipal" />

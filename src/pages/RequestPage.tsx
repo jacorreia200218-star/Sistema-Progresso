@@ -18,6 +18,7 @@ import NotFound from './NotFound';
 import { OwnerRequestPanel, VersionContent } from '../components/RequestEditor';
 import { TrailObjectives } from '../components/meu/PedidoTrilho';
 import { stageName } from '../components/StagePanel';
+import { DateInput } from '../components/DateInput';
 
 export default function RequestPage() {
   const { id } = useParams();
@@ -245,7 +246,7 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
                 </fieldset>
               )}
               <Field label="Data da reunião de Equipa" htmlFor="meeting">
-                <input id="meeting" type="date" value={meeting} max={todayIso()} onChange={(e) => setMeeting(e.target.value)} required />
+                <DateInput id="meeting" value={meeting} max={todayIso()} onChange={(e) => setMeeting(e.target.value)} required />
               </Field>
               <Field label={commentRequired ? 'Fundamentação (obrigatória)' : 'Comentário (opcional)'} htmlFor="comment">
                 <textarea id="comment" value={comment} maxLength={4000} onChange={(e) => setComment(e.target.value)} />
@@ -291,7 +292,7 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
           </fieldset>
           {outcome === 'aprovado' && (
             <Field label="Referência temporal (opcional)" htmlFor="ref" hint={`Indicado pelo pioneiro: «${current.approximate_date || 'não indicado'}». A data de hoje fica registada como data da decisão.`}>
-              <input id="ref" type="date" aria-describedby="ref-hint" value={refDate} max={todayIso()} onChange={(e) => setRefDate(e.target.value)} />
+              <DateInput id="ref" aria-describedby="ref-hint" value={refDate} max={todayIso()} onChange={(e) => setRefDate(e.target.value)} />
             </Field>
           )}
           <Field label={commentRequired ? 'Comentário (obrigatório)' : 'Comentário (opcional)'} htmlFor="hcomment">
@@ -345,7 +346,7 @@ function CouncilReturn({ requestId }: { requestId: string }) {
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
       <Field label="Data do Conselho de Guias" htmlFor="cgdate">
-        <input id="cgdate" type="date" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)} />
+        <DateInput id="cgdate" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)} />
       </Field>
       <Field label="Fundamentação (obrigatória)" htmlFor="cgc">
         <textarea id="cgc" value={comment} onChange={(e) => setComment(e.target.value)} />

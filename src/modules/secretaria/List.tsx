@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Badge, Empty, ErrorBox, Loading, PageTitle } from '../../components/ui';
 import { formatLisbon } from '../common';
 import { BASE, KIND_LABEL, MINUTE_STATUS, MODULE_NAME, useMeetings, useParam, type MeetingKind } from './api';
+import { DateInput } from '../../components/DateInput';
 
 export function SecTabs({ current }: { current: 'reunioes' | 'tarefas' | 'mine' }) {
   const tab = (key: typeof current, to: string, icon: ReactNode, label: string) => (
@@ -63,8 +64,8 @@ export function MeetingList() {
           <option value="">Todas as atividades</option>
           {(data?.events ?? []).map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
         </select>
-        <label className="sec-date"><span>De</span><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Desde a data" /></label>
-        <label className="sec-date"><span>Até</span><input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até à data" /></label>
+        <label className="sec-date"><span>De</span><DateInput value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Desde a data" /></label>
+        <label className="sec-date"><span>Até</span><DateInput value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até à data" /></label>
       </div>
       {list.isLoading && <Loading />}
       <ErrorBox error={list.error} retry={() => list.refetch()} />

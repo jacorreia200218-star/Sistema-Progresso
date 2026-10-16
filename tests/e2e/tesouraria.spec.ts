@@ -4,6 +4,7 @@
 // computador. Dados FICTÍCIOS, apenas para teste.
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 type Row = Record<string, any>;
@@ -117,7 +118,7 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await page.goto('/tesouraria');
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Tesouraria', level: 1 })).toBeVisible();
-  await expect(page.getByText('Ambiente de teste.')).toBeVisible();
+  await expect(page.locator('main h1 .page-tag')).toContainText('Em teste');
   // Indicadores centrados
   await expect(page.getByTestId('saldo-atual')).toHaveText('110,30 €');
   await expect(page.getByTestId('receitas-periodo')).toHaveText('15,30 €');
@@ -302,4 +303,28 @@ test('tesoureiro autorizado: definir o saldo inicial (global ou por conta)', asy
   expect(calls.find((c) => c.fn === 'fin_save_opening_balance')!.body).toMatchObject({ p_id: 'op1', p_account: null, p_reference_date: '2026-09-01', p_amount: -1240 });
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/tesouraria-saldo-inicial-${info.project.name}.png`, fullPage: true });
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`tesouraria ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await mockFin(page, true);
+      await page.goto('/tesouraria');
+      await shoot(page, info, theme, 'tesouraria-painel');
+      await page.goto('/tesouraria/movimentos');
+      await shoot(page, info, theme, 'tesouraria-movimentos');
+      await page.goto('/tesouraria/movimentos/novo');
+      await shoot(page, info, theme, 'tesouraria-lancamento');
+      await page.goto('/tesouraria/atividades');
+      await shoot(page, info, theme, 'tesouraria-atividades');
+      await page.goto('/tesouraria/minha');
+      await shoot(page, info, theme, 'tesouraria-minha');
+      await page.goto('/tesouraria/quotas');
+      await shoot(page, info, theme, 'tesouraria-quotas');
+    });
+  }
 });

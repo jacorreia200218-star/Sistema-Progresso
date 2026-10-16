@@ -9,6 +9,7 @@ import { ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui
 import { useModuleCtx } from '../ModuleShell';
 import { formatDay, isoToLisbon, lisbonToIso, todayLisbon } from '../common';
 import { REMINDER_OPTIONS, type CalDetail } from './cal';
+import { DateInput, DateTimeInput } from '../../components/DateInput';
 
 type Options = { teams: { id: string; name: string }[]; members: { id: string; name: string; function: string | null; team_id: string | null }[] };
 
@@ -146,13 +147,13 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
           <div className="grid-2">
             {f.all_day ? (
               <>
-                <Field label="Primeiro dia" htmlFor="cal-sd"><input id="cal-sd" type="date" value={f.startDay} onChange={(e) => set('startDay', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} /></Field>
-                <Field label="Último dia" htmlFor="cal-ed"><input id="cal-ed" type="date" value={f.endDay} min={f.startDay} onChange={(e) => set('endDay', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
+                <Field label="Primeiro dia" htmlFor="cal-sd"><DateInput id="cal-sd" value={f.startDay} onChange={(e) => set('startDay', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} /></Field>
+                <Field label="Último dia" htmlFor="cal-ed"><DateInput id="cal-ed" value={f.endDay} min={f.startDay} onChange={(e) => set('endDay', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
               </>
             ) : (
               <>
-                <Field label="Início" htmlFor="cal-s"><input id="cal-s" type="datetime-local" value={f.start} onChange={(e) => set('start', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} /></Field>
-                <Field label="Fim" htmlFor="cal-e"><input id="cal-e" type="datetime-local" value={f.end} min={f.start} onChange={(e) => set('end', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
+                <Field label="Início" htmlFor="cal-s"><DateTimeInput timeLabel="Hora de início" id="cal-s" value={f.start} onChange={(e) => set('start', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} /></Field>
+                <Field label="Fim" htmlFor="cal-e"><DateTimeInput timeLabel="Hora de fim" id="cal-e" value={f.end} min={f.start} onChange={(e) => set('end', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
               </>
             )}
           </div>
@@ -186,7 +187,7 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
         <fieldset className="cal-fieldset">
           <legend className="label">Inscrição e pendências</legend>
           <Field label="Prazo de inscrição (opcional)" htmlFor="cal-dl" hint="Depois do prazo, só os dirigentes e gestores podem mudar respostas.">
-            <input id="cal-dl" type="datetime-local" value={f.deadline} onChange={(e) => set('deadline', e.target.value)} aria-invalid={!!errors.deadline} aria-describedby={errId('deadline')} />
+            <DateTimeInput timeLabel="Hora do prazo de inscrição" id="cal-dl" value={f.deadline} onChange={(e) => set('deadline', e.target.value)} aria-invalid={!!errors.deadline} aria-describedby={errId('deadline')} />
           </Field>
           <Err k="deadline" />
           <label className="checkbox"><input type="checkbox" checked={f.needs_authorization} onChange={(e) => set('needs_authorization', e.target.checked)} /> Pede autorização</label>

@@ -3,6 +3,7 @@
 // telemóvel e utilizador sem permissão. API simulada (só para teste); as regras do servidor
 // estão em tests/db/presencas.test.ts.
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 type Row = Record<string, any>;
@@ -267,7 +268,7 @@ test('nova sessão a partir de uma atividade do Calendário', async ({ page }) =
   await page.getByLabel('Atividade do Calendário').check();
   await page.getByLabel('Atividade', { exact: true }).selectOption('ev1');
   await expect(page.getByLabel('Título')).toHaveValue('Acampamento de outono');
-  await expect(page.getByLabel('Data')).toHaveValue(day(-3));
+  await expect(page.getByLabel('Data')).toHaveValue(day(-3).split('-').reverse().join('/'));
   await page.getByRole('button', { name: 'Criar sessão' }).click();
   await expect(page.getByRole('heading', { name: 'Acampamento de outono' })).toBeVisible();
   await expect(page.getByText(/Ligada à atividade do Calendário «Acampamento de outono»/)).toBeVisible();
@@ -332,4 +333,26 @@ test('sem acesso ao módulo: página «Em desenvolvimento»', async ({ page }) =
   await expect(page.locator('.future-badge')).toBeVisible();
   await expect(page.getByText('Esta área ainda não está disponível.', { exact: false })).toBeVisible();
   expect(called).toBe(false);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`presenças ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await installPres(page);
+      await page.goto('/presencas');
+      await shoot(page, info, theme, 'presencas-inicio');
+      await page.goto('/presencas?vista=quadro');
+      await shoot(page, info, theme, 'presencas-quadro');
+      await page.goto('/presencas/sessoes/s3');
+      await shoot(page, info, theme, 'presencas-sessao');
+      await page.goto('/presencas/pessoas/m-p1');
+      await shoot(page, info, theme, 'presencas-pessoa');
+      await page.goto('/presencas/nova');
+      await shoot(page, info, theme, 'presencas-formulario');
+    });
+  }
 });

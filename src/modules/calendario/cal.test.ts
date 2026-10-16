@@ -19,7 +19,7 @@ describe('dias do calendário', () => {
     const night = { all_day: false, starts_at: '2026-10-25T01:30:00Z', ends_at: '2026-10-25T03:00:00Z', start_date: null, end_date: null };
     expect(eventDays(late)).toEqual({ from: '2026-10-24', to: '2026-10-24' });
     expect(coversDay(night, '2026-10-25')).toBe(true);
-    expect(whenLabel(night)).toBe('25/10/2026, 01:30–03:00');
+    expect(whenLabel(night)).toBe('25/10/2026 · 01:30–03:00');
     // termina à meia-noite: não ocupa o dia seguinte
     expect(eventDays({ all_day: false, starts_at: '2026-10-24T18:00:00Z', ends_at: '2026-10-24T23:00:00Z', start_date: null, end_date: null }))
       .toEqual({ from: '2026-10-24', to: '2026-10-24' });

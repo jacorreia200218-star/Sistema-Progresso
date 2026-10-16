@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { Printer } from 'lucide-react';
 import { useEffect } from 'react';
 import { Back, ErrorBox, Loading } from '../../components/ui';
-import { formatDay, formatLisbon } from '../common';
+import { formatDay, formatLisbon, formatLisbonDay } from '../common';
 import { BASE, ITEM_KIND, KIND_LABEL, MINUTE_STATUS, docLabel, useMinute } from './api';
 
 export function PrintPage() {
@@ -32,7 +32,7 @@ export function PrintPage() {
           <p>{formatLisbon(c.starts_at)}{c.location ? ` · ${c.location}` : ''}</p>
           {c.cal_event_title && <p>Atividade relacionada: {c.cal_event_title}</p>}
           <p className="sec-doc-version">
-            Versão {v.version_no} · {approved ? `Aprovada em ${formatDay(v.approved_at!.slice(0, 10))} por ${v.approved_by_name}` : v.frozen ? 'Em aprovação (não aprovada)' : MINUTE_STATUS.rascunho.label + ' (não aprovada)'}
+            Versão {v.version_no} · {approved ? `Aprovada em ${formatLisbonDay(v.approved_at!)} por ${v.approved_by_name}` : v.frozen ? 'Em aprovação (não aprovada)' : MINUTE_STATUS.rascunho.label + ' (não aprovada)'}
           </p>
         </header>
         <section>

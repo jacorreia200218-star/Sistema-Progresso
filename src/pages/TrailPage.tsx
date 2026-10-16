@@ -21,6 +21,7 @@ import { ConsultHeader } from '../components/meu/ConsultHeader';
 import { AREA_ICON } from '../components/meu/AreasView';
 import { stageName } from '../components/StagePanel';
 import NotFound from './NotFound';
+import { DateInput } from '../components/DateInput';
 
 type Subj = ReturnType<typeof useSubject>;
 
@@ -247,7 +248,7 @@ function ExperiencesSection({ trail, membershipId, items }: { trail: CatalogTrai
             <input id="exp-t" type="text" required maxLength={200} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </Field>
           <Field label="Data (opcional)" htmlFor="exp-d">
-            <input id="exp-d" type="date" max={todayIso()} value={form.occurred_on} onChange={(e) => setForm({ ...form, occurred_on: e.target.value })} />
+            <DateInput id="exp-d" max={todayIso()} value={form.occurred_on} onChange={(e) => setForm({ ...form, occurred_on: e.target.value })} />
           </Field>
         </div>
         <Field label="Reflexão (opcional)" htmlFor="exp-x">

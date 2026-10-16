@@ -3,6 +3,7 @@
 // quem só consulta, lista «A comprar» e marcar como comprado. RPC do módulo
 // simuladas em memória (dados FICTÍCIOS, apenas para teste).
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 type Row = Record<string, any>;
@@ -184,7 +185,7 @@ test('lista: pesquisa e filtros ficam no endereço e sobrevivem ao «voltar»', 
   await page.goto('/inventario');
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Inventário', level: 1 })).toBeVisible();
-  await expect(main.getByText('Ambiente de teste.')).toBeVisible();
+  await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
   const list = main.getByRole('list', { name: 'Material' });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   await main.getByPlaceholder('Pesquisar material').fill('tenda');
@@ -424,4 +425,26 @@ test('quem só consulta vê a lista «A comprar» sem ações nem valores', asyn
   await expect(main.getByRole('button', { name: 'Marcar como comprado' })).toHaveCount(0);
   await expect(list).not.toContainText('€');
   await noHorizontalScroll(page);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`inventário ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await mockInventario(page, true, true);
+      await page.goto('/inventario');
+      await shoot(page, info, theme, 'inventario-lista');
+      await page.goto('/inventario/artigo/i1');
+      await shoot(page, info, theme, 'inventario-artigo');
+      await page.goto('/inventario/comprar');
+      await shoot(page, info, theme, 'inventario-comprar');
+      await page.goto('/inventario/emprestimos');
+      await shoot(page, info, theme, 'inventario-emprestimos');
+      await page.goto('/inventario/novo');
+      await shoot(page, info, theme, 'inventario-formulario');
+    });
+  }
 });

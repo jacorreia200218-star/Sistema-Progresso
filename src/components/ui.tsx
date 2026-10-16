@@ -1,7 +1,8 @@
-import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, ArrowLeft, Check, CheckCircle2, Circle, Clock, Compass, Eye, EyeOff, Info, MessageCircle, Pencil, RotateCcw, Send, Sprout, X,
+  AlertCircle, ArrowLeft, Check, CheckCircle2, ChevronDown, Circle, Clock, Compass, Eye, EyeOff, FlaskConical, Info, MessageCircle, MoreHorizontal,
+  Pencil, RotateCcw, SlidersHorizontal, Send, Sprout, X,
 } from 'lucide-react';
 import type { Tone } from '../lib/labels';
 import { signedUrl } from '../lib/api';
@@ -91,16 +92,102 @@ export function Back({ to, label = 'Voltar' }: { to?: string; label?: string }) 
   );
 }
 
-export function PageTitle({ title, subtitle, back }: { title: string; subtitle?: ReactNode; back?: string | true }) {
+/** Etiqueta discreta ao lado do título (ex.: «Em teste» nos módulos em teste). */
+export const PageTagContext = createContext<ReactNode>(null);
+
+export function TestTag() {
+  return (
+    <span className="page-tag" title="Ambiente de teste: os dados deste espaço não entram nos registos reais.">
+      <FlaskConical size={13} aria-hidden="true" />
+      Em teste<span className="sr-only">: os dados deste espaço não entram nos registos reais</span>
+    </span>
+  );
+}
+
+/**
+ * Cabeçalho da página: título, ação principal à direita e, se for preciso explicar alguma
+ * coisa, «Mais informação» recolhido. Evita parágrafos que só repetem o título.
+ */
+export function PageTitle({ title, subtitle, back, actions, info }: {
+  title: string; subtitle?: ReactNode; back?: string | true; actions?: ReactNode; info?: ReactNode;
+}) {
+  const tag = useContext(PageTagContext);
   useEffect(() => {
     document.title = `${title} · Pioneiros`;
   }, [title]);
   return (
-    <header style={{ marginBottom: 16 }}>
+    <header className="page-head">
       {back && <Back to={back === true ? undefined : back} />}
-      <h1>{title}</h1>
+      <div className="page-head-row">
+        <h1>{title}{tag && <> {tag}</>}</h1>
+        {actions && <div className="page-actions">{actions}</div>}
+      </div>
       {subtitle && <p className="lead">{subtitle}</p>}
+      {info && <MoreInfo>{info}</MoreInfo>}
     </header>
+  );
+}
+
+/** Explicação adicional, recolhida por omissão. */
+export function MoreInfo({ children, label = 'Mais informação' }: { children: ReactNode; label?: string }) {
+  return (
+    <details className="more-info">
+      <summary><Info size={15} aria-hidden="true" /> {label}</summary>
+      <div className="more-info-body prose">{children}</div>
+    </details>
+  );
+}
+
+/** Menu «Mais» para ações secundárias. Fecha ao escolher, ao clicar fora e com Escape. */
+export function MoreMenu({ children, label = 'Mais', className = '' }: { children: ReactNode; label?: string; className?: string }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const close = (e: Event) => {
+      const el = ref.current;
+      if (!el?.open) return;
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !el.contains(e.target as Node)) {
+        el.open = false;
+        if (e instanceof KeyboardEvent) el.querySelector('summary')?.focus();
+      }
+    };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('keydown', close); };
+  }, []);
+  return (
+    <details className={`menu more-menu ${className}`} ref={ref}>
+      <summary className="btn secondary" aria-label={label === 'Mais' ? 'Mais ações' : undefined}>
+        {label === 'Mais' ? <MoreHorizontal size={18} aria-hidden="true" /> : null}
+        {label}
+        <ChevronDown size={16} aria-hidden="true" className="more-chevron" />
+      </summary>
+      <div className="menu-panel more-panel" onClick={(e) => {
+        // Uma ação escolhida fecha o menu (os formulários abertos a partir dele ficam fora do menu).
+        if ((e.target as HTMLElement).closest('a, button')) ref.current!.open = false;
+      }}>
+        {children}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Filtros: no computador ficam à vista; no telemóvel ficam atrás do botão «Filtros»
+ * (com o número de filtros ativos), para a página começar pelo conteúdo.
+ */
+export function Filters({ active = 0, children, search, extra }: { active?: number; children: ReactNode; search?: ReactNode; extra?: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`filters${open ? ' is-open' : ''}`}>
+      <div className="filters-top">
+        {search}
+        <button type="button" className={`btn secondary filters-toggle${active ? ' has-active' : ''}`} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          <SlidersHorizontal size={16} aria-hidden="true" /> Filtros{active > 0 && <span className="count">{active}</span>}
+        </button>
+        {extra}
+      </div>
+      <div className="filters-body">{children}</div>
+    </div>
   );
 }
 

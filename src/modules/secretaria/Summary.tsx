@@ -14,6 +14,7 @@ import {
   BASE, EXEC_STATUS, KIND_LABEL, UNDEFINED, useEventOptions, usePeople, useSectionId, useSummary,
   type ItemKind, type SummaryDetail, type SummaryEntry,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 const GROUPS: { kind: ItemKind; title: string; empty: string }[] = [
   { kind: 'decisao', title: 'O que ficou decidido', empty: 'Nenhuma decisão registada na ata.' },
@@ -48,7 +49,7 @@ function EntryEditor({ e, n, onChange, people, teams, events }: {
             </select>
           </Field>
           <Field label="Prazo" htmlFor={`${id}-d`}>
-            <input id={`${id}-d`} type="date" value={e.due_date ?? ''} onChange={(x) => onChange({ due_date: x.target.value || null })} />
+            <DateInput id={`${id}-d`} value={e.due_date ?? ''} onChange={(x) => onChange({ due_date: x.target.value || null })} />
           </Field>
           <Field label="Atividade" htmlFor={`${id}-a`}>
             <select id={`${id}-a`} value={e.cal_event_id ?? ''} onChange={(x) => onChange({ cal_event_id: x.target.value || null })}>

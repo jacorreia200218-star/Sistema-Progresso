@@ -15,6 +15,7 @@ import {
   BASE, BOARD_STATUSES, EXEC_STATUS, ITEM_KIND, MODULE_NAME, UNDEFINED, useEventOptions, useParam, usePeople, useSectionId,
   type BoardTask, type EventRef, type TaskDetail,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 const FIELD_LABEL: Record<string, string> = {
   criada: 'Registada', estado: 'Estado', responsavel: 'Responsável', equipa: 'Equipa responsável', prazo: 'Prazo',
@@ -153,7 +154,7 @@ function ManageForm({ d, onDone }: { d: TaskDetail; onDone: (m: string) => void 
           </select>
         </Field>
         <Field label="Prazo" htmlFor="tk-due">
-          <input id="tk-due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+          <DateInput id="tk-due" value={due} onChange={(e) => setDue(e.target.value)} />
         </Field>
         <Field label="Atividade associada" htmlFor="tk-ev">
           <select id="tk-ev" value={event} onChange={(e) => setEvent(e.target.value)}>

@@ -7,6 +7,7 @@ import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { eurosInput, formatDay, formatEuros, parseEuros, todayLisbon } from '../common';
 import { newClientKey, useMembersFin, useOptions, useQuotas, useSectionId, type Charge, type MovState, type Quota } from './api';
+import { DateInput } from '../../components/DateInput';
 
 export function QuotasPage() {
   const q = useQuotas();
@@ -55,10 +56,10 @@ function QuotaForm({ quota, onDone }: { quota?: Quota; onDone: () => void }) {
       <ErrorBox error={act.error} />
       <Field label="Nome" htmlFor={`${idp}-name`}><input id={`${idp}-name`} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Quota anual 2026/27" /></Field>
       <div className="grid-2">
-        <Field label="Início do período" htmlFor={`${idp}-start`}><input id={`${idp}-start`} type="date" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
-        <Field label="Fim do período" htmlFor={`${idp}-end`}><input id={`${idp}-end`} type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></Field>
+        <Field label="Início do período" htmlFor={`${idp}-start`}><DateInput id={`${idp}-start`} value={start} onChange={(e) => setStart(e.target.value)} /></Field>
+        <Field label="Fim do período" htmlFor={`${idp}-end`}><DateInput id={`${idp}-end`} value={end} onChange={(e) => setEnd(e.target.value)} /></Field>
         <Field label="Valor por membro (€)" htmlFor={`${idp}-amount`}><input id={`${idp}-amount`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
-        <Field label="Data limite" htmlFor={`${idp}-due`}><input id={`${idp}-due`} type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
+        <Field label="Data limite" htmlFor={`${idp}-due`}><DateInput id={`${idp}-due`} value={due} onChange={(e) => setDue(e.target.value)} /></Field>
       </div>
       {quota && <p className="faint prose">Alterar o valor não muda o devido por quem já tem a quota aplicada.</p>}
       <div className="btn-row">
@@ -225,7 +226,7 @@ function ChargeRow({ charge: c, quotaActive }: { charge: Charge; quotaActive: bo
           {err && <Notice kind="error">{err}</Notice>}
           <ErrorBox error={act.error} />
           <div className="grid-2">
-            <Field label="Data" htmlFor={`${id}-on`}><input id={`${id}-on`} type="date" value={on} onChange={(e) => setOn(e.target.value)} /></Field>
+            <Field label="Data" htmlFor={`${id}-on`}><DateInput id={`${id}-on`} value={on} onChange={(e) => setOn(e.target.value)} /></Field>
             <Field label="Valor (€)" htmlFor={`${id}-amount`}><input id={`${id}-amount`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
             <Field label="Conta ou caixa" htmlFor={`${id}-acc`}>
               <select id={`${id}-acc`} value={account} onChange={(e) => setAccount(e.target.value)}>

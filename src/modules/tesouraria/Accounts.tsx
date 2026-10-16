@@ -6,6 +6,7 @@ import { useAction } from '../../lib/useAction';
 import { eurosInput, formatDay, formatEuros, formatLisbon, parseEuros, todayLisbon } from '../common';
 import { useOpeningBalances, useOptions, useSectionId, type Account, type Opening } from './api';
 import { History } from './Movements';
+import { DateInput } from '../../components/DateInput';
 
 export function AccountsPage() {
   const opts = useOptions();
@@ -196,7 +197,7 @@ function OpeningForm({ initial, hasGlobal, hasAccounts, onDone }: { initial: Ope
           </select>
         </Field>
         <Field label="Data de referência" htmlFor="op-day" hint="Saldo no início deste dia">
-          <input id="op-day" type="date" max={todayLisbon()} value={day} onChange={(e) => setDay(e.target.value)} />
+          <DateInput id="op-day" max={todayLisbon()} value={day} onChange={(e) => setDay(e.target.value)} />
         </Field>
         <Field label="Valor (€)" htmlFor="op-amount" hint="Com vírgula: 250,00">
           <input id="op-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />

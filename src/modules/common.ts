@@ -4,6 +4,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { call } from '../lib/api';
 import { useActiveSection } from '../lib/session';
+import { DATE_TIME_SEP } from '../lib/dates';
 
 export type ModuleKey = 'calendario' | 'inventario' | 'tesouraria' | 'equipas' | 'secretaria' | 'presencas';
 export type ModuleStatus = 'desenvolvimento' | 'teste' | 'disponivel';
@@ -90,11 +91,15 @@ export const lisbonDay = (iso: string) => isoToLisbon(iso).slice(0, 10);
 export const lisbonTime = (iso: string) => isoToLisbon(iso).slice(11, 16);
 export const todayLisbon = () => lisbonDay(new Date().toISOString());
 
+/** Data sem hora «AAAA-MM-DD» → «DD/MM/AAAA». Para um instante, usar formatLisbonDay. */
 export function formatDay(day: string) {
   const [y, m, d] = day.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
 }
-export const formatLisbon = (iso: string) => `${formatDay(lisbonDay(iso))}, ${lisbonTime(iso)}`;
+/** Instante → dia em Lisboa, «DD/MM/AAAA» (nunca cortar o ISO: o dia UTC pode ser outro). */
+export const formatLisbonDay = (iso: string) => formatDay(lisbonDay(iso));
+/** Instante → «DD/MM/AAAA · HH:MM» em hora de Lisboa. */
+export const formatLisbon = (iso: string) => `${formatDay(lisbonDay(iso))}${DATE_TIME_SEP}${lisbonTime(iso)}`;
 
 export const WEEKDAYS = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
 export const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];

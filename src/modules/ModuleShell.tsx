@@ -1,9 +1,8 @@
 // Porta de cada módulo: sem acesso, mostra só a apresentação «Em desenvolvimento»
 // (sem dados nem ações); com acesso, mostra o módulo e, no espaço de teste, a
-// indicação «Ambiente de teste». O servidor verifica o acesso em cada operação.
+// etiqueta discreta «Em teste» junto ao título de cada página. O servidor verifica o acesso em cada operação.
 import { createContext, useContext, type ReactNode } from 'react';
-import { FlaskConical } from 'lucide-react';
-import { ErrorBox, Loading } from '../components/ui';
+import { ErrorBox, Loading, PageTagContext, TestTag } from '../components/ui';
 import { FUTURE_AREAS } from '../lib/futuras';
 import { FutureAreaView } from '../pages/FutureArea';
 import { useModule, type ModuleKey } from './common';
@@ -25,15 +24,11 @@ export function ModuleShell({ module, children }: { module: ModuleKey; children:
   if (!m.space) return <FutureAreaView area={area} />;
   return (
     <ModuleCtx.Provider value={{ module, space: m.space, isTest: m.isTest, can: m.can }}>
-      <div className={`module module-${module}${m.isTest ? ' test-space' : ''}`}>
-        {m.isTest && (
-          <p className="test-banner" role="note">
-            <FlaskConical size={16} aria-hidden="true" />
-            <span><strong>Ambiente de teste.</strong> Os dados deste espaço não entram nos registos reais.</span>
-          </p>
-        )}
-        {children}
-      </div>
+      <PageTagContext.Provider value={m.isTest ? <TestTag /> : null}>
+        <div className={`module module-${module}${m.isTest ? ' test-space' : ''}`}>
+          {children}
+        </div>
+      </PageTagContext.Provider>
     </ModuleCtx.Provider>
   );
 }

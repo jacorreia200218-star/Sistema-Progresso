@@ -8,12 +8,13 @@ import { Plus, Search } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
-import { formatDay, formatEuros, parseEuros, todayLisbon } from '../common';
+import { formatDay, formatEuros, formatLisbonDay, parseEuros, todayLisbon } from '../common';
 import { InvTabs, useFormAction } from './parts';
 import {
   PRIORITY_LABEL, PURCHASE_LABEL, norm, qty, useEventOptions, useExpenseOptions, useOverview, usePurchases, useSectionId,
   type Priority, type Purchase,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 const STATUS_FILTERS: [string, string][] = [['', 'Por comprar'], ['comprado', 'Compradas'], ['cancelado', 'Canceladas'], ['todos', 'Todas']];
 
@@ -174,7 +175,7 @@ export function PurchaseForm({ item, purchase, onDone }: {
       </Field>
       <div className="grid-2">
         <Field label="Necessário até (opcional)" htmlFor={`${id}-d`}>
-          <input id={`${id}-d`} type="date" value={needed} onChange={(e) => setNeeded(e.target.value)} />
+          <DateInput id={`${id}-d`} value={needed} onChange={(e) => setNeeded(e.target.value)} />
         </Field>
         <Field label="Valor previsto (opcional)" htmlFor={`${id}-v`}>
           <input id={`${id}-v`} type="text" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00 €" />
@@ -238,7 +239,7 @@ export function PurchaseCard({ p, canManage, finOk }: { p: Purchase; canManage: 
         {p.event && <div><dt>Atividade</dt><dd>{p.event}</dd></div>}
         {p.amount_cents != null && <div><dt>{p.status === 'comprado' ? 'Valor' : 'Valor previsto'}</dt><dd>{formatEuros(p.amount_cents)}</dd></div>}
         {p.status === 'comprado' && p.bought_on && <div><dt>Comprado em</dt><dd>{formatDay(p.bought_on)}{p.bought_by ? ` · ${p.bought_by}` : ''}</dd></div>}
-        {p.status === 'cancelado' && p.cancelled_at && <div><dt>Cancelado</dt><dd>{formatDay(p.cancelled_at.slice(0, 10))}{p.cancelled_by ? ` · ${p.cancelled_by}` : ''}</dd></div>}
+        {p.status === 'cancelado' && p.cancelled_at && <div><dt>Cancelado</dt><dd>{formatLisbonDay(p.cancelled_at)}{p.cancelled_by ? ` · ${p.cancelled_by}` : ''}</dd></div>}
         <div><dt>Pedido por</dt><dd>{p.created_by}</dd></div>
       </dl>
       {p.status === 'cancelado' && p.cancel_reason && <p className="faint prose">Motivo: {p.cancel_reason}</p>}
@@ -400,7 +401,7 @@ function BuyForm({ p, finOk, onDone }: { p: Purchase; finOk: boolean; onDone: (m
       {err && <Notice kind="error">{err}</Notice>}
       <ErrorBox error={action.error} />
       <div className="grid-2">
-        <Field label="Data da compra" htmlFor={`${idp}-d`}><input id={`${idp}-d`} type="date" value={on} max={todayLisbon()} onChange={(e) => setOn(e.target.value)} /></Field>
+        <Field label="Data da compra" htmlFor={`${idp}-d`}><DateInput id={`${idp}-d`} value={on} max={todayLisbon()} onChange={(e) => setOn(e.target.value)} /></Field>
         <Field label={`Quantidade comprada (${p.unit})`} htmlFor={`${idp}-q`}><input id={`${idp}-q`} type="number" inputMode="numeric" min={1} value={n} onChange={(e) => setN(e.target.value)} /></Field>
       </div>
       <Field label="Valor pago (opcional)" htmlFor={`${idp}-v`}>

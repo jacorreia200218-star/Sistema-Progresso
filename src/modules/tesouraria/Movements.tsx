@@ -15,6 +15,7 @@ import {
 } from './api';
 import { MovementList } from './Dashboard';
 import { FiltersBar, useCanManage } from './shared';
+import { DateInput } from '../../components/DateInput';
 
 export function MovementsPage() {
   const [params] = useSearchParams();
@@ -147,7 +148,7 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
       </fieldset>
       <div className="grid-2">
         <Field label="Data" htmlFor={id('on')}>
-          <input id={id('on')} type="date" value={v.on} disabled={locked} onChange={(e) => set('on', e.target.value)} aria-invalid={!!errors.on} />
+          <DateInput id={id('on')} value={v.on} disabled={locked} onChange={(e) => set('on', e.target.value)} aria-invalid={!!errors.on} />
           {fe('on')}
           {beforeOpening && (
             <span className="hint prose" role="note">

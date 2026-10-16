@@ -1,6 +1,7 @@
 // Equipas e cargos: vista por equipa, vista individual, nomear e terminar cargos,
 // mudar de equipa — em telemóvel e computador. Pessoas FICTÍCIAS, só para teste.
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
@@ -88,7 +89,7 @@ test('vista por equipa: equipas do ano, guia, membros e cargos', async ({ page }
   await page.goto('/equipas-e-cargos');
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Equipas e cargos', level: 1 })).toBeVisible();
-  await expect(main.getByText('Ambiente de teste.')).toBeVisible();
+  await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
   const card = main.getByRole('link', { name: /Equipa Andorinha/ });
   await expect(card).toContainText('Sempre alerta');
   await expect(card).toContainText('Guia Teste');
@@ -203,4 +204,26 @@ test('quem só consulta não vê ações de gestão', async ({ page }) => {
   await expect(main).toContainText('Um cargo não dá permissões');
   expect(calls.every((c) => c.fn === 'eq_overview')).toBe(true);
   await noHorizontalScroll(page);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`equipas ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await mockEquipas(page);
+      await page.goto('/equipas-e-cargos');
+      await shoot(page, info, theme, 'equipas-inicio');
+      await page.goto('/equipas-e-cargos?vista=pessoas');
+      await shoot(page, info, theme, 'equipas-pessoas');
+      await page.goto('/equipas-e-cargos?vista=cargos');
+      await shoot(page, info, theme, 'equipas-cargos');
+      await page.goto('/equipas-e-cargos/equipa/teamA');
+      await shoot(page, info, theme, 'equipas-equipa');
+      await page.goto('/equipas-e-cargos/pessoa/m-guia');
+      await shoot(page, info, theme, 'equipas-pessoa');
+    });
+  }
 });

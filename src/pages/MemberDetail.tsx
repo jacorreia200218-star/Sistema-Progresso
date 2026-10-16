@@ -18,6 +18,7 @@ import { RequestList } from '../components/RequestList';
 import { ChoiceDecision } from './Leaders';
 import NotFound from './NotFound';
 import { TrailPicker } from '../components/TrailPicker';
+import { DateInput } from '../components/DateInput';
 
 const TABS = [
   { key: 'resumo', label: 'Resumo' },
@@ -266,8 +267,8 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
             <div style={{ marginTop: 10 }}>
               <p className="faint prose">A data de adesão é o dia em que passou a pioneiro. A primeira etapa só abre depois da Promessa (p. 10).</p>
               <div className="grid-2">
-                <Field label="Data de adesão (passagem a pioneiro)" htmlFor="ad-d"><input id="ad-d" type="date" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
-                <Field label="Data da Promessa (se já aconteceu)" htmlFor="ad-c"><input id="ad-c" type="date" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
+                <Field label="Data de adesão (passagem a pioneiro)" htmlFor="ad-d"><DateInput id="ad-d" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
+                <Field label="Data da Promessa (se já aconteceu)" htmlFor="ad-c"><DateInput id="ad-c" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
               </div>
               {formOutOfOrder && <Notice kind="warn"><p className="prose">A Promessa fica antes da adesão. Confirma as datas ou explica nas notas por que razão o registo é assim.</p></Notice>}
               <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Registo retroativo (anterior à aplicação)</label>
@@ -306,7 +307,7 @@ function RecognizeInNegotiation({ member, progress }: { member: MemberRow; progr
       {action.success && <Notice kind="success">{action.success}</Notice>}
       <TrailPicker catalog={s.catalog} id="rn-t" value={trail} onChange={setTrail} available={(t) => !active.has(t.key)} />
       <Field label="Fundamentação (obrigatória)" htmlFor="rn-c"><textarea id="rn-c" value={comment} onChange={(e) => setComment(e.target.value)} style={{ minHeight: 70 }} /></Field>
-      <Field label="Referência temporal (opcional)" htmlFor="rn-d"><input id="rn-d" type="date" max={todayIso()} value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
+      <Field label="Referência temporal (opcional)" htmlFor="rn-d"><DateInput id="rn-d" max={todayIso()} value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
       <ConfirmButton className="btn" confirmLabel="Reconhecer" disabled={action.busy || !trail || !comment.trim()}
         description="O pioneiro e o guia da equipa são informados."
         onConfirm={async () => {
@@ -331,7 +332,7 @@ function OpenStage({ member, progress }: { member: MemberRow; progress: MemberPr
       <h3>Abrir a etapa {next.name}</h3>
       <p className="faint prose">A insígnia de progresso é entregue no início da etapa. Podes registar a data agora ou mais tarde.</p>
       <ErrorBox error={action.error} />
-      <Field label="Entrega da insígnia (opcional)" htmlFor="ins"><input id="ins" type="date" max={todayIso()} value={insignia} onChange={(e) => setInsignia(e.target.value)} /></Field>
+      <Field label="Entrega da insígnia (opcional)" htmlFor="ins"><DateInput id="ins" max={todayIso()} value={insignia} onChange={(e) => setInsignia(e.target.value)} /></Field>
       <button type="button" className="btn" disabled={action.busy}
         onClick={() => action.run(() => call('open_stage', { p_membership: member.id, p_stage_key: next.key, p_insignia_on: insignia || null }), 'Etapa aberta.')}>
         Abrir etapa
@@ -350,7 +351,7 @@ function StageActions({ path }: { path: StagePath }) {
       <summary>Registos da etapa</summary>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
-      <Field label="Data" htmlFor={`sd-${path.id}`}><input id={`sd-${path.id}`} type="date" max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+      <Field label="Data" htmlFor={`sd-${path.id}`}><DateInput id={`sd-${path.id}`} max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       {!path.insignia_delivered_on && (
         <button type="button" className="btn secondary" disabled={action.busy}
           onClick={() => action.run(() => call('record_insignia', { p_stage_path: path.id, p_date: date }), 'Entrega da insígnia registada.')}>
@@ -453,7 +454,7 @@ function MeritPanel({ member, progress }: { member: MemberRow; progress: MemberP
           <p className="faint prose">A elegibilidade é calculada; a atribuição é um registo próprio da Equipa de Animação.</p>
           <ErrorBox error={action.error} />
           {action.success && <Notice kind="success">{action.success}</Notice>}
-          <Field label="Data de atribuição" htmlFor="md"><input id="md" type="date" max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Data de atribuição" htmlFor="md"><DateInput id="md" max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           {!m?.eligible && (
             <label className="checkbox"><input type="checkbox" checked={historical} onChange={(e) => setHistorical(e.target.checked)} /> Declaração de mérito anterior (exige fundamentação)</label>
           )}

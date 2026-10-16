@@ -59,35 +59,12 @@ export const memberStatusLabel: Record<MemberStatus, string> = {
   saiu: 'Saiu da secção',
 };
 
-// Datas: sempre DD/MM/AAAA. As datas sem hora («2026-10-10») não passam por Date,
-// para não mudarem de dia com o fuso horário; os instantes usam a hora local.
-const pad = (n: number) => String(n).padStart(2, '0');
-const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-export function formatDate(d: string | null | undefined): string {
-  if (!d) return '—';
-  const m = DATE_ONLY.exec(d);
-  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return '—';
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
-}
+// Datas: sempre DD/MM/AAAA (ver lib/dates.ts, onde a formatação está centralizada).
+export { formatDate, formatDateTime, formatTime, todayIso } from './dates';
+import { formatDate } from './dates';
 
 /** Igual a formatDate (mantido para as listas). */
 export const formatShortDate = formatDate;
-
-export function formatDateTime(d: string | null | undefined): string {
-  if (!d) return '—';
-  if (DATE_ONLY.test(d)) return formatDate(d);
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return '—';
-  return `${formatDate(d)}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-export const todayIso = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 export const requestKindLabel: Record<string, string> = {
   normal: '',

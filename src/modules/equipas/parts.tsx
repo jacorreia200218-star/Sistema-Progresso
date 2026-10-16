@@ -13,6 +13,7 @@ import {
   appointmentState, periodLabel, STATE_LABEL, STATE_TONE, useSectionId,
   type EqAppointment, type EqMember, type EqOverview, type EqRole, type EqTeam,
 } from './data';
+import { DateInput } from '../../components/DateInput';
 
 export const BASE = '/equipas-e-cargos';
 
@@ -129,7 +130,7 @@ export function AppointmentItem({ a, o, show }: { a: EqAppointment; o: EqOvervie
             <>
               <p className="faint prose">A nomeação não é apagada: fica no histórico com esta data de fim. No dia de fim já pode começar outra pessoa.</p>
               <Field label="Data de fim" htmlFor={`fim-${a.id}`}>
-                <input id={`fim-${a.id}`} type="date" value={end} min={a.starts_on} onChange={(e) => setEnd(e.target.value)} required />
+                <DateInput id={`fim-${a.id}`} value={end} min={a.starts_on} onChange={(e) => setEnd(e.target.value)} required />
               </Field>
               <Field label="Motivo (opcional)" htmlFor={`mot-${a.id}`}>
                 <input id={`mot-${a.id}`} type="text" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex.: fim de mandato" />
@@ -220,10 +221,10 @@ export function AppointForm({ o, team, member, onDone }: { o: EqOverview; team: 
           </Field>
         )}
         <Field label="Início" htmlFor="eq-start">
-          <input id="eq-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} required />
+          <DateInput id="eq-start" value={start} onChange={(e) => setStart(e.target.value)} required />
         </Field>
         <Field label="Fim (opcional)" htmlFor="eq-end" hint="Deixa vazio se não tiver data prevista.">
-          <input id="eq-end" type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
+          <DateInput id="eq-end" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
         </Field>
       </div>
       {end && (
@@ -290,7 +291,7 @@ export function MoveForm({ o, member }: { o: EqOverview; member: EqMember }) {
           </select>
         </Field>
         <Field label="Data da mudança" htmlFor="eq-move-day">
-          <input id="eq-move-day" type="date" value={day} max={o.today} onChange={(e) => setDay(e.target.value)} required />
+          <DateInput id="eq-move-day" value={day} max={o.today} onChange={(e) => setDay(e.target.value)} required />
         </Field>
       </div>
       <Field label="Motivo (opcional)" htmlFor="eq-move-reason">

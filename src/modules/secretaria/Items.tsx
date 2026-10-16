@@ -14,6 +14,7 @@ import {
   BASE, BOARD_STATUSES, EXEC_STATUS, ITEM_KIND, UNDEFINED, useEventOptions, usePeople, useSectionId,
   type EventRef, type ExecStatus, type Item, type ItemKind,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 /** Muda o estado (Por fazer, Em curso, Concluída). O servidor confirma quem pode. */
 export function ItemStatusControl({ item, disabled, onChanged }: {
@@ -121,7 +122,7 @@ function ItemForm({ minuteId, item, defaultEvent, onDone }: { minuteId: string; 
           </Field>
         )}
         <Field label="Prazo" htmlFor={`it-due-${idp}`}>
-          <input id={`it-due-${idp}`} type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+          <DateInput id={`it-due-${idp}`} value={due} onChange={(e) => setDue(e.target.value)} />
         </Field>
         <Field label="Atividade associada" htmlFor={`it-ev-${idp}`}>
           <select id={`it-ev-${idp}`} value={event} onChange={(e) => setEvent(e.target.value)}>

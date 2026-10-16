@@ -8,6 +8,7 @@ import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatDay, todayLisbon } from '../common';
 import { useSectionId, type Board, type EventOption, type SessionDetail } from './api';
+import { DateInput } from '../../components/DateInput';
 
 export function SessionForm() {
   const { id } = useParams();
@@ -93,7 +94,7 @@ export function SessionForm() {
           </Field>
         )}
         <Field label="Data" htmlFor="pres-date">
-          <input id="pres-date" type="date" value={date} min={ev?.start} max={ev?.end} onChange={(e) => setDate(e.target.value)} aria-invalid={!!errors.date} />
+          <DateInput id="pres-date" value={date} min={ev?.start} max={ev?.end} onChange={(e) => setDate(e.target.value)} aria-invalid={!!errors.date} />
           {errors.date && <span className="pres-error">{errors.date}</span>}
         </Field>
         <Field label="Título" htmlFor="pres-title">
