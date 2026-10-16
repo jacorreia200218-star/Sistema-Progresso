@@ -1,13 +1,13 @@
 // Criar ou alterar uma atividade (só quem gere; o servidor volta a validar tudo).
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
 import { ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { isoToLisbon, lisbonToIso, todayLisbon } from '../common';
+import { formatDay, isoToLisbon, lisbonToIso, todayLisbon } from '../common';
 import { REMINDER_OPTIONS, type CalDetail } from './cal';
 
 type Options = { teams: { id: string; name: string }[]; members: { id: string; name: string; function: string | null; team_id: string | null }[] };
@@ -20,9 +20,10 @@ interface FormState {
   reminder_minutes: number[]; deadline_reminder_minutes: number[];
 }
 
-const empty = (): FormState => ({
+/** Nova atividade; «day» (AAAA-MM-DD) vem do dia escolhido no calendário anual. */
+const empty = (day = todayLisbon()): FormState => ({
   title: '', description: '', location: '', all_day: false,
-  start: `${todayLisbon()}T10:00`, end: `${todayLisbon()}T12:00`, startDay: todayLisbon(), endDay: todayLisbon(),
+  start: `${day}T10:00`, end: `${day}T12:00`, startDay: day, endDay: day,
   audience: 'seccao', team_id: '', responsible_id: '', deadline: '',
   needs_authorization: false, needs_payment: false, needs_registration: false, material: '',
   reminder_minutes: [1440], deadline_reminder_minutes: [1440],
@@ -86,7 +87,9 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
   const section = useActiveSection().membership.section_id;
   const navigate = useNavigate();
   const action = useAction();
-  const [f, setF] = useState<FormState>(() => (event ? fromEvent(event) : empty()));
+  const [params] = useSearchParams();
+  const preset = params.get('dia');
+  const [f, setF] = useState<FormState>(() => (event ? fromEvent(event) : empty(preset && /^\d{4}-\d{2}-\d{2}$/.test(preset) ? preset : undefined)));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
   const toggleIn = (k: 'reminder_minutes' | 'deadline_reminder_minutes', m: number) =>
@@ -123,6 +126,7 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
   return (
     <>
       <PageTitle title={title} back="/calendario" />
+      {!event && preset && <p className="faint">Dia escolhido no calendário: {formatDay(f.startDay)}. Podes mudar as datas e horas abaixo.</p>}
       <form className="card cal-form" onSubmit={submit} noValidate>
         {Object.keys(errors).length > 0 && <Notice kind="error">Revê os campos assinalados.</Notice>}
         <Field label="Título" htmlFor="cal-title">
@@ -157,7 +161,7 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
         </fieldset>
 
         <fieldset className="cal-fieldset">
-          <legend className="label">Para quem</legend>
+          <legend className="label">Secção ou equipa envolvida</legend>
           <div className="radio-row">
             <label className="radio"><input type="radio" name="aud" checked={f.audience === 'seccao'} onChange={() => set('audience', 'seccao')} /> Toda a secção</label>
             <label className="radio"><input type="radio" name="aud" checked={f.audience === 'equipa'} onChange={() => set('audience', 'equipa')} /> Uma equipa</label>
@@ -194,7 +198,7 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
         </fieldset>
 
         <fieldset className="cal-fieldset">
-          <legend className="label">Lembretes</legend>
+          <legend className="label">Alertas (lembretes)</legend>
           <p className="faint">Antes da atividade:</p>
           <div className="cal-reminders" role="group" aria-label="Lembretes antes da atividade">
             {REMINDER_OPTIONS.map((o) => (

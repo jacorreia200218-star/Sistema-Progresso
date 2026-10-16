@@ -1,4 +1,5 @@
-// Calendário escutista: vistas (próximas e mensal), criar atividade, responder, exportar.
+// Calendário escutista: calendário anual (civil e escutista), dias especiais, criar atividade
+// a partir de um dia, responder, exportar.
 // Dados FICTÍCIOS só para teste; as regras do servidor são testadas em tests/db/calendario.test.ts.
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { installMock, leader, pioneer } from './mock-api';
@@ -35,6 +36,7 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
   }];
   const calls: { fn: string; body: Row }[] = [];
   const manage = who === 'ana';
+  const config = { year_start_month: 9, special_days: [] as Row[] };
   const view = (e: Row): Row => {
     const mine = e.people.find((p: Row) => p.profile_id === me) ?? { response: null, resolved: [] };
     const { people, ...rest } = e;
@@ -112,11 +114,26 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
         return ok(null);
       case 'module_files_of':
         return ok([]);
+      case 'cal_config':
+        return ok({ ...config, can_manage: manage });
+      case 'cal_set_year_start':
+        if (!manage) return fail('Não tens permissão para esta ação neste módulo.');
+        config.year_start_month = body.p_month;
+        return ok(null);
+      case 'cal_special_day_save': {
+        if (!manage) return fail('Não tens permissão para esta ação neste módulo.');
+        const id = body.p_id ?? `sd${config.special_days.length + 1}`;
+        config.special_days = [...config.special_days.filter((d) => d.id !== id), { id, ...body.p_data }];
+        return ok(id);
+      }
+      case 'cal_special_day_remove':
+        config.special_days = config.special_days.filter((d) => d.id !== body.p_id);
+        return ok(null);
       default:
         return route.fallback();
     }
   });
-  return { calls, events };
+  return { calls, events, config };
 }
 
 async function noHorizontalScroll(page: Page) {
@@ -125,37 +142,176 @@ async function noHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-test('próximas atividades e vista mensal, com «O que te falta»', async ({ page }, info) => {
+const todayDay = () => lisbonDay(new Date().toISOString());
+const fmt = (day: string) => day.split('-').reverse().join('/');
+const dayButton = (page: Page, day: string) => page.locator(`button[data-day="${day}"]`);
+
+test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
   await installMock(page, leader());
   await installCalendar(page, 'ana');
   await page.goto('/calendario');
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Calendário escutista', level: 1 })).toBeVisible();
   await expect(main.getByText('Ambiente de teste.')).toBeVisible();
-  await expect(main.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
-  await noHorizontalScroll(page);
-  await page.screenshot({ path: `test-results/calendario-proximas-${info.project.name}.png`, fullPage: true });
-
-  await main.getByRole('tab', { name: 'Mês' }).click();
-  await expect(page).toHaveURL(/vista=mes/);
-  const grid = main.getByRole('grid');
-  await expect(grid).toBeVisible();
-  const day = lisbonDay(isoIn(3 * D));
-  const [y, m, d] = day.split('-');
-  // Se a atividade cair no mês seguinte, avançar
-  if (day.slice(0, 7) !== lisbonDay(new Date().toISOString()).slice(0, 7)) {
-    await main.getByRole('button', { name: 'Mês seguinte' }).click();
+  const year = todayDay().slice(0, 4);
+  await expect(main.getByRole('heading', { name: `Ano ${year}`, level: 2 })).toBeVisible();
+  await expect(main.locator('.cal-mm')).toHaveCount(12);
+  await expect(main.locator('.cal-mm-title').first()).toHaveText(`janeiro ${year}`);
+  // Hoje e a atividade (3 dias depois)
+  await expect(dayButton(page, todayDay())).toHaveAttribute('aria-current', 'date');
+  const evDay = lisbonDay(isoIn(3 * D));
+  if (evDay.slice(0, 4) === year) {
+    await expect(dayButton(page, evDay)).toHaveClass(/has-events/);
+    await expect(dayButton(page, evDay)).toHaveAttribute('aria-label', /1 atividade/);
   }
-  await grid.getByRole('gridcell', { name: new RegExp(`${d}/${m}/${y}, 1 atividade`) }).click();
-  await expect(page).toHaveURL(new RegExp(`dia=${day}`));
-  await expect(main.locator('.cal-day-list')).toContainText('Raid de outono');
+  // Feriado fixo com nome e fim de semana com fundo suave
+  await expect(dayButton(page, `${year}-12-25`)).toHaveClass(/is-holiday/);
+  await expect(dayButton(page, `${year}-12-25`)).toHaveAttribute('title', /feriado nacional: Natal/);
+  const sat = [...Array(7)].map((_, i) => `${year}-03-0${i + 1}`).find((d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 6)!;
+  await expect(dayButton(page, sat)).toHaveClass(/is-weekend/);
+  const bg = await dayButton(page, sat).evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(bg).not.toBe('rgba(0, 0, 0, 0)');
+  // Próximas atividades ao lado (computador) ou abaixo (telemóvel)
+  const next = main.getByRole('region', { name: 'Próximas atividades' });
+  await expect(next.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
+  const [m1, m2] = [await main.locator('.cal-mm').nth(0).boundingBox(), await main.locator('.cal-mm').nth(1).boundingBox()];
+  const side = await next.boundingBox();
+  const grid = await main.locator('.cal-year').boundingBox();
+  if (info.project.name === 'telemovel') {
+    expect(Math.abs(m1!.x - m2!.x)).toBeLessThan(2); // meses em coluna
+    expect(m2!.y).toBeGreaterThan(m1!.y + m1!.height - 1);
+    expect(side!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
+  } else {
+    expect(Math.abs(m1!.y - m2!.y)).toBeLessThan(2); // meses lado a lado
+    expect(side!.x).toBeGreaterThan(grid!.x + grid!.width - 1);
+  }
   await noHorizontalScroll(page);
-  await page.screenshot({ path: `test-results/calendario-mes-${info.project.name}.png`, fullPage: true });
-  // O filtro sobrevive a voltar atrás
-  await main.locator('.cal-day-list').getByRole('link', { name: /Raid de outono/ }).click();
+  await page.screenshot({ path: `test-results/calendario-ano-${info.project.name}.png`, fullPage: true });
+
+  // Feriados móveis com nome: Páscoa 2027 a 28/03; Carnaval como dia relevante
+  await main.getByRole('button', { name: 'Ano seguinte' }).click();
+  const y1 = String(Number(year) + 1);
+  await expect(page).toHaveURL(new RegExp(`ano=${y1}`));
+  if (y1 === '2027') {
+    await expect(dayButton(page, '2027-03-28')).toHaveAttribute('aria-label', /domingo, 28\/03\/2027, feriado nacional: Páscoa/);
+    await expect(dayButton(page, '2027-03-26')).toHaveAttribute('aria-label', /Sexta-feira Santa/);
+    await expect(dayButton(page, '2027-05-27')).toHaveAttribute('aria-label', /Corpo de Deus/);
+    await expect(dayButton(page, '2027-02-09')).toHaveClass(/is-relevant/);
+    await expect(dayButton(page, '2027-02-09')).not.toHaveClass(/is-holiday/);
+    await expect(dayButton(page, '2027-02-09')).toHaveAttribute('aria-label', /Carnaval \(tolerância facultativa\)/);
+  }
+  const marks = main.locator('.cal-marks');
+  await marks.locator('summary').click();
+  await expect(marks).toContainText('Implantação da República');
+  await expect(marks).toContainText('Feriado nacional (móvel)');
+  // Dias livres para planear
+  const free = main.getByRole('region', { name: 'Livres para planear' });
+  await expect(free).toContainText('Fins de semana livres');
+  await main.getByLabel('Destacar os dias livres').click();
+  await expect(main.getByLabel('Destacar os dias livres')).toBeChecked();
+  await expect(page).toHaveURL(/livres=1/);
+  await expect(main.locator('.cal-year.show-free .cal-d.is-free').first()).toBeVisible();
+  await noHorizontalScroll(page);
+});
+
+test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
+  await installMock(page, leader());
+  const cal = await installCalendar(page, 'ana');
+  await page.goto('/calendario');
+  const main = page.locator('main');
+  const evDay = lisbonDay(isoIn(3 * D));
+  if (evDay.slice(0, 4) !== todayDay().slice(0, 4)) await main.getByRole('button', { name: 'Ano seguinte' }).click();
+  await dayButton(page, evDay).click();
+  await expect(page).toHaveURL(new RegExp(`dia=${evDay}`));
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: new RegExp(fmt(evDay)) })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/calendario-dia-${info.project.name}.png` });
+  // Abrir o detalhe e voltar: o dia escolhido mantém-se
+  await dialog.getByRole('link', { name: /Raid de outono/ }).click();
   await expect(main.getByRole('heading', { name: 'Raid de outono (teste)', level: 1 })).toBeVisible();
   await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`vista=mes.*dia=${day}|dia=${day}.*vista=mes`));
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).not.toHaveURL(/dia=/);
+
+  // Outro dia (sem atividades) → nova atividade nesse dia
+  const target = lisbonDay(isoIn(10 * D));
+  if (target.slice(0, 4) !== evDay.slice(0, 4)) await main.getByRole('button', { name: 'Ano seguinte' }).click();
+  await dayButton(page, target).click();
+  await expect(page.getByRole('dialog')).toContainText('Sem atividades neste dia.');
+  await page.getByRole('dialog').getByRole('link', { name: 'Nova atividade neste dia' }).click();
+  await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
+  await expect(page.getByLabel('Início')).toHaveValue(`${target}T10:00`);
+  await page.getByLabel('Título').fill('Jogo de cidade (teste)');
+  await page.getByLabel('Dia inteiro (um ou vários dias)').check();
+  await expect(page.getByLabel('Primeiro dia')).toHaveValue(target);
+  const last = lisbonDay(isoIn(11 * D));
+  await page.getByLabel('Último dia').fill(last);
+  await noHorizontalScroll(page);
+  await page.getByRole('button', { name: 'Criar atividade' }).click();
+  await expect(page.getByText('Atividade criada. Os envolvidos foram avisados.')).toBeVisible();
+  expect(cal.calls.find((c) => c.fn === 'cal_create_event')!.body.p_data).toMatchObject({ all_day: true, start_date: target, end_date: last });
+  // Atividade de vários dias marca todos os dias
+  await page.goto(`/calendario?ano=${target.slice(0, 4)}`);
+  await expect(dayButton(page, target)).toHaveClass(/has-events/);
+  if (last.slice(0, 4) === target.slice(0, 4)) await expect(dayButton(page, last)).toHaveClass(/has-events/);
+});
+
+test('ano escutista e configuração de dias especiais', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
+  await installMock(page, leader());
+  const cal = await installCalendar(page, 'ana');
+  await page.goto('/calendario');
+  const main = page.locator('main');
+  await main.getByRole('tab', { name: 'Ano escutista' }).click();
+  await expect(page).toHaveURL(/tipo=escutista/);
+  const t = todayDay();
+  const sy = Number(t.slice(5, 7)) >= 9 ? Number(t.slice(0, 4)) : Number(t.slice(0, 4)) - 1;
+  await expect(main.getByRole('heading', { name: `Ano escutista ${sy}/${sy + 1}`, level: 2 })).toBeVisible();
+  await expect(main.locator('.cal-mm-title').first()).toHaveText(`setembro ${sy}`);
+  await expect(main.locator('.cal-mm-title').last()).toHaveText(`agosto ${sy + 1}`);
+  await main.getByRole('button', { name: 'Ano anterior' }).click();
+  await expect(page).toHaveURL(new RegExp(`ano=${sy - 1}`));
+  await expect(main.getByRole('heading', { name: `Ano escutista ${sy - 1}/${sy}`, level: 2 })).toBeVisible();
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/calendario-escutista-${info.project.name}.png`, fullPage: true });
+
+  // Configurar: feriado municipal recorrente e mês inicial
+  await main.getByRole('link', { name: 'Dias e ano escutista' }).click();
+  await expect(page.getByRole('heading', { name: 'Dias especiais e ano escutista', level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Acrescentar' }).click();
+  await expect(page.getByText('Indica a data.')).toBeVisible();
+  await page.getByLabel('Data').fill('2026-06-24');
+  await page.getByLabel('Nome').fill('São João');
+  await page.getByRole('button', { name: 'Acrescentar' }).click();
+  await expect(page.getByText('Dia acrescentado.')).toBeVisible();
+  expect(cal.config.special_days).toEqual([{ id: 'sd1', day: '2026-06-24', name: 'São João', kind: 'municipal', recurring: true }]);
+  await expect(main.locator('.cal-sd-list')).toContainText('Todos os anos a 24/06');
+  await page.getByLabel('Começa em').selectOption({ label: 'outubro' });
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByText('Mês inicial guardado.')).toBeVisible();
+  await noHorizontalScroll(page);
+
+  await page.goto(`/calendario?tipo=escutista&ano=${sy}`);
+  await expect(main.locator('.cal-mm-title').first()).toHaveText(`outubro ${sy}`);
+  await expect(dayButton(page, `${sy + 1}-06-24`)).toHaveClass(/is-holiday/);
+  await expect(dayButton(page, `${sy + 1}-06-24`)).toHaveAttribute('aria-label', /feriado municipal: São João/);
+});
+
+test('lista completa das próximas atividades', async ({ page }) => {
+  await installMock(page, leader());
+  await installCalendar(page, 'ana');
+  await page.goto('/calendario');
+  await page.locator('main').getByRole('link', { name: 'Ver todas' }).click();
+  await expect(page).toHaveURL(/vista=lista/);
+  await expect(page.locator('main').getByRole('tab', { name: 'Lista' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('main .cal-month-group')).toContainText('Raid de outono');
+  await noHorizontalScroll(page);
 });
 
 test('criar atividade com validação e horas de Lisboa', async ({ page }) => {

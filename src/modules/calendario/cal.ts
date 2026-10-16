@@ -166,3 +166,37 @@ export function whenLabel(e: Dated): string {
 export const sortKey = (e: Dated) => (e.all_day ? `${e.start_date}T00:00` : isoToLisbon(e.starts_at!));
 
 export const weekdayName = (day: string) => ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'][weekday(day)];
+
+// ---------------------------------------------------------------------------
+// Ano civil e ano escutista
+// ---------------------------------------------------------------------------
+export type YearMode = 'civil' | 'escutista';
+
+export interface Period { mode: YearMode; year: number; label: string; months: string[]; from: string; to: string }
+
+/** Ano (civil ou escutista) que contém o dia indicado. */
+export function yearOf(day: string, mode: YearMode, startMonth: number): number {
+  const y = Number(day.slice(0, 4));
+  if (mode === 'civil' || startMonth === 1) return y;
+  return Number(day.slice(5, 7)) >= startMonth ? y : y - 1;
+}
+
+/** Os 12 meses do período: civil = janeiro a dezembro; escutista = do mês inicial até 11 meses depois. */
+export function period(mode: YearMode, year: number, startMonth: number): Period {
+  const first = mode === 'civil' ? `${year}-01` : `${year}-${String(startMonth).padStart(2, '0')}`;
+  const months = Array.from({ length: 12 }, (_, i) => addMonths(first, i));
+  const to = addDays(`${addMonths(months[11], 1)}-01`, -1);
+  const label = mode === 'civil' || startMonth === 1 ? String(year) : `${year}/${year + 1}`;
+  return { mode, year, label, months, from: `${first}-01`, to };
+}
+
+/** Dias (AAAA-MM-DD) ocupados por atividades ativas. */
+export function busyDays(events: (Dated & { status?: string })[], from: string, to: string): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const e of events) {
+    if (e.status === 'cancelado') continue;
+    const r = eventDays(e);
+    for (let d = r.from < from ? from : r.from; d <= r.to && d <= to; d = addDays(d, 1)) out.set(d, (out.get(d) ?? 0) + 1);
+  }
+  return out;
+}
