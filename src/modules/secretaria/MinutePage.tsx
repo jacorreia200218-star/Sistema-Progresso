@@ -6,10 +6,10 @@ import { History, Printer } from 'lucide-react';
 import { Badge, ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
-import { formatLisbon } from '../common';
+import { formatDay, formatLisbon } from '../common';
 import { Attachments } from './Attachments';
 import { ItemsSection } from './Items';
-import { MINUTE_STATUS, docLabel, useMinute, useSectionId } from './api';
+import { BASE, ITEM_KIND, MINUTE_STATUS, docLabel, useMinute, useSectionId } from './api';
 
 export function MinutePage() {
   const { id } = useParams();
@@ -33,7 +33,7 @@ export function MinutePage() {
   }, [d, key, loadedFor]);
 
   if (q.isLoading) return <Loading />;
-  if (q.error || !d) return (<><PageTitle title="Ata" back="/secretaria" /><ErrorBox error={q.error ?? 'Registo não encontrado.'} /></>);
+  if (q.error || !d) return (<><PageTitle title="Ata" back={BASE} /><ErrorBox error={q.error ?? 'Registo não encontrado.'} /></>);
 
   const v = d.version;
   const isCurrent = v.version_no === d.minute.current_version;
@@ -62,14 +62,14 @@ export function MinutePage() {
   };
   const addendum = async () => {
     const r = await action.run(() => call<string>('sec_minute_create', { p_section: section, p_meeting: d.meeting.id, p_kind: 'aditamento', p_body: '' }));
-    if (r.ok) navigate(`/secretaria/atas/${r.value}`);
+    if (r.ok) navigate(`${BASE}/atas/${r.value}`);
   };
 
   const label = docLabel(d.minute.kind);
   const status = MINUTE_STATUS[d.minute.status];
   return (
     <>
-      <PageTitle title={`${label} · ${d.meeting.title}`} back={`/secretaria/reunioes/${d.meeting.id}`}
+      <PageTitle title={`${label} · ${d.meeting.title}`} back={`${BASE}/reunioes/${d.meeting.id}`}
         subtitle={<>{formatLisbon(d.meeting.starts_at)}</>} />
       <div className="sec-status-bar">
         <Badge {...status} />
@@ -77,11 +77,11 @@ export function MinutePage() {
         {d.minute.approved_version && d.minute.status !== 'aprovada' && (
           <span className="faint sec-meta">· versão aprovada em vigor: {d.minute.approved_version}</span>
         )}
-        <Link className="btn ghost sec-print-link" to={`/secretaria/atas/${d.minute.id}/imprimir?versao=${v.version_no}`}>
+        <Link className="btn ghost sec-print-link" to={`${BASE}/atas/${d.minute.id}/imprimir?versao=${v.version_no}`}>
           <Printer size={16} aria-hidden="true" /> Imprimir / PDF
         </Link>
       </div>
-      {d.parent && <Notice>Aditamento à <Link to={`/secretaria/atas/${d.parent.id}`}>ata aprovada</Link>.</Notice>}
+      {d.parent && <Notice>Aditamento à <Link to={`${BASE}/atas/${d.parent.id}`}>ata aprovada</Link>.</Notice>}
       {!isCurrent && (
         <Notice kind="warn">
           Estás a ver a versão {v.version_no}{v.approved_at ? ', aprovada' : ''}. <button type="button" className="link-btn" onClick={() => goVersion(null)}>Ver a versão atual</button>
@@ -96,7 +96,7 @@ export function MinutePage() {
         {v.note && <p className="faint sec-meta">{v.note}</p>}
         {editable ? (
           <>
-            <Field label="Texto" htmlFor="sec-body" hint="Escreve o que foi tratado e decidido. As decisões e tarefas acrescentam-se em baixo.">
+            <Field label="Texto" htmlFor="sec-body" hint="Escreve o que foi tratado e decidido. As decisões, tarefas e preparativos acrescentam-se em baixo.">
               <textarea id="sec-body" rows={12} maxLength={50000} value={body} onChange={(e) => setBody(e.target.value)} />
             </Field>
             <div className="btn-row">
@@ -169,12 +169,12 @@ export function MinutePage() {
         <ItemsSection minuteId={d.minute.id} items={d.items} canEdit={editable} canTrack={d.can_track} meetingActive={d.meeting.status === 'ativa'} />
       ) : (
         <section className="card">
-          <h2 className="sec-h2">Decisões e tarefas (nesta versão)</h2>
-          {c.items.length === 0 ? <p className="faint">Sem decisões nem tarefas.</p> : (
+          <h2 className="sec-h2">Decisões, tarefas e preparativos (nesta versão)</h2>
+          {c.items.length === 0 ? <p className="faint">Sem registos nesta versão.</p> : (
             <ul className="list sec-items">
               {c.items.map((i, n) => (
-                <li key={n} className="sec-item"><div className="grow"><p className="sec-item-text"><span className="sec-kind">{i.kind === 'tarefa' ? 'Tarefa' : 'Decisão'}</span> {i.text}</p>
-                  <p className="faint sec-meta">{i.responsible_name ?? 'Sem responsável'}</p></div></li>
+                <li key={n} className="sec-item"><div className="grow"><p className="sec-item-text"><span className="sec-kind">{ITEM_KIND[i.kind] ?? 'Registo'}</span> {i.text}</p>
+                  <p className="faint sec-meta">{i.kind === 'decisao' ? i.responsible_name ?? '' : i.responsible_name ?? 'Responsável por definir'}{i.due_date ? ` · prazo ${formatDay(i.due_date)}` : ''}</p></div></li>
               ))}
             </ul>
           )}
@@ -186,7 +186,7 @@ export function MinutePage() {
           <h2 className="sec-h2">Aditamentos</h2>
           <ul className="list">
             {d.addenda.map((a, n) => (
-              <li key={a.id}><Link className="list-item" to={`/secretaria/atas/${a.id}`}>
+              <li key={a.id}><Link className="list-item" to={`${BASE}/atas/${a.id}`}>
                 <span className="grow">Aditamento {n + 1} · {formatLisbon(a.created_at)}</span><Badge {...MINUTE_STATUS[a.status]} />
               </Link></li>
             ))}
