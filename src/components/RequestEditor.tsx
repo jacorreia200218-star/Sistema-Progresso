@@ -12,6 +12,7 @@ import { formatDate, JUSTIFICATION_LABEL, todayIso } from '../lib/labels';
 import type { RequestObjective, RequestVersion } from '../lib/types';
 import { Link } from 'react-router-dom';
 import { Badge, ConfirmButton, ErrorBox, Field, Notice } from './ui';
+import { DateInput } from './DateInput';
 
 /** Decisões por objetivo de uma versão do modelo anterior (histórico; não fecham o trilho). */
 export function LegacyObjectives({ rows }: { rows: RequestObjective[] }) {
@@ -241,10 +242,10 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
         )}
         <div className="grid-2">
           <Field label="Desde (opcional)" htmlFor="ps">
-            <input id="ps" type="date" value={form.period_start} max={todayIso()} onChange={set('period_start')} />
+            <DateInput id="ps" value={form.period_start} max={todayIso()} onChange={set('period_start')} />
           </Field>
           <Field label="Até (opcional)" htmlFor="pe">
-            <input id="pe" type="date" value={form.period_end} max={todayIso()} onChange={set('period_end')} />
+            <DateInput id="pe" value={form.period_end} max={todayIso()} onChange={set('period_end')} />
           </Field>
         </div>
         {historic && (

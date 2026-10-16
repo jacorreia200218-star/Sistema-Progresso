@@ -7,13 +7,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
-import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
-import { formatDay, formatEuros, parseEuros, todayLisbon } from '../common';
+import { Badge, ConfirmButton, Empty, ErrorBox, Field, Filters, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
+import { formatDay, formatEuros, formatLisbonDay, parseEuros, todayLisbon } from '../common';
 import { InvTabs, useFormAction } from './parts';
 import {
   PRIORITY_LABEL, PURCHASE_LABEL, norm, qty, useEventOptions, useExpenseOptions, useOverview, usePurchases, useSectionId,
   type Priority, type Purchase,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 const STATUS_FILTERS: [string, string][] = [['', 'Por comprar'], ['comprado', 'Compradas'], ['cancelado', 'Canceladas'], ['todos', 'Todas']];
 
@@ -41,8 +42,16 @@ export function Comprar() {
     : estado === 'todos' ? 'A lista «A comprar» está vazia.' : 'Não há nada por comprar.';
   return (
     <div className="inv-page">
-      <PageTitle title="A comprar" subtitle="Material necessário, por prioridade." />
+      <PageTitle title="A comprar"
+        actions={manage ? (
+          <button type="button" className="btn" aria-expanded={adding} onClick={() => { setFlash(null); setAdding(!adding); }}>
+            <Plus size={16} aria-hidden="true" /> Nova compra
+          </button>
+        ) : undefined}
+        info={!manage ? 'A lista é preparada pelos dirigentes e pelos responsáveis pelo material. Se precisares de algo, fala com eles.' : undefined} />
       <InvTabs />
+      {flash && <Notice kind="success">{flash}</Notice>}
+      {adding && <PurchaseForm onDone={(m) => { setAdding(false); setFlash(m ?? null); }} />}
       <div className="filter-chips" role="radiogroup" aria-label="Estado das compras">
         {STATUS_FILTERS.map(([k, l]) => (
           <label key={k} className="filter-chip">
@@ -50,29 +59,21 @@ export function Comprar() {
           </label>
         ))}
       </div>
-      <div className="grid-filters inv-filters">
-        <label className="search-field">
-          <Search size={16} aria-hidden="true" />
-          <span className="sr-only">Pesquisar compras</span>
-          <input type="search" placeholder="Pesquisar compras" value={q} onChange={(e) => set('q', e.target.value)} />
-        </label>
+      <Filters active={prio ? 1 : 0}
+        search={(
+          <label className="search-field">
+            <Search size={16} aria-hidden="true" />
+            <span className="sr-only">Pesquisar compras</span>
+            <input type="search" placeholder="Pesquisar compras" value={q} onChange={(e) => set('q', e.target.value)} />
+          </label>
+        )}>
         <select aria-label="Filtrar por prioridade" value={prio} onChange={(e) => set('prioridade', e.target.value)}>
           <option value="">Todas as prioridades</option>
           <option value="alta">Alta</option>
           <option value="media">Média</option>
           <option value="baixa">Baixa</option>
         </select>
-      </div>
-      {manage && (
-        <div className="btn-row inv-actions">
-          <button type="button" className="btn" aria-expanded={adding} onClick={() => { setFlash(null); setAdding(!adding); }}>
-            <Plus size={16} aria-hidden="true" /> Nova compra
-          </button>
-        </div>
-      )}
-      {flash && <Notice kind="success">{flash}</Notice>}
-      {adding && <PurchaseForm onDone={(m) => { setAdding(false); setFlash(m ?? null); }} />}
-      {!manage && <p className="faint prose">A lista é preparada pelos dirigentes e pelos responsáveis pelo material. Se precisares de algo, fala com eles.</p>}
+      </Filters>
       {list.isLoading || ov.isLoading ? <Loading /> : list.error ? <ErrorBox error={list.error} retry={() => list.refetch()} /> : rows.length === 0 ? (
         <div className="card"><Empty title={empty}>{manage && !q && !prio && estado === '' && <p className="faint">Usa «Nova compra» ou, na ficha de um artigo, «Pôr na lista “A comprar”».</p>}</Empty></div>
       ) : (
@@ -174,7 +175,7 @@ export function PurchaseForm({ item, purchase, onDone }: {
       </Field>
       <div className="grid-2">
         <Field label="Necessário até (opcional)" htmlFor={`${id}-d`}>
-          <input id={`${id}-d`} type="date" value={needed} onChange={(e) => setNeeded(e.target.value)} />
+          <DateInput id={`${id}-d`} value={needed} onChange={(e) => setNeeded(e.target.value)} />
         </Field>
         <Field label="Valor previsto (opcional)" htmlFor={`${id}-v`}>
           <input id={`${id}-v`} type="text" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00 €" />
@@ -211,7 +212,7 @@ function PrioritySelect({ id, value, onChange }: { id: string; value: Priority; 
 export function PurchaseCard({ p, canManage, finOk }: { p: Purchase; canManage: boolean; finOk: boolean }) {
   const section = useSectionId();
   const action = useAction();
-  const [open, setOpen] = useState<'comprar' | 'editar' | 'despesa' | null>(null);
+  const [open, setOpen] = useState<'comprar' | 'editar' | 'despesa' | 'cancelar' | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const done = (msg?: string) => { setOpen(null); setFlash(msg ?? null); };
   const toggle = (k: typeof open) => { setFlash(null); action.clear(); setOpen(open === k ? null : k); };
@@ -219,7 +220,7 @@ export function PurchaseCard({ p, canManage, finOk }: { p: Purchase; canManage: 
   const pr = PRIORITY_LABEL[p.priority];
   const itemLink = p.stock_item_id ?? p.item_id;
   return (
-    <li className={`card inv-loan inv-purchase${p.status === 'por_comprar' && p.priority === 'alta' ? ' inv-high' : ''}`}>
+    <li className="card inv-loan inv-purchase">
       <div className="row between inv-loan-head">
         <div className="inv-loan-title">
           {itemLink ? <Link to={`/inventario/artigo/${itemLink}`}><strong>{p.name}</strong></Link> : <strong>{p.name}</strong>}
@@ -238,7 +239,7 @@ export function PurchaseCard({ p, canManage, finOk }: { p: Purchase; canManage: 
         {p.event && <div><dt>Atividade</dt><dd>{p.event}</dd></div>}
         {p.amount_cents != null && <div><dt>{p.status === 'comprado' ? 'Valor' : 'Valor previsto'}</dt><dd>{formatEuros(p.amount_cents)}</dd></div>}
         {p.status === 'comprado' && p.bought_on && <div><dt>Comprado em</dt><dd>{formatDay(p.bought_on)}{p.bought_by ? ` · ${p.bought_by}` : ''}</dd></div>}
-        {p.status === 'cancelado' && p.cancelled_at && <div><dt>Cancelado</dt><dd>{formatDay(p.cancelled_at.slice(0, 10))}{p.cancelled_by ? ` · ${p.cancelled_by}` : ''}</dd></div>}
+        {p.status === 'cancelado' && p.cancelled_at && <div><dt>Cancelado</dt><dd>{formatLisbonDay(p.cancelled_at)}{p.cancelled_by ? ` · ${p.cancelled_by}` : ''}</dd></div>}
         <div><dt>Pedido por</dt><dd>{p.created_by}</dd></div>
       </dl>
       {p.status === 'cancelado' && p.cancel_reason && <p className="faint prose">Motivo: {p.cancel_reason}</p>}
@@ -259,11 +260,10 @@ export function PurchaseCard({ p, canManage, finOk }: { p: Purchase; canManage: 
           {p.status === 'por_comprar' && (
             <>
               <button type="button" className="btn" aria-expanded={open === 'comprar'} onClick={() => toggle('comprar')}>Marcar como comprado</button>
-              <button type="button" className="btn secondary" aria-expanded={open === 'editar'} onClick={() => toggle('editar')}>Editar</button>
-              <ConfirmButton className="btn ghost" confirmLabel="Cancelar compra" disabled={action.busy} description="A compra fica cancelada (não se apaga) e pode ser reaberta."
-                onConfirm={() => action.run(() => call('inv_purchase_cancel', { p_section: section, p_id: p.id, p_reason: null }), 'Compra cancelada.')}>
-                Cancelar
-              </ConfirmButton>
+              <MoreMenu>
+                <button type="button" className="btn" onClick={() => toggle('editar')}>Editar</button>
+                <button type="button" className="btn danger" onClick={() => toggle('cancelar')}>Cancelar compra</button>
+              </MoreMenu>
             </>
           )}
           {p.status === 'cancelado' && (
@@ -284,6 +284,18 @@ export function PurchaseCard({ p, canManage, finOk }: { p: Purchase; canManage: 
       )}
       {open === 'comprar' && <BuyForm p={p} finOk={finOk} onDone={done} />}
       {open === 'editar' && <PurchaseForm purchase={p} onDone={done} />}
+      {open === 'cancelar' && (
+        <div className="inv-form" role="group" aria-label="Cancelar compra">
+          <p>A compra fica cancelada (não se apaga) e pode ser reaberta.</p>
+          <div className="btn-row">
+            <button type="button" className="btn danger-solid" disabled={action.busy}
+              onClick={async () => { const r = await action.run(() => call('inv_purchase_cancel', { p_section: section, p_id: p.id, p_reason: null }), 'Compra cancelada.'); if (r.ok) setOpen(null); }}>
+              Cancelar compra
+            </button>
+            <button type="button" className="btn secondary" onClick={() => setOpen(null)}>Voltar</button>
+          </div>
+        </div>
+      )}
       {open === 'despesa' && <ExpenseLater p={p} onDone={done} />}
     </li>
   );
@@ -400,7 +412,7 @@ function BuyForm({ p, finOk, onDone }: { p: Purchase; finOk: boolean; onDone: (m
       {err && <Notice kind="error">{err}</Notice>}
       <ErrorBox error={action.error} />
       <div className="grid-2">
-        <Field label="Data da compra" htmlFor={`${idp}-d`}><input id={`${idp}-d`} type="date" value={on} max={todayLisbon()} onChange={(e) => setOn(e.target.value)} /></Field>
+        <Field label="Data da compra" htmlFor={`${idp}-d`}><DateInput id={`${idp}-d`} value={on} max={todayLisbon()} onChange={(e) => setOn(e.target.value)} /></Field>
         <Field label={`Quantidade comprada (${p.unit})`} htmlFor={`${idp}-q`}><input id={`${idp}-q`} type="number" inputMode="numeric" min={1} value={n} onChange={(e) => setN(e.target.value)} /></Field>
       </div>
       <Field label="Valor pago (opcional)" htmlFor={`${idp}-v`}>

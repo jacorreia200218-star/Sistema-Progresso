@@ -23,6 +23,7 @@ import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, 
 import { RequestList } from '../components/RequestList';
 import { stageName } from '../components/StagePanel';
 import { proposalRef } from '../lib/labels';
+import { DateInput } from '../components/DateInput';
 
 const TABS = [
   ['seccao', 'Secção'],
@@ -478,7 +479,7 @@ export function StageDecision({ sr, member, stage }: { sr: StageRequest; member?
             </fieldset>
           )}
           <Field label="Data" htmlFor={`d-${sr.id}`}>
-            <input id={`d-${sr.id}`} type="date" max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} />
+            <DateInput id={`d-${sr.id}`} max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
           <Field label={needComment ? 'Fundamentação (obrigatória)' : 'Comentário (opcional)'} htmlFor={`t-${sr.id}`}>
             <textarea id={`t-${sr.id}`} value={comment} onChange={(e) => setComment(e.target.value)} />

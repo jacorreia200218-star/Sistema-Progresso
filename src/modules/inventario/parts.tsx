@@ -11,6 +11,7 @@ import {
   CONDITION_LABEL, LOAN_LABEL, STATE_LABEL, STATE_TONE, qty, useEventOptions, useOverview, usePeople, useSectionId, when,
   type Condition, type ItemState, type Loan, type Piece, type Reservation, type Stock,
 } from './api';
+import { DateTimeInput } from '../../components/DateInput';
 
 export function InvTabs() {
   const ov = useOverview();
@@ -217,7 +218,7 @@ function ExtendForm({ l, onDone }: { l: Loan; onDone: (msg?: string) => void }) 
       {f.box}
       <ErrorBox error={action.error} />
       <Field label="Novo prazo de devolução" htmlFor={`due-${l.id}`}>
-        <input id={`due-${l.id}`} type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
+        <DateTimeInput timeLabel="Hora do novo prazo" id={`due-${l.id}`} value={due} onChange={(e) => setDue(e.target.value)} />
       </Field>
       <Field label="Motivo (opcional)" htmlFor={`duen-${l.id}`}>
         <input id={`duen-${l.id}`} type="text" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -346,10 +347,10 @@ export function LoanForm({ item, mode, reservation, onDone }: {
       )}
       <div className="grid-2">
         <Field label="Saída" htmlFor={`${id}-o`}>
-          <input id={`${id}-o`} type="datetime-local" value={out} onChange={(e) => setOut(e.target.value)} />
+          <DateTimeInput timeLabel="Hora da saída" id={`${id}-o`} value={out} onChange={(e) => setOut(e.target.value)} />
         </Field>
         <Field label="Devolução prevista" htmlFor={`${id}-d`}>
-          <input id={`${id}-d`} type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
+          <DateTimeInput timeLabel="Hora da devolução prevista" id={`${id}-d`} value={due} onChange={(e) => setDue(e.target.value)} />
         </Field>
       </div>
       {free != null && <p className="faint" aria-live="polite">Livres nesse período: {qty(free, item.unit)}</p>}
@@ -426,8 +427,8 @@ export function ReservationForm({ item, onDone }: { item: { id: string; name: st
       )}
       {!useEvent && (
         <div className="grid-2">
-          <Field label="Início" htmlFor={`${id}-s`}><input id={`${id}-s`} type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-          <Field label="Fim" htmlFor={`${id}-t`}><input id={`${id}-t`} type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Field label="Início" htmlFor={`${id}-s`}><DateTimeInput timeLabel="Hora de início" id={`${id}-s`} value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+          <Field label="Fim" htmlFor={`${id}-t`}><DateTimeInput timeLabel="Hora de fim" id={`${id}-t`} value={to} onChange={(e) => setTo(e.target.value)} /></Field>
         </div>
       )}
       <Field label={`Quantidade (${item.unit})`} htmlFor={`${id}-q`}>

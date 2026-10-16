@@ -1,31 +1,39 @@
 // Contas e caixas e saldo inicial (só para quem gere). Arquivar/anular em vez de apagar.
 import { useState, type FormEvent } from 'react';
+import { Plus } from 'lucide-react';
 import { ConfirmButton, Empty, ErrorBox, Field, Loading, Notice } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { eurosInput, formatDay, formatEuros, formatLisbon, parseEuros, todayLisbon } from '../common';
 import { useOpeningBalances, useOptions, useSectionId, type Account, type Opening } from './api';
 import { History } from './Movements';
+import { DateInput } from '../../components/DateInput';
 
 export function AccountsPage() {
   const opts = useOptions();
+  const [adding, setAdding] = useState(false);
   return (
     <div className="stack">
       <OpeningSection />
-      <h2 className="section-title">Contas e caixas</h2>
-      <AccountForm />
-      {opts.isLoading ? <Loading rows={1} /> : opts.error ? <ErrorBox error={opts.error} retry={opts.refetch} /> : !opts.data?.accounts.length ? (
-        <Empty title="Ainda não há contas nem caixas"><p>Cria, por exemplo, «Caixa» (numerário) e «Conta bancária».</p></Empty>
-      ) : (
-        <ul className="list card">
-          {opts.data.accounts.map((a) => <AccountRow key={a.id} a={a} />)}
-        </ul>
-      )}
+      <section className="card stack" aria-labelledby="fin-acc-t">
+        <div className="row between fin-card-head">
+          <h2 id="fin-acc-t" className="card-title">Contas e caixas</h2>
+          {!adding && <button type="button" className="btn secondary" onClick={() => setAdding(true)}><Plus size={16} aria-hidden="true" /> Nova conta ou caixa</button>}
+        </div>
+        {adding && <AccountForm onClose={() => setAdding(false)} />}
+        {opts.isLoading ? <Loading rows={1} /> : opts.error ? <ErrorBox error={opts.error} retry={opts.refetch} /> : !opts.data?.accounts.length ? (
+          <Empty title="Ainda não há contas nem caixas"><p>Cria, por exemplo, «Caixa» (numerário) e «Conta bancária».</p></Empty>
+        ) : (
+          <ul className="list">
+            {opts.data.accounts.map((a) => <AccountRow key={a.id} a={a} />)}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
 
-function AccountForm() {
+function AccountForm({ onClose }: { onClose: () => void }) {
   const section = useSectionId();
   const act = useAction();
   const [name, setName] = useState('');
@@ -39,12 +47,12 @@ function AccountForm() {
     if (r.ok) setName('');
   };
   return (
-    <form className="card stack" onSubmit={submit} noValidate aria-label="Nova conta ou caixa">
+    <form className="card flat stack" onSubmit={submit} noValidate aria-label="Nova conta ou caixa">
       {err && <Notice kind="error">{err}</Notice>}
       {act.success && <Notice kind="success">{act.success}</Notice>}
       <ErrorBox error={act.error} />
       <div className="grid-2">
-        <Field label="Nome" htmlFor="acc-name"><input id="acc-name" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Nome" htmlFor="acc-name"><input type="text" id="acc-name" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Tipo" htmlFor="acc-kind">
           <select id="acc-kind" value={kind} onChange={(e) => setKind(e.target.value as 'conta' | 'caixa')}>
             <option value="caixa">Caixa (numerário)</option>
@@ -52,7 +60,10 @@ function AccountForm() {
           </select>
         </Field>
       </div>
-      <div className="btn-row"><button type="submit" className="btn" disabled={act.busy}>Criar</button></div>
+      <div className="btn-row">
+        <button type="submit" className="btn" disabled={act.busy}>Criar</button>
+        <button type="button" className="btn secondary" onClick={onClose}>Fechar</button>
+      </div>
     </form>
   );
 }
@@ -84,12 +95,6 @@ function OpeningSection() {
   return (
     <section className="card stack" aria-labelledby="fin-open-t">
       <h2 id="fin-open-t" className="card-title">Saldo inicial</h2>
-      <p className="prose faint">
-        O saldo inicial é o dinheiro que havia no início da data de referência. O painel calcula
-        «Saldo atual = Saldo inicial + Receitas − Despesas», só com movimentos efetivos e não anulados a partir dessa data.
-        Os movimentos com data anterior ficam registados, mas não somam outra vez (já estão incluídos no saldo inicial).
-        Usa um saldo inicial global (todas as contas e caixas) ou um por conta ou caixa — não os dois ao mesmo tempo.
-      </p>
       {q.isLoading ? <Loading rows={1} /> : q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : (
         <>
           {done && <Notice kind="success">{done}</Notice>}
@@ -147,7 +152,7 @@ function OpeningRow({ o, onEdit }: { o: Opening; onEdit: () => void }) {
         <History id={o.id} />
         <div className="fin-void">
           <Field label="Motivo da anulação" htmlFor={`void-${o.id}`}>
-            <input id={`void-${o.id}`} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <input type="text" id={`void-${o.id}`} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Field>
           <ConfirmButton className="btn ghost danger" disabled={reason.trim().length < 3 || act.busy} confirmLabel="Anular saldo inicial"
             description="O saldo inicial deixa de contar no cálculo, mas fica registado com o motivo."
@@ -196,13 +201,13 @@ function OpeningForm({ initial, hasGlobal, hasAccounts, onDone }: { initial: Ope
           </select>
         </Field>
         <Field label="Data de referência" htmlFor="op-day" hint="Saldo no início deste dia">
-          <input id="op-day" type="date" max={todayLisbon()} value={day} onChange={(e) => setDay(e.target.value)} />
+          <DateInput id="op-day" max={todayLisbon()} value={day} onChange={(e) => setDay(e.target.value)} />
         </Field>
         <Field label="Valor (€)" htmlFor="op-amount" hint="Com vírgula: 250,00">
-          <input id="op-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input type="text" id="op-amount" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="Notas (opcional)" htmlFor="op-notes">
-          <input id="op-notes" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <input type="text" id="op-notes" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
       </div>
       <div className="btn-row">

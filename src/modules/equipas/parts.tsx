@@ -7,12 +7,13 @@ import { Shield } from 'lucide-react';
 import { call } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { useAction } from '../../lib/useAction';
-import { Badge, Field, Notice } from '../../components/ui';
+import { Badge, Field, MoreMenu, Notice } from '../../components/ui';
 import { formatDay, todayLisbon } from '../common';
 import {
   appointmentState, periodLabel, STATE_LABEL, STATE_TONE, useSectionId,
   type EqAppointment, type EqMember, type EqOverview, type EqRole, type EqTeam,
 } from './data';
+import { DateInput } from '../../components/DateInput';
 
 export const BASE = '/equipas-e-cargos';
 
@@ -35,13 +36,14 @@ export function Result({ error, success }: { error: string | null; success: stri
   return null;
 }
 
-export function YearSelect({ years, value, onChange, id = 'eq-ano' }: { years: string[]; value: string; onChange: (v: string) => void; id?: string }) {
+export function YearSelect({ years, value, onChange, id = 'eq-ano', children }: { years: string[]; value: string; onChange: (v: string) => void; id?: string; children?: ReactNode }) {
   return (
     <div className="eq-year">
       <label htmlFor={id}>Ano escutista</label>
       <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
         {years.map((y) => <option key={y} value={y}>{y}</option>)}
       </select>
+      {children}
     </div>
   );
 }
@@ -112,28 +114,30 @@ export function AppointmentItem({ a, o, show }: { a: EqAppointment; o: EqOvervie
         <div className="grow">
           <strong>{role?.name ?? 'Cargo'}</strong> <span className="faint">·</span> {who}
           <div className="faint">{periodLabel(a)}{a.end_reason ? ` · ${a.end_reason}` : ''}</div>
-          {a.notes && <div className="faint prose">{a.notes}</div>}
+          {a.notes && <div className="faint">{a.notes}</div>}
           {a.cancelled_at && <div className="faint">Anulada{a.cancel_reason ? `: ${a.cancel_reason}` : ''}</div>}
         </div>
         <Badge label={STATE_LABEL[state]} tone={STATE_TONE[state]} />
+        {(canEnd || canCancel) && !mode && (
+          <MoreMenu className="eq-item-menu">
+            {canEnd && <button type="button" className="btn" onClick={() => { setMode('fim'); setReason(''); act.clear(); }}>Terminar</button>}
+            {canCancel && <button type="button" className="btn danger" onClick={() => { setMode('anular'); setReason(''); act.clear(); }}>Anular registo</button>}
+          </MoreMenu>
+        )}
       </div>
-      {(canEnd || canCancel) && !mode && (
-        <div className="btn-row eq-actions">
-          {canEnd && <button type="button" className="btn secondary" onClick={() => { setMode('fim'); setReason(''); act.clear(); }}>Terminar</button>}
-          {canCancel && <button type="button" className="btn ghost" onClick={() => { setMode('anular'); setReason(''); act.clear(); }}>Anular registo</button>}
-        </div>
-      )}
       {mode && (
-        <form className="eq-inline-form" onSubmit={submit} noValidate>
+        <form className="eq-inline-form" onSubmit={submit} noValidate aria-label={mode === 'fim' ? 'Terminar nomeação' : 'Anular nomeação'}>
           {mode === 'fim' ? (
             <>
               <p className="faint prose">A nomeação não é apagada: fica no histórico com esta data de fim. No dia de fim já pode começar outra pessoa.</p>
-              <Field label="Data de fim" htmlFor={`fim-${a.id}`}>
-                <input id={`fim-${a.id}`} type="date" value={end} min={a.starts_on} onChange={(e) => setEnd(e.target.value)} required />
-              </Field>
-              <Field label="Motivo (opcional)" htmlFor={`mot-${a.id}`}>
-                <input id={`mot-${a.id}`} type="text" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex.: fim de mandato" />
-              </Field>
+              <div className="grid-2">
+                <Field label="Data de fim" htmlFor={`fim-${a.id}`}>
+                  <DateInput id={`fim-${a.id}`} value={end} min={a.starts_on} onChange={(e) => setEnd(e.target.value)} required />
+                </Field>
+                <Field label="Motivo (opcional)" htmlFor={`mot-${a.id}`}>
+                  <input id={`mot-${a.id}`} type="text" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex.: fim de mandato" />
+                </Field>
+              </div>
             </>
           ) : (
             <>
@@ -220,10 +224,10 @@ export function AppointForm({ o, team, member, onDone }: { o: EqOverview; team: 
           </Field>
         )}
         <Field label="Início" htmlFor="eq-start">
-          <input id="eq-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} required />
+          <DateInput id="eq-start" value={start} onChange={(e) => setStart(e.target.value)} required />
         </Field>
         <Field label="Fim (opcional)" htmlFor="eq-end" hint="Deixa vazio se não tiver data prevista.">
-          <input id="eq-end" type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
+          <DateInput id="eq-end" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
         </Field>
       </div>
       {end && (
@@ -290,7 +294,7 @@ export function MoveForm({ o, member }: { o: EqOverview; member: EqMember }) {
           </select>
         </Field>
         <Field label="Data da mudança" htmlFor="eq-move-day">
-          <input id="eq-move-day" type="date" value={day} max={o.today} onChange={(e) => setDay(e.target.value)} required />
+          <DateInput id="eq-move-day" value={day} max={o.today} onChange={(e) => setDay(e.target.value)} required />
         </Field>
       </div>
       <Field label="Motivo (opcional)" htmlFor="eq-move-reason">

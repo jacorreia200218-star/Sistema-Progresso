@@ -1,62 +1,82 @@
 /* Equipas e cargos — usa as variáveis do tema (claro e escuro). */
-.module-equipas .eq-year { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; flex-wrap: wrap; }
-.module-equipas .eq-year label { font-weight: 700; }
-.module-equipas .eq-year select { width: auto; min-width: 120px; }
+.module-equipas .eq-year { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; flex-wrap: wrap; }
+.module-equipas .eq-year label { font-weight: 400; font-size: var(--fs-small); color: var(--ink-soft); }
+.module-equipas .eq-year select { width: auto; min-width: 110px; }
 
-.eq-team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 12px; margin-bottom: 12px; }
+/* Cartões das equipas: simples e de altura uniforme */
+.eq-team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 12px; margin-bottom: 12px; align-items: stretch; }
 .eq-team-card {
-  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
-  color: inherit; text-decoration: none; margin: 0; padding: 18px 14px 14px;
-  border-top: 4px solid var(--team, var(--line)) !important;
-  transition: border-color 160ms var(--ease), background-color 160ms var(--ease);
+  display: flex; flex-direction: column; gap: 4px; height: 100%;
+  color: inherit; text-decoration: none; margin: 0; padding: 14px;
+  border-left: 3px solid var(--team, var(--line)) !important;
+  transition: background-color 160ms var(--ease);
 }
 .eq-team-card:hover { background: var(--surface-2); }
 .eq-team-card:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.eq-team-card h2 { font-size: var(--fs-section); margin: 4px 0 0; }
+.eq-team-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; min-width: 0; }
+.eq-team-head .grow { min-width: 0; }
+.eq-team-card h2 { font-size: var(--fs-section); margin: 0; }
+.eq-team-head .eq-motto { font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eq-team-line { font-size: var(--fs-small); overflow-wrap: anywhere; }
+.eq-team-line .faint { display: inline-block; min-width: 62px; }
+.eq-team-members { margin-top: auto; padding-top: 8px; font-size: var(--fs-small); }
+.eq-team-names { color: var(--ink-soft); overflow-wrap: anywhere; }
+
 .eq-motto { font-style: italic; color: var(--ink-soft); margin: 0; overflow-wrap: anywhere; }
-.eq-leads { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 6px 0 2px; width: 100%; }
-.eq-leads div { min-width: 0; }
-.eq-leads dt { font-size: var(--fs-xs); color: var(--ink-faint); }
-.eq-leads dd { margin: 0; font-size: var(--fs-small); overflow-wrap: anywhere; }
-.eq-team-card .faint { display: inline-flex; align-items: center; gap: 4px; }
 
 .eq-emblem {
   display: inline-grid; place-items: center; flex: none; border-radius: 50%; overflow: hidden;
-  background: color-mix(in srgb, var(--team) 16%, var(--card)); color: var(--team);
-  border: 2px solid color-mix(in srgb, var(--team) 45%, transparent);
-  font-weight: 700; font-size: 22px;
+  background: color-mix(in srgb, var(--team) 14%, var(--card)); color: var(--team);
+  border: 1px solid color-mix(in srgb, var(--team) 40%, transparent);
+  font-weight: 700; font-size: var(--fs-section);
 }
 .eq-emblem img { width: 100%; height: 100%; object-fit: cover; }
 
-.eq-identity { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; border-top: 4px solid var(--team) !important; }
-.eq-person-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-left: 4px solid var(--team) !important; }
+.eq-identity, .eq-person-head { display: flex; align-items: center; gap: 12px; border-left: 3px solid var(--team) !important; }
+.eq-identity .grow, .eq-person-head .grow { min-width: 0; }
+.eq-person-head a { color: var(--accent-ink); }
 .eq-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 
-.eq-panel > summary { cursor: pointer; font-weight: 700; color: var(--accent-ink); min-height: 40px; display: flex; align-items: center; }
-.eq-panel[open] > summary { margin-bottom: 8px; }
+/* Painéis abertos por uma ação (nomear, mudar de equipa, identidade, novo cargo) */
+.eq-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.eq-panel-title { font-size: var(--fs-section); margin: 0 0 8px; }
+.eq-panel-head .eq-panel-title { margin: 0; }
+.eq-emblem-field { margin-top: 14px; }
 
-.eq-appointments > li { padding: 10px 2px; }
-.eq-appointment-main { display: flex; align-items: flex-start; gap: 10px; }
+/* Histórico recolhido */
+.eq-history > summary { cursor: pointer; font-weight: 700; min-height: 32px; display: flex; align-items: center; gap: 4px; }
+.eq-history > summary .faint { font-weight: 400; }
+.eq-history[open] > summary { margin-bottom: 6px; }
+.eq-history .faint-title { margin-top: 10px; }
+.eq-year-group + .eq-year-group { margin-top: 6px; }
+.eq-year-label { margin: 6px 0 0; font-size: var(--fs-xs); color: var(--ink-faint); font-weight: 400; }
+
+.eq-none { margin: 4px 2px; font-size: var(--fs-small); }
+.eq-note { margin: 0 0 8px; font-size: var(--fs-small); }
+
+.eq-appointments > li { padding: 8px 2px; }
+.eq-appointment-main { display: flex; align-items: center; gap: 8px; }
+.eq-appointment-main .grow { min-width: 0; }
+.eq-appointment-main .faint { font-size: var(--fs-small); }
 .eq-appointment-main a { color: var(--accent-ink); }
 .eq-appointment.state-terminado strong, .eq-appointment.state-anulado strong { color: var(--ink-soft); }
 .eq-appointment.state-anulado .eq-appointment-main .grow > :first-child { text-decoration: line-through; text-decoration-color: var(--ink-faint); }
-.eq-actions { margin-top: 6px; }
-.eq-inline-form { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
-.eq-year-group + .eq-year-group { margin-top: 10px; }
-.eq-year-group h3 { margin: 4px 0; }
+.eq-item-menu > summary { min-height: 36px; min-width: 40px; padding: 4px 8px; font-size: 0; gap: 0; justify-content: center; }
+.eq-item-menu > summary .more-chevron { display: none; }
+.eq-inline-form { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
 
-.eq-duties { margin: 6px 0 8px; }
-.eq-roles { list-style: none; margin: 0; padding: 0; }
-.eq-roles h2 { font-size: var(--fs-section); margin: 0; }
+/* Cargos */
+.eq-roles > li { padding: 10px 2px; }
+.eq-role { display: flex; align-items: flex-start; gap: 8px; }
+.eq-role .grow { min-width: 0; }
+.eq-role-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.eq-roles h2 { font-size: var(--fs-body); margin: 0; }
+.eq-duties { margin: 4px 0 0; font-size: var(--fs-small); color: var(--ink-soft); }
+.eq-role-form { padding: 4px 0; }
+.eq-push { margin-left: auto; }
 
 .eq-check { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px; cursor: pointer; }
 .eq-check input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
-
-.eq-filters { display: grid; gap: 0 12px; grid-template-columns: 1fr; }
-@media (min-width: 640px) { .eq-filters { grid-template-columns: 2fr 1fr; } }
-.eq-search { position: relative; }
-.eq-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); }
-.eq-search input { padding-left: 32px; width: 100%; }
 
 .eq-colors { border: 0; padding: 0; margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 .eq-colors legend { margin-bottom: 6px; }

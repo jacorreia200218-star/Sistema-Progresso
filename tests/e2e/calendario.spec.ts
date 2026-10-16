@@ -2,6 +2,7 @@
 // a partir de um dia, responder, exportar.
 // Dados FICTÍCIOS só para teste; as regras do servidor são testadas em tests/db/calendario.test.ts.
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 type Row = Record<string, any>;
@@ -153,7 +154,7 @@ test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades',
   await page.goto('/calendario');
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Calendário escutista', level: 1 })).toBeVisible();
-  await expect(main.getByText('Ambiente de teste.')).toBeVisible();
+  await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
   const year = todayDay().slice(0, 4);
   await expect(main.getByRole('heading', { name: `Ano ${year}`, level: 2 })).toBeVisible();
   await expect(main.locator('.cal-mm')).toHaveCount(12);
@@ -246,10 +247,11 @@ test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', as
   await expect(page.getByRole('dialog')).toContainText('Sem atividades neste dia.');
   await page.getByRole('dialog').getByRole('link', { name: 'Nova atividade neste dia' }).click();
   await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
-  await expect(page.getByLabel('Início')).toHaveValue(`${target}T10:00`);
-  await page.getByLabel('Título').fill('Jogo de cidade (teste)');
-  await page.getByLabel('Dia inteiro (um ou vários dias)').check();
-  await expect(page.getByLabel('Primeiro dia')).toHaveValue(target);
+  // Formulário simples: evento, data e notas; o resto fica em «Mais opções».
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(fmt(target));
+  await expect(page.getByLabel('Hora de início')).toBeHidden();
+  await page.getByLabel('Evento', { exact: true }).fill('Jogo de cidade (teste)');
+  await page.getByText('Mais opções').click();
   const last = lisbonDay(isoIn(11 * D));
   await page.getByLabel('Último dia').fill(last);
   await noHorizontalScroll(page);
@@ -282,6 +284,7 @@ test('ano escutista e configuração de dias especiais', async ({ page }, info) 
   await page.screenshot({ path: `test-results/calendario-escutista-${info.project.name}.png`, fullPage: true });
 
   // Configurar: feriado municipal recorrente e mês inicial
+  await main.getByRole('button', { name: 'Mais ações' }).click();
   await main.getByRole('link', { name: 'Dias e ano escutista' }).click();
   await expect(page.getByRole('heading', { name: 'Dias especiais e ano escutista', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'Acrescentar' }).click();
@@ -321,14 +324,17 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await page.locator('main').getByRole('link', { name: 'Nova atividade' }).click();
   await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'Criar atividade' }).click();
-  await expect(page.getByText('Indica o título da atividade.')).toBeVisible();
-  await page.getByLabel('Título').fill('Fogo de conselho (teste)');
-  await page.getByLabel('Local (opcional)').fill('Sede (teste)');
-  await page.getByLabel('Início').fill('2026-10-25T10:00');
-  await page.getByLabel('Fim').fill('2026-10-25T09:00');
+  await expect(page.getByText('Indica o nome do evento.')).toBeVisible();
+  await page.getByLabel('Evento', { exact: true }).fill('Fogo de conselho (teste)');
+  await page.getByLabel('Data', { exact: true }).fill('25/10/2026');
+  await page.getByLabel('Notas (opcional)').fill('Trazer lenha.');
+  await page.getByText('Mais opções').click();
+  await page.getByLabel('Local', { exact: true }).fill('Sede (teste)');
+  await page.getByLabel('Hora de início').fill('10:00');
+  await page.getByLabel('Hora de fim').fill('09:00');
   await page.getByRole('button', { name: 'Criar atividade' }).click();
   await expect(page.getByText('O fim não pode ser antes do início.')).toBeVisible();
-  await page.getByLabel('Fim').fill('2026-10-25T12:00');
+  await page.getByLabel('Hora de fim').fill('12:00');
   await page.getByLabel('Pede autorização').check();
   await page.getByLabel('1 hora').check();
   await noHorizontalScroll(page);
@@ -337,8 +343,9 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Fogo de conselho (teste)', level: 1 })).toBeVisible();
   const body = cal.calls.find((c) => c.fn === 'cal_create_event')!.body;
   // 25/10/2026 já é hora de inverno (UTC+0)
-  expect(body.p_data).toMatchObject({ starts_at: '2026-10-25T10:00:00.000Z', ends_at: '2026-10-25T12:00:00.000Z', needs_authorization: true, reminder_minutes: [1440, 60] });
-  await expect(page.locator('main')).toContainText('25/10/2026, 10:00–12:00');
+  expect(body.p_data).toMatchObject({ description: 'Trazer lenha.', all_day: false, starts_at: '2026-10-25T10:00:00.000Z', ends_at: '2026-10-25T12:00:00.000Z', needs_authorization: true, reminder_minutes: [1440, 60] });
+  await expect(page.locator('main .cal-facts')).toContainText('Início25/10/2026 · 10:00');
+  await expect(page.locator('main .cal-facts')).toContainText('Fim25/10/2026 · 12:00');
 });
 
 test('pioneiro responde, vê o que lhe falta e exporta para o calendário', async ({ page }, info) => {
@@ -386,9 +393,46 @@ test('dirigente marca pendências e cancela', async ({ page }) => {
   expect(cal.calls.find((c) => c.fn === 'cal_set_pending')!.body).toMatchObject({ p_profile: 'u-p1', p_item: 'autorizacao', p_done: true });
   await main.getByRole('tab', { name: 'Com pendências' }).click();
   await expect(page).toHaveURL(/p=falta/);
+  await main.getByRole('button', { name: 'Mais ações' }).click();
   await main.getByRole('button', { name: 'Cancelar atividade…' }).click();
   await main.getByRole('button', { name: 'Cancelar atividade', exact: true }).click();
   await expect(main.getByText('Atividade cancelada', { exact: false }).first()).toBeVisible();
   await expect(main.getByRole('button', { name: 'Guardar resposta' })).toHaveCount(0);
   await noHorizontalScroll(page);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`calendário ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      const { events } = await installCalendar(page, 'ana');
+      const day = lisbonDay(events[0].starts_at);
+      events.push({ ...events[0], id: 'ev2', title: 'Reunião de guias com um título bastante longo para testar o corte', starts_at: isoIn(3 * D + 4 * H), ends_at: isoIn(3 * D + 5 * H), location: null });
+      events.push({ ...events[0], id: 'ev3', title: 'Atividade de serviço', starts_at: isoIn(3 * D + 6 * H), ends_at: isoIn(3 * D + 7 * H) });
+      events.push({ ...events[0], id: 'ev4', title: 'Acampamento de Natal', all_day: true, starts_at: null, ends_at: null, start_date: '2026-12-27', end_date: '2026-12-29' });
+      await page.goto('/calendario');
+      await shoot(page, info, theme, 'calendario-ano');
+      if (info.project.name === 'telemovel') {
+        await page.goto('/calendario');
+        await page.locator('.cal-jump.is-current').click();
+        await page.waitForTimeout(600);
+        await shoot(page, info, theme, 'calendario-mes', { full: false });
+      }
+      await page.goto(`/calendario?dia=${day}`);
+      await page.getByRole('dialog').waitFor();
+      await shoot(page, info, theme, 'calendario-dia', { full: false });
+      await page.goto('/calendario?dia=2026-12-25');
+      await page.getByRole('dialog').waitFor();
+      await shoot(page, info, theme, 'calendario-feriado', { full: false });
+      await page.goto('/calendario/evento/ev1');
+      await shoot(page, info, theme, 'calendario-detalhe');
+      await page.goto('/calendario?vista=lista');
+      await shoot(page, info, theme, 'calendario-lista');
+      await page.goto('/calendario/nova');
+      await shoot(page, info, theme, 'calendario-formulario');
+    });
+  }
 });

@@ -13,10 +13,6 @@ export function ActivitiesPage() {
   const canManage = useCanManage();
   return (
     <div className="stack">
-      <p className="prose faint">
-        Para cada atividade, o orçamento (previsto) ao lado do resultado efetivo. Os valores por confirmar (pendentes ou previstos)
-        aparecem à parte e não entram no resultado.
-      </p>
       {canManage && <BudgetForm />}
       {q.isLoading ? <Loading rows={2} /> : q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : !q.data?.length ? (
         <Empty title="Sem atividades com orçamento ou movimentos">
@@ -27,15 +23,25 @@ export function ActivitiesPage() {
   );
 }
 
-function Triple({ title, v }: { title: string; v: { receitas: number; despesas: number; resultado: number } }) {
+type Trio = { receitas: number; despesas: number; resultado: number };
+
+/** Orçamento e efetivo lado a lado, valores alinhados à direita. */
+function BudgetTable({ orcamento, efetivo }: { orcamento: Trio; efetivo: Trio }) {
+  const rows: [string, keyof Trio][] = [['Receitas', 'receitas'], ['Despesas', 'despesas'], ['Resultado', 'resultado']];
   return (
-    <div className="fin-mini">
-      <h3>{title}</h3>
-      <dl className="fin-dl">
-        <dt>Receitas</dt><dd>{formatEuros(v.receitas)}</dd>
-        <dt>Despesas</dt><dd>{formatEuros(v.despesas)}</dd>
-        <dt>Resultado</dt><dd><strong className={v.resultado < 0 ? 'fin-neg' : undefined}>{formatEuros(v.resultado)}</strong></dd>
-      </dl>
+    <div className="fin-table-wrap">
+      <table className="fin-table">
+        <thead><tr><th scope="col"><span className="sr-only">Valor</span></th><th scope="col">Orçamento (previsto)</th><th scope="col">Efetivo</th></tr></thead>
+        <tbody>
+          {rows.map(([label, k]) => (
+            <tr key={k} className={k === 'resultado' ? 'fin-total' : undefined}>
+              <th scope="row">{label}</th>
+              <td className={orcamento[k] < 0 && k === 'resultado' ? 'fin-neg' : undefined}>{formatEuros(orcamento[k])}</td>
+              <td className={efetivo[k] < 0 && k === 'resultado' ? 'fin-neg' : undefined}>{formatEuros(efetivo[k])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -45,16 +51,13 @@ function ActivityCard({ a, canManage }: { a: ActivityResult; canManage: boolean 
   const act = useAction();
   const diff = a.efetivo.resultado - a.orcamento.resultado;
   return (
-    <section className="card stack" id={`a-${a.activity_id}`} aria-labelledby={`t-${a.activity_id}`}>
+    <section className="card stack fin-activity" id={`a-${a.activity_id}`} aria-labelledby={`t-${a.activity_id}`}>
       <div>
         <h2 id={`t-${a.activity_id}`} className="card-title">{a.title}</h2>
-        <p className="faint">{a.day ? formatDay(a.day) : ''}{a.status === 'cancelado' ? ' · atividade cancelada' : ''}</p>
+        <p className="faint fin-note">{a.day ? formatDay(a.day) : ''}{a.status === 'cancelado' ? ' · atividade cancelada' : ''}</p>
       </div>
-      <div className="grid-2">
-        <Triple title="Orçamento (previsto)" v={a.orcamento} />
-        <Triple title="Efetivo" v={a.efetivo} />
-      </div>
-      <p className="faint">
+      <BudgetTable orcamento={a.orcamento} efetivo={a.efetivo} />
+      <p className="faint fin-note">
         Diferença no resultado: <strong>{formatEuros(diff)}</strong>
         {(a.por_confirmar.receitas > 0 || a.por_confirmar.despesas > 0) && <> · por confirmar: {formatEuros(a.por_confirmar.resultado)}</>}
       </p>
@@ -140,12 +143,12 @@ function BudgetForm() {
           </select>
         </Field>
         <Field label="Categoria" htmlFor="b-cat">
-          <input id="b-cat" list="b-cats" value={category} maxLength={60} onChange={(e) => setCategory(e.target.value)} />
+          <input type="text" id="b-cat" list="b-cats" value={category} maxLength={60} onChange={(e) => setCategory(e.target.value)} />
           <datalist id="b-cats">{(opts.data?.categories ?? []).map((c) => <option key={c} value={c} />)}</datalist>
         </Field>
-        <Field label="Valor previsto (€)" htmlFor="b-amount"><input id="b-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+        <Field label="Valor previsto (€)" htmlFor="b-amount"><input type="text" id="b-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
       </div>
-      <Field label="Descrição" htmlFor="b-desc"><input id="b-desc" maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+      <Field label="Descrição" htmlFor="b-desc"><input type="text" id="b-desc" maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
       <div className="btn-row">
         <button type="submit" className="btn" disabled={act.busy}>Guardar linha</button>
         <button type="button" className="btn secondary" onClick={() => setOpen(false)}>Fechar</button>

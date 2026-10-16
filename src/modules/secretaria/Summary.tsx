@@ -14,6 +14,7 @@ import {
   BASE, EXEC_STATUS, KIND_LABEL, UNDEFINED, useEventOptions, usePeople, useSectionId, useSummary,
   type ItemKind, type SummaryDetail, type SummaryEntry,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 const GROUPS: { kind: ItemKind; title: string; empty: string }[] = [
   { kind: 'decisao', title: 'O que ficou decidido', empty: 'Nenhuma decisão registada na ata.' },
@@ -48,7 +49,7 @@ function EntryEditor({ e, n, onChange, people, teams, events }: {
             </select>
           </Field>
           <Field label="Prazo" htmlFor={`${id}-d`}>
-            <input id={`${id}-d`} type="date" value={e.due_date ?? ''} onChange={(x) => onChange({ due_date: x.target.value || null })} />
+            <DateInput id={`${id}-d`} value={e.due_date ?? ''} onChange={(x) => onChange({ due_date: x.target.value || null })} />
           </Field>
           <Field label="Atividade" htmlFor={`${id}-a`}>
             <select id={`${id}-a`} value={e.cal_event_id ?? ''} onChange={(x) => onChange({ cal_event_id: x.target.value || null })}>
@@ -155,14 +156,19 @@ export function SummaryPage() {
   return (
     <>
       <PageTitle title={`Sumário · ${d.meeting.title}`} back={`${BASE}/reunioes/${d.meeting.id}`}
-        subtitle={<>{formatLisbon(d.meeting.starts_at)} · {KIND_LABEL[d.meeting.kind]}{d.meeting.team_name ? ` · ${d.meeting.team_name}` : ''}</>} />
-      {s && (
-        <div className="sec-status-bar">
-          {s.status === 'publicado' ? <Badge label="Publicado" tone="ok" icon="check" /> : <Badge label="Em revisão" tone="attention" icon="pencil" />}
-          {s.published_version && s.status !== 'publicado' && <span className="faint sec-meta">Versão publicada em vigor: {s.published_version}</span>}
-          {v && <span className="faint sec-meta">Versão {v.version_no}</span>}
-        </div>
-      )}
+        info={editable ? <p>
+          Revê cada ponto antes de publicar. Os títulos das tarefas e dos preparativos aparecem a quem é responsável, mesmo que não
+          tenha acesso à ata: não incluas conteúdo reservado. Ao publicar, os responsáveis, prazos e atividades revistos passam
+          para o quadro de tarefas.
+        </p> : undefined} />
+      <div className="sec-status-bar">
+        {s && (s.status === 'publicado' ? <Badge label="Publicado" tone="ok" icon="check" /> : <Badge label="Em revisão" tone="attention" icon="pencil" />)}
+        <span className="faint sec-meta">{formatLisbon(d.meeting.starts_at)} · {KIND_LABEL[d.meeting.kind]}{d.meeting.team_name ? ` · ${d.meeting.team_name}` : ''}</span>
+        {s && (<>
+          {s.published_version && s.status !== 'publicado' && <span className="faint sec-meta">· versão publicada em vigor: {s.published_version}</span>}
+          {v && <span className="faint sec-meta">· versão {v.version_no}</span>}
+        </>)}
+      </div>
       {v && !isCurrent && (
         <Notice kind="warn">Estás a ver a versão {v.version_no}. <button type="button" className="link-btn" onClick={() => goVersion(null)}>Ver a versão atual</button></Notice>
       )}
@@ -190,11 +196,6 @@ export function SummaryPage() {
 
       {v && editable && (
         <>
-          <p className="prose faint sec-note">
-            Revê cada ponto antes de publicar. Os títulos das tarefas e dos preparativos aparecem a quem é responsável, mesmo que não
-            tenha acesso à ata: não incluas conteúdo reservado. Ao publicar, os responsáveis, prazos e atividades revistos passam
-            para o quadro de tarefas.
-          </p>
           {d.missing_items > 0 && (
             <Notice>
               {d.missing_items === 1 ? 'Há 1 registo novo na ata' : `Há ${d.missing_items} registos novos na ata`} que ainda não está no sumário.{' '}
@@ -241,7 +242,7 @@ export function SummaryPage() {
           <ReadOnly d={d} />
           {isCurrent && d.can_revise && (
             <div className="card">
-              <p className="prose faint">O sumário publicado não muda. Para o corrigir, cria uma nova versão: a publicada continua em vigor até a nova ser publicada.</p>
+              <p className="faint sec-meta sec-form-note">O sumário publicado não muda. Para o corrigir, cria uma nova versão: a publicada continua em vigor até a nova ser publicada.</p>
               {!revising ? <button type="button" className="btn secondary" onClick={() => setRevising(true)}>Rever com nova versão</button> : (
                 <div className="sec-inline-form">
                   <Field label="Motivo da revisão" htmlFor="sum-reason">

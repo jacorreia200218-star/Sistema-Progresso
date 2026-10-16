@@ -23,7 +23,7 @@ export function Alertas() {
   );
   return (
     <div className="inv-page">
-      <PageTitle title="Alertas" subtitle="O que precisa de atenção no material." />
+      <PageTitle title="Alertas" />
       <InvTabs />
       <ul className="stats inv-stats" aria-label="Resumo dos alertas">
         <li><div className="stat stat-ambar"><span className="stat-value">{d.overdue.length}</span><span className="stat-label">Devoluções em atraso</span></div></li>

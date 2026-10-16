@@ -6,40 +6,27 @@ import {
   CATEGORY_LABEL, formatRate, periodFrom, rateSentence, SCOUT_MONTHS, scoutYearLabel, STATUS_LABEL, yearOptions,
   type Category, type HistoryRow, type Period, type PresStatus, type Stats,
 } from './api';
+import { DateInput } from '../../components/DateInput';
+import { Filters as FilterBar } from '../../components/ui';
 
 const ICON: Record<Category, typeof Check> = {
   presente: Check, justificada: FileText, injustificada: X, por_registar: Minus, futura: CalendarClock, cancelada: Ban,
 };
 
+/** Texto do estado (com «parcial» quando for o caso). */
+export const markLabel = (category: Category, partial?: boolean) =>
+  category === 'presente' && partial ? 'Presente (parcial)' : CATEGORY_LABEL[category];
+
 /** Estado de uma presença: ícone e texto (no modo compacto, o texto fica só para leitores de ecrã). */
 export function StatusMark({ category, partial, compact }: { category: Category; partial?: boolean; compact?: boolean }) {
   const isPartial = category === 'presente' && partial;
   const Icon = isPartial ? Clock3 : ICON[category];
-  const label = isPartial ? 'Presente (parcial)' : CATEGORY_LABEL[category];
+  const label = markLabel(category, partial);
   return (
     <span className={`pres-mark pres-${category}${isPartial ? ' pres-partial' : ''}${compact ? ' compact' : ''}`} title={compact ? label : undefined}>
       <Icon size={compact ? 16 : 15} aria-hidden="true" />
       <span className={compact ? 'sr-only' : undefined}>{label}</span>
     </span>
-  );
-}
-
-/** Fórmula da taxa de assiduidade e o que conta (mostrada nas páginas com indicadores). */
-export function Formula({ open }: { open?: boolean }) {
-  return (
-    <details className="card flat pres-formula" open={open}>
-      <summary>Como se calcula a taxa de assiduidade</summary>
-      <p className="pres-formula-eq" aria-label="Taxa de assiduidade igual a presenças a dividir por presenças mais faltas justificadas mais faltas injustificadas, vezes cem">
-        <strong>Taxa de assiduidade</strong> = Presenças ÷ (Presenças + Faltas justificadas + Faltas injustificadas) × 100
-      </p>
-      <ul className="prose">
-        <li>Contam só sessões <strong>até hoje</strong>, <strong>não canceladas</strong>, <strong>aplicáveis</strong> à pessoa e <strong>com registo</strong>.</li>
-        <li>Não contam como faltas: sessões futuras, canceladas, de outra equipa, anteriores à entrada na secção (ou depois da saída) e as que estão por registar.</li>
-        <li>A participação parcial conta como presença e é indicada à parte. As faltas injustificadas também aparecem à parte.</li>
-        <li>Contam pioneiros e guias; os dirigentes não entram nas contas. Sem registos contados não há taxa («—»), nunca 0 %.</li>
-      </ul>
-      <p className="prose faint">A informação serve para acompanhamento: não há classificações nem ordenação por taxa.</p>
-    </details>
   );
 }
 
@@ -105,6 +92,22 @@ export function periodQuery(): string {
   return s ? `?${s}` : '';
 }
 
+/** Legenda curta dos símbolos do quadro (uma linha). */
+export function Legend() {
+  const items: [Category, string, boolean?][] = [
+    ['presente', 'Presente'], ['presente', 'Parcial', true], ['justificada', 'Justificada'], ['injustificada', 'Injustificada'],
+    ['por_registar', 'Por registar'], ['futura', 'Futura'],
+  ];
+  return (
+    <p className="pres-legend" aria-label="Legenda">
+      {items.map(([c, t, p]) => (
+        <span key={t} className="pres-legend-item"><StatusMark category={c} partial={p} compact /><span aria-hidden="true">{t}</span></span>
+      ))}
+      <span className="pres-legend-item"><span className="pres-na-dot" aria-hidden="true">·</span><span>Não se aplica</span></span>
+    </p>
+  );
+}
+
 /** Filtros: ano escutista, mês ou datas livres e (para quem regista) equipa. */
 export function Filters({ today, teams }: { today: string; teams?: { id: string; name: string }[] }) {
   const [params, setParams] = useSearchParams();
@@ -117,8 +120,9 @@ export function Filters({ today, teams }: { today: string; teams?: { id: string;
       return next;
     }, { replace: true });
   const mode = custom ? 'datas' : p.month || '';
+  const active = (p.year !== periodFrom(new URLSearchParams(), today).year ? 1 : 0) + (mode ? 1 : 0) + (params.get('equipa') ? 1 : 0);
   return (
-    <form className="card flat pres-filters" aria-label="Filtros" onSubmit={(e) => e.preventDefault()}>
+    <FilterBar active={active}>
       <label className="field">
         <span className="label">Ano escutista</span>
         <select value={String(p.year)} onChange={(e) => update({ ano: e.target.value, de: '', ate: '' })}>
@@ -141,11 +145,11 @@ export function Filters({ today, teams }: { today: string; teams?: { id: string;
         <>
           <label className="field">
             <span className="label">De</span>
-            <input type="date" value={p.from} onChange={(e) => e.target.value && update({ de: e.target.value })} />
+            <DateInput value={p.from} onChange={(e) => e.target.value && update({ de: e.target.value })} />
           </label>
           <label className="field">
             <span className="label">Até</span>
-            <input type="date" value={p.to} onChange={(e) => e.target.value && update({ ate: e.target.value })} />
+            <DateInput value={p.to} onChange={(e) => e.target.value && update({ ate: e.target.value })} />
           </label>
         </>
       )}
@@ -158,7 +162,7 @@ export function Filters({ today, teams }: { today: string; teams?: { id: string;
           </select>
         </label>
       )}
-    </form>
+    </FilterBar>
   );
 }
 

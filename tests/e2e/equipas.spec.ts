@@ -1,6 +1,7 @@
 // Equipas e cargos: vista por equipa, vista individual, nomear e terminar cargos,
 // mudar de equipa — em telemóvel e computador. Pessoas FICTÍCIAS, só para teste.
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
@@ -88,7 +89,7 @@ test('vista por equipa: equipas do ano, guia, membros e cargos', async ({ page }
   await page.goto('/equipas-e-cargos');
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Equipas e cargos', level: 1 })).toBeVisible();
-  await expect(main.getByText('Ambiente de teste.')).toBeVisible();
+  await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
   const card = main.getByRole('link', { name: /Equipa Andorinha/ });
   await expect(card).toContainText('Sempre alerta');
   await expect(card).toContainText('Guia Teste');
@@ -125,6 +126,11 @@ test('vista individual: pesquisa no URL, cargos atuais e históricos, histórico
   await main.getByRole('link', { name: /Pedro Teste/ }).click();
   await expect(main.getByRole('heading', { name: 'Pedro Teste', level: 1 })).toBeVisible();
   await expect(main.getByText('Sem cargos atuais.')).toBeVisible();
+  // O histórico está recolhido por omissão
+  const historico = main.locator('details.eq-history');
+  await expect(historico).not.toHaveAttribute('open', '');
+  await expect(main.getByText('Equipa Bússola →')).toBeHidden();
+  await historico.locator('summary', { hasText: 'Histórico' }).click();
   const hist = main.getByTestId('nomeacao');
   await expect(hist).toContainText(['Intendente']);
   await expect(hist.first()).toContainText('Terminado');
@@ -141,7 +147,8 @@ test('nomear e terminar um cargo (validação e confirmação do servidor)', asy
   const calls = await mockEquipas(page);
   await page.goto('/equipas-e-cargos/equipa/teamA');
   const main = page.locator('main');
-  await main.getByText('Nomear para um cargo').click();
+  await expect(main.getByRole('form', { name: 'Nomear para um cargo' })).toHaveCount(0);
+  await main.getByRole('button', { name: 'Nomear', exact: true }).click();
   const form = main.getByRole('form', { name: 'Nomear para um cargo' });
   await form.getByRole('button', { name: 'Nomear' }).click();
   await expect(form).toContainText('Escolhe o cargo.');
@@ -157,11 +164,15 @@ test('nomear e terminar um cargo (validação e confirmação do servidor)', asy
   expect(calls.filter((c) => c.fn === 'eq_appoint').at(-1)!.body).toMatchObject({ p_section: 'sec1', p_role: 'r-sub', p_team: 'teamA', p_membership: 'm-p1', p_starts_on: today, p_ends_on: null });
   const item = main.getByTestId('nomeacao').filter({ hasText: 'Subguia' });
   await expect(item).toContainText('Em funções');
+  await item.getByRole('button', { name: 'Mais ações' }).click();
   await item.getByRole('button', { name: 'Terminar' }).click();
   await item.getByLabel('Motivo (opcional)').fill('Passagem de testemunho');
   await item.getByRole('button', { name: 'Confirmar fim' }).click();
   await expect(item).toContainText('Terminado');
   await expect(item).toContainText(`${fmt(today)} a ${fmt(today)}`);
+  // O cargo terminado passa para o histórico (recolhido)
+  await main.locator('details.eq-history > summary').click();
+  await expect(item).toBeVisible();
   expect(calls.find((c) => c.fn === 'eq_end_appointment')!.body).toMatchObject({ p_appointment: expect.any(String), p_ends_on: today, p_reason: 'Passagem de testemunho' });
   await noHorizontalScroll(page);
 });
@@ -171,7 +182,9 @@ test('mudar de equipa (no teste não muda a equipa real) e o histórico fica vis
   const calls = await mockEquipas(page);
   await page.goto('/equipas-e-cargos/pessoa/m-guia');
   const main = page.locator('main');
-  await main.locator('summary', { hasText: 'Mudar de equipa' }).click();
+  await expect(main.getByRole('form', { name: 'Mudar de equipa' })).toHaveCount(0);
+  await main.getByRole('button', { name: 'Mais ações' }).first().click();
+  await main.getByRole('button', { name: 'Mudar de equipa' }).click();
   const form = main.getByRole('form', { name: 'Mudar de equipa' });
   await expect(form).toContainText('a equipa real da pessoa não muda');
   await form.getByRole('button', { name: 'Mudar de equipa' }).click();
@@ -182,6 +195,7 @@ test('mudar de equipa (no teste não muda a equipa real) e o histórico fica vis
   await expect(main).toContainText('A equipa real da pessoa não foi alterada');
   expect(calls.find((c) => c.fn === 'eq_move_member')!.body).toMatchObject({ p_membership: 'm-guia', p_to_team: 'teamB', p_effective_on: today, p_end_roles: true });
   await expect(main.locator('.eq-person-head')).toContainText('Equipa Bússola');
+  await main.locator('details.eq-history > summary').click();
   await expect(main.getByText('Equipa Andorinha →')).toBeVisible();
   await expect(main.getByText(/só no ambiente de teste/)).toBeVisible();
   await expect(main.getByTestId('nomeacao').filter({ hasText: 'Guia' })).toContainText('Mudança de equipa');
@@ -195,12 +209,63 @@ test('quem só consulta não vê ações de gestão', async ({ page }) => {
   const main = page.locator('main');
   await expect(main.getByTestId('nomeacao').first()).toBeVisible();
   await expect(main.getByText('Nomear para um cargo')).toHaveCount(0);
+  await expect(main.getByRole('button', { name: 'Nomear' })).toHaveCount(0);
+  await expect(main.getByRole('button', { name: 'Mais ações' })).toHaveCount(0);
   await expect(main.getByText('Editar identidade')).toHaveCount(0);
   await expect(main.getByRole('button', { name: 'Terminar' })).toHaveCount(0);
   await page.goto('/equipas-e-cargos?vista=cargos');
   await expect(main.getByText('Cuida do material da equipa.')).toBeVisible();
-  await expect(main.getByRole('button', { name: 'Editar' })).toHaveCount(0);
+  await expect(main.getByRole('button', { name: /Editar/ })).toHaveCount(0);
+  await expect(main.getByRole('button', { name: 'Novo cargo' })).toHaveCount(0);
   await expect(main).toContainText('Um cargo não dá permissões');
   expect(calls.every((c) => c.fn === 'eq_overview')).toBe(true);
   await noHorizontalScroll(page);
+});
+
+test('cargos: o formulário de novo cargo só aparece ao escolher a ação', async ({ page }) => {
+  await installMock(page, leader());
+  const calls = await mockEquipas(page);
+  await page.goto('/equipas-e-cargos?vista=cargos');
+  const main = page.locator('main');
+  await expect(main.getByText('Cuida do material da equipa.')).toBeVisible();
+  await expect(main.getByRole('form', { name: 'Novo cargo' })).toHaveCount(0);
+  await main.getByRole('button', { name: 'Novo cargo' }).click();
+  const form = main.getByRole('form', { name: 'Novo cargo' });
+  await form.getByRole('button', { name: 'Criar cargo' }).click();
+  await expect(form).toContainText('Indica o nome do cargo.');
+  await form.getByLabel('Nome').fill('Secretário');
+  await form.getByRole('button', { name: 'Criar cargo' }).click();
+  await expect(form).toContainText('Cargo criado.');
+  expect(calls.find((c) => c.fn === 'eq_save_role')!.body).toMatchObject({ p_section: 'sec1', p_role: null, p_name: 'Secretário', p_kind: 'cargo' });
+  await main.getByRole('button', { name: 'Editar Intendente' }).click();
+  await expect(main.getByRole('form', { name: 'Editar Intendente' }).getByRole('button', { name: 'Arquivar cargo' })).toBeVisible();
+  await noHorizontalScroll(page);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`equipas ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await mockEquipas(page);
+      await page.goto('/equipas-e-cargos');
+      await shoot(page, info, theme, 'equipas-inicio');
+      await page.goto('/equipas-e-cargos?vista=pessoas');
+      await shoot(page, info, theme, 'equipas-pessoas');
+      await page.goto('/equipas-e-cargos?vista=cargos');
+      await shoot(page, info, theme, 'equipas-cargos');
+      await page.goto('/equipas-e-cargos/equipa/teamA');
+      await shoot(page, info, theme, 'equipas-equipa');
+      await page.goto('/equipas-e-cargos/pessoa/m-guia');
+      await shoot(page, info, theme, 'equipas-pessoa');
+      await page.goto('/equipas-e-cargos/pessoa/m-p1');
+      await page.locator('details.eq-history > summary').click();
+      await shoot(page, info, theme, 'equipas-pessoa-historico');
+      await page.goto('/equipas-e-cargos/equipa/teamA');
+      await page.getByRole('button', { name: 'Nomear', exact: true }).click();
+      await shoot(page, info, theme, 'equipas-equipa-nomear');
+    });
+  }
 });

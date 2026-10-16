@@ -3,8 +3,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileText, Minus, Paperclip, Plus } from 'lucide-react';
-import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
+import { FileText, Paperclip } from 'lucide-react';
+import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, MoreInfo, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { downloadFile, eurosInput, formatDay, formatEuros, formatLisbon, parseEuros, todayLisbon, toCsv } from '../common';
@@ -13,15 +13,16 @@ import {
   KIND_LABEL, STATE_LABEL, STATE_TONE, csvEuros, filtersFrom, newClientKey, periodLabel, useActivities, useAllMovements, useHistory,
   useMembersFin, useOptions, useSearchMovements, useSectionId, type Kind, type MovState, type Movement,
 } from './api';
-import { MovementList } from './Dashboard';
+import { MovementList, TitleActions } from './Dashboard';
 import { FiltersBar, useCanManage } from './shared';
+import { DateInput } from '../../components/DateInput';
 
-export function MovementsPage() {
+/** Ações do título na lista: «Novo movimento» e, em «Mais», receita/despesa e CSV da lista filtrada. */
+export function MovementsActions() {
   const [params] = useSearchParams();
   const f = filtersFrom(params);
   const canManage = useCanManage();
-  const q = useSearchMovements(f, canManage);
-  const list = q.data?.items ?? [];
+  const list = useSearchMovements(f, canManage).data?.items ?? [];
 
   const exportCsv = () => {
     const head = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor (€)', 'Estado', 'Atividade'];
@@ -36,41 +37,39 @@ export function MovementsPage() {
     downloadFile(`tesouraria-movimentos-${todayLisbon()}.csv`, toCsv(rows), 'text/csv;charset=utf-8');
   };
 
+  return <TitleActions canManage={canManage} onExport={list.length ? exportCsv : undefined} />;
+}
+
+export function MovementsPage() {
+  const [params] = useSearchParams();
+  const f = filtersFrom(params);
+  const canManage = useCanManage();
+  const q = useSearchMovements(f, canManage);
+  const list = q.data?.items ?? [];
+
   return (
     <div className="stack">
-      <FiltersBar extended />
-      <div className="row between fin-section-head">
-        <h2 className="section-title">Movimentos · {periodLabel(f)}</h2>
-        <div className="row">
-          {canManage && (
-            <>
-              <Link to="/tesouraria/movimentos/novo?tipo=receita" className="btn"><Plus size={18} aria-hidden="true" /> Nova receita</Link>
-              <Link to="/tesouraria/movimentos/novo?tipo=despesa" className="btn secondary"><Minus size={18} aria-hidden="true" /> Nova despesa</Link>
-            </>
-          )}
-          <button type="button" className="btn ghost" onClick={exportCsv} disabled={!list.length}>
-            <Download size={18} aria-hidden="true" /> Exportar CSV
-          </button>
-        </div>
-      </div>
       {!canManage && (
-        <p className="faint prose">
-          Movimentos partilhados com quem tem acesso à tesouraria: data, descrição, categoria, valor e atividade. Os pagamentos
-          individuais de outras pessoas aparecem como «Pagamento individual», sem nome; observações e comprovativos são privados.
-        </p>
+        <MoreInfo label="O que aparece aqui">
+          <p>
+            Movimentos partilhados com quem tem acesso à tesouraria: data, descrição, categoria, valor e atividade. Os pagamentos
+            individuais de outras pessoas aparecem como «Pagamento individual», sem nome; observações e comprovativos são privados.
+          </p>
+        </MoreInfo>
       )}
+      <FiltersBar extended />
       {q.isLoading ? <Loading rows={2} /> : q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : !list.length ? (
         <Empty title="Sem movimentos">
           <p>Não há movimentos com estes filtros ou esta pesquisa. Experimenta outro período ou limpa os filtros.</p>
         </Empty>
       ) : (
-        <>
-          <p className="faint" aria-live="polite">
-            {q.data!.total === 1 ? '1 movimento' : `${q.data!.total} movimentos`}
+        <section className="card fin-movs-card" aria-label="Movimentos">
+          <p className="fin-count" aria-live="polite">
+            {q.data!.total === 1 ? '1 movimento' : `${q.data!.total} movimentos`} · {periodLabel(f)}
             {q.data!.total > list.length ? ` (a mostrar os ${list.length} mais recentes)` : ''}
           </p>
-          <div className="card fin-movs-card"><MovementList items={list} canManage={canManage} label="Lista de movimentos" /></div>
-        </>
+          <MovementList items={list} canManage={canManage} label="Lista de movimentos" />
+        </section>
       )}
     </div>
   );
@@ -147,7 +146,7 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
       </fieldset>
       <div className="grid-2">
         <Field label="Data" htmlFor={id('on')}>
-          <input id={id('on')} type="date" value={v.on} disabled={locked} onChange={(e) => set('on', e.target.value)} aria-invalid={!!errors.on} />
+          <DateInput id={id('on')} value={v.on} disabled={locked} onChange={(e) => set('on', e.target.value)} aria-invalid={!!errors.on} />
           {fe('on')}
           {beforeOpening && (
             <span className="hint prose" role="note">
@@ -156,17 +155,17 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
           )}
         </Field>
         <Field label="Valor (€)" htmlFor={id('amount')} hint="Em euros, com vírgula: 12,30">
-          <input id={id('amount')} inputMode="decimal" autoComplete="off" value={v.amount} disabled={locked} onChange={(e) => set('amount', e.target.value)} aria-invalid={!!errors.amount} />
+          <input type="text" id={id('amount')} inputMode="decimal" autoComplete="off" value={v.amount} disabled={locked} onChange={(e) => set('amount', e.target.value)} aria-invalid={!!errors.amount} />
           {fe('amount')}
         </Field>
       </div>
       <Field label="Descrição" htmlFor={id('description')}>
-        <input id={id('description')} maxLength={200} value={v.description} onChange={(e) => set('description', e.target.value)} aria-invalid={!!errors.description} />
+        <input type="text" id={id('description')} maxLength={200} value={v.description} onChange={(e) => set('description', e.target.value)} aria-invalid={!!errors.description} />
         {fe('description')}
       </Field>
       <div className="grid-2">
         <Field label="Categoria" htmlFor={id('category')}>
-          <input id={id('category')} list={id('categories')} maxLength={60} value={v.category} onChange={(e) => set('category', e.target.value)} aria-invalid={!!errors.category} />
+          <input type="text" id={id('category')} list={id('categories')} maxLength={60} value={v.category} onChange={(e) => set('category', e.target.value)} aria-invalid={!!errors.category} />
           <datalist id={id('categories')}>{(opts.data?.categories ?? []).map((c) => <option key={c} value={c} />)}</datalist>
           {fe('category')}
         </Field>
@@ -217,7 +216,7 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
       )}
       {mode === 'corrigir' && (
         <Field label="Motivo da correção" htmlFor={id('reason')}>
-          <input id={id('reason')} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} aria-invalid={!!errors.reason} />
+          <input type="text" id={id('reason')} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} aria-invalid={!!errors.reason} />
           {fe('reason')}
         </Field>
       )}
@@ -274,6 +273,7 @@ export function MovementDetail() {
   const act = useAction();
   const [mode, setMode] = useState<'ver' | 'alterar' | 'corrigir'>('ver');
   const [reason, setReason] = useState('');
+  const [voiding, setVoiding] = useState(false);
   const m = q.data?.find((x) => x.id === id);
 
   if (q.isLoading) return <Loading />;
@@ -298,7 +298,7 @@ export function MovementDetail() {
       {m.corrects_id && <Notice kind="info">Este movimento corrige um anterior. <Link to={`/tesouraria/movimentos/${m.corrects_id}`}>Ver o original</Link>.</Notice>}
 
       {mode === 'ver' && (
-        <div className="card">
+        <div className="card fin-detail">
           <div className="row between">
             <span className={`fin-amount fin-big ${signed < 0 ? 'neg' : 'pos'}`}>{formatEuros(signed)}</span>
             {!m.voided_at && <Badge label={STATE_LABEL[m.state]} tone={STATE_TONE[m.state]} />}
@@ -314,21 +314,27 @@ export function MovementDetail() {
             {m.updated_by_name && (<><dt>Última alteração</dt><dd>{formatLisbon(m.updated_at)} · {m.updated_by_name}</dd></>)}
           </dl>
           {!m.voided_at && (
-            <div className="btn-row">
+            <div className="btn-row fin-detail-actions">
               <button type="button" className="btn secondary" onClick={() => { act.clear(); setMode('alterar'); }}>Alterar</button>
               <button type="button" className="btn secondary" onClick={() => { act.clear(); setMode('corrigir'); }}>Corrigir</button>
+              <MoreMenu>
+                <button type="button" className="btn danger" onClick={() => { act.clear(); setVoiding(true); }}>Anular movimento…</button>
+              </MoreMenu>
             </div>
           )}
-          {!m.voided_at && (
+          {!m.voided_at && voiding && (
             <div className="fin-void">
               <Field label="Motivo da anulação" htmlFor="fin-void-reason">
-                <input id="fin-void-reason" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+                <input type="text" id="fin-void-reason" maxLength={500} value={reason} autoFocus onChange={(e) => setReason(e.target.value)} />
               </Field>
-              <ConfirmButton className="btn ghost danger" disabled={reason.trim().length < 3 || act.busy} confirmLabel="Anular movimento"
-                description="O movimento fica registado como anulado e deixa de contar nos saldos. Não é apagado."
-                onConfirm={() => act.run(() => call('fin_void_movement', { p_section: section, p_id: m.id, p_reason: reason }), 'Movimento anulado.')}>
-                Anular…
-              </ConfirmButton>
+              <div className="btn-row">
+                <ConfirmButton className="btn secondary danger" disabled={reason.trim().length < 3 || act.busy} confirmLabel="Anular movimento"
+                  description="O movimento fica registado como anulado e deixa de contar nos saldos. Não é apagado."
+                  onConfirm={() => act.run(() => call('fin_void_movement', { p_section: section, p_id: m.id, p_reason: reason }), 'Movimento anulado.')}>
+                  Anular…
+                </ConfirmButton>
+                <button type="button" className="btn ghost" onClick={() => setVoiding(false)}>Cancelar</button>
+              </div>
             </div>
           )}
         </div>

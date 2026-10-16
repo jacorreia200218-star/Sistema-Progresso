@@ -45,7 +45,10 @@ export function Mine() {
   const late = open.filter((t) => t.overdue).length;
   return (
     <>
-      <PageTitle title={MODULE_NAME} subtitle="As tarefas e os preparativos atribuídos a ti ou à tua equipa." />
+      <PageTitle title={MODULE_NAME} info={<p>
+        As tarefas e os preparativos atribuídos a ti ou à tua equipa. Aqui só aparecem o título, o prazo e a atividade de cada
+        tarefa. O conteúdo das atas continua reservado a quem tem acesso a cada reunião.
+      </p>} />
       <SecTabs current="mine" />
       {done && <Notice kind="success">{done}</Notice>}
       {tasks.isLoading && <Loading />}
@@ -70,9 +73,6 @@ export function Mine() {
           <ul className="list sec-items">{closed.map((t) => <Row key={t.id} t={t} onChanged={setDone} />)}</ul>
         </section>
       )}
-      <p className="prose faint sec-meta sec-note">
-        Aqui só aparecem o título, o prazo e a atividade de cada tarefa. O conteúdo das atas continua reservado a quem tem acesso a cada reunião.
-      </p>
     </>
   );
 }

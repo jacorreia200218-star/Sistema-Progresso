@@ -6,25 +6,30 @@
 .inv-filters select { flex: 1 1 160px; min-width: 0; width: auto; }
 .inv-filters .search-field { flex: 1 1 100%; }
 @media (min-width: 760px) { .inv-filters .search-field { flex: 2 1 240px; } }
-.inv-listbar { margin: 0 0 10px; gap: 8px 14px; }
+.inv-count { margin: 0 0 6px; font-size: var(--fs-small); }
 .inv-inline-check { min-height: 34px; align-items: center; }
+.inv-page .filters-body > .inv-inline-check { flex: 0 0 auto; }
 .inv-list { padding: 4px 8px; }
 .inv-item { align-items: center; gap: 10px; }
 .inv-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.inv-item-main strong { overflow-wrap: anywhere; }
-.inv-item-stock { font-size: var(--fs-small); color: var(--ink-soft); }
-.inv-pin { vertical-align: -2px; margin-right: 2px; }
+.inv-item-main strong { overflow-wrap: anywhere; font-weight: 600; }
+.inv-item-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: var(--fs-small); }
+.inv-item-place { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.inv-item > .badge { flex: none; }
+.inv-pin { vertical-align: -2px; margin-right: 2px; flex: none; }
 .inv-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.inv-badges-start { justify-content: flex-start; }
 @media (max-width: 600px) {
-  .inv-item { flex-wrap: wrap; }
-  .inv-item .inv-badges { order: 3; flex-basis: 100%; justify-content: flex-start; }
   .inv-item .row-arrow { display: none; }
 }
-.inv-head { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+.inv-sheet { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; margin: 0 0 4px; }
 .inv-head-text { flex: 1 1 240px; min-width: 0; }
-.inv-head-text .prose { margin-top: 0; }
+.inv-desc { margin: 0 0 8px; }
+.inv-facts { margin: 0; }
+.inv-facts + .inv-facts { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .inv-photo { width: 140px; height: 140px; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); }
 .inv-stats .stat { min-height: 96px; }
+.inv-stats .stat-label { font-size: var(--fs-small); }
 .inv-actions { margin: 0 0 12px; }
 .inv-form { margin: 0 0 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
 .inv-form h3 { margin: 0 0 8px; }
@@ -34,7 +39,6 @@
 .inv-section { margin-top: 18px; }
 .inv-cards { list-style: none; margin: 0; padding: 0; }
 .inv-loan { list-style: none; }
-.inv-loan.inv-overdue { border-left: 4px solid var(--amber); }
 .inv-loan-head { align-items: flex-start; }
 .inv-loan-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .inv-loan-title a { color: var(--ink); }
@@ -48,7 +52,7 @@
 .inv-piece, .inv-cat-row { padding: 8px 2px; }
 .inv-piece-edit { margin-top: 6px; }
 .inv-piece-edit select { min-width: 140px; }
-.inv-cat-row .row input { flex: 1 1 180px; min-width: 0; }
+
 .inv-add-row { align-items: flex-end; }
 .inv-add-row .field { flex: 1 1 200px; margin-bottom: 0; }
 .inv-archive { margin-top: 22px; }
@@ -58,12 +62,25 @@
 .inv-summary .stat { min-height: 104px; }
 .inv-place { border: 0; padding: 0; margin: 0 0 4px; min-width: 0; }
 .inv-place legend { margin-bottom: 6px; }
-.inv-place-dl { margin: 8px 0 0; }
+.inv-place-dl { margin: 10px 0 0; }
 .inv-notes { margin: 8px 0 0; }
 .inv-reason { margin: 6px 0 0; }
 .inv-returns { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-small); }
-.inv-loan.inv-high { border-left: 4px solid var(--amber); }
-.inv-expense { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 4px 0 12px; min-width: 0; }
-.inv-expense legend { padding: 0 4px; }
+.inv-expense { border: 0; border-top: 1px solid var(--line); padding: 10px 0 0; margin: 4px 0 12px; min-width: 0; }
+.inv-expense legend { padding: 0 6px 0 0; }
+/* Formulários abertos dentro de um cartão: sem caixa dentro de caixa, só uma linha a separar. */
+.inv-loan .inv-form { border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; padding: 12px 0 0; margin: 12px 0 0; box-shadow: none; }
+.inv-loan .inv-form > p:first-child { margin-top: 0; }
 .inv-expense select, .inv-form select { max-width: 100%; }
 .inv-actions .btn { white-space: normal; }
+/* Filtros no computador: grelha regular (sem um select esticado sozinho na última linha). */
+@media (min-width: 760px) {
+  .inv-page .filters-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .inv-page .filters-body > select, .inv-page .filters-body > label { width: 100%; }
+}
+.inv-cat-view { gap: 6px 12px; flex-wrap: wrap; }
+.inv-cat-name { min-width: 0; overflow-wrap: anywhere; }
+.inv-cat-name strong { font-weight: 600; }
+.inv-cat-actions { gap: 4px; flex-wrap: wrap; }
+.inv-cat-edit { gap: 8px; flex-wrap: wrap; }
+.inv-cat-edit input { flex: 1 1 200px; min-width: 0; }

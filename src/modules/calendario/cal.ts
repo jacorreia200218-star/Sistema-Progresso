@@ -148,7 +148,7 @@ export const coversDay = (e: Dated, day: string) => {
   return r.from <= day && day <= r.to;
 };
 
-/** Texto da data/hora: «25/10/2026 · dia inteiro», «24/10/2026 a 26/10/2026», «25/10/2026, 10:00–12:00». */
+/** Texto da data/hora: «25/10/2026 · dia inteiro», «24/10/2026 a 26/10/2026», «25/10/2026 · 10:00–12:00». */
 export function whenLabel(e: Dated): string {
   if (e.all_day) {
     const { from, to } = eventDays(e);
@@ -157,9 +157,9 @@ export function whenLabel(e: Dated): string {
   const s = isoToLisbon(e.starts_at!);
   const f = isoToLisbon(e.ends_at ?? e.starts_at!);
   if (s.slice(0, 10) === f.slice(0, 10)) {
-    return s === f ? `${formatDay(s)}, ${s.slice(11)}` : `${formatDay(s)}, ${s.slice(11)}–${f.slice(11)}`;
+    return s === f ? `${formatDay(s)} · ${s.slice(11)}` : `${formatDay(s)} · ${s.slice(11)}–${f.slice(11)}`;
   }
-  return `${formatDay(s)}, ${s.slice(11)} a ${formatDay(f)}, ${f.slice(11)}`;
+  return `${formatDay(s)} · ${s.slice(11)} a ${formatDay(f)} · ${f.slice(11)}`;
 }
 
 /** Ordem cronológica (dias inteiros contam a partir das 00:00 de Lisboa). */

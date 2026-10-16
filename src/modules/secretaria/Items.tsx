@@ -1,5 +1,5 @@
 // Registos da ata: decisões, tarefas e preparativos («a preparar para a próxima atividade»).
-// Alteram-se só com o documento em rascunho; o estado de execução gere-se no quadro.
+// Alteram-se só com o documento em rascunho; o estado de execução gere-se na ficha da tarefa.
 // O que não consta da ata (responsável, prazo, atividade) fica «Por definir».
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -8,12 +8,12 @@ import { AlertTriangle, CalendarDays, Link2, Plus, User } from 'lucide-react';
 import { Badge, ErrorBox, Field, Notice } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
-import { useActiveSection } from '../../lib/session';
 import { formatDay } from '../common';
 import {
   BASE, BOARD_STATUSES, EXEC_STATUS, ITEM_KIND, UNDEFINED, useEventOptions, usePeople, useSectionId,
   type EventRef, type ExecStatus, type Item, type ItemKind,
 } from './api';
+import { DateInput } from '../../components/DateInput';
 
 /** Muda o estado (Por fazer, Em curso, Concluída). O servidor confirma quem pode. */
 export function ItemStatusControl({ item, disabled, onChanged }: {
@@ -121,7 +121,7 @@ function ItemForm({ minuteId, item, defaultEvent, onDone }: { minuteId: string; 
           </Field>
         )}
         <Field label="Prazo" htmlFor={`it-due-${idp}`}>
-          <input id={`it-due-${idp}`} type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+          <DateInput id={`it-due-${idp}`} value={due} onChange={(e) => setDue(e.target.value)} />
         </Field>
         <Field label="Atividade associada" htmlFor={`it-ev-${idp}`}>
           <select id={`it-ev-${idp}`} value={event} onChange={(e) => setEvent(e.target.value)}>
@@ -159,29 +159,28 @@ function ItemForm({ minuteId, item, defaultEvent, onDone }: { minuteId: string; 
   );
 }
 
-function ItemRow({ i, canEdit, onEdit, canStatus }: { i: Item; canEdit: boolean; onEdit: () => void; canStatus: boolean }) {
+function ItemRow({ i, canEdit, onEdit }: { i: Item; canEdit: boolean; onEdit: () => void }) {
   return (
     <>
       <div className="grow">
-        <p className="sec-item-text"><span className="sec-kind">{ITEM_KIND[i.kind]}</span> {i.text}</p>
+        <p className="sec-item-text"><span className="sec-kind">{ITEM_KIND[i.kind]}</span>{' '}
+          {i.kind === 'decisao' ? i.text : <Link to={`${BASE}/tarefas/${i.id}`}>{i.text}</Link>}</p>
         {i.kind !== 'decisao'
           ? <TaskFacts responsible={i.responsible_name} team={i.team_name} due={i.due_date} event={i.cal_event} overdue={i.overdue} />
           : (i.responsible_name || i.cal_event) && <TaskFacts responsible={i.responsible_name} due={i.due_date} event={i.cal_event} />}
         {i.link_label && <p className="faint sec-meta"><Link2 size={13} aria-hidden="true" /> {i.link_label}</p>}
-        <div className="row sec-item-actions">
-          {i.kind !== 'decisao' && <Link className="btn ghost sec-small" to={`${BASE}/tarefas/${i.id}`}>Ficha e histórico</Link>}
-          {canEdit && <button type="button" className="btn ghost sec-small" onClick={onEdit}>Alterar</button>}
-        </div>
       </div>
-      {i.kind !== 'decisao' && (canStatus ? <ItemStatusControl item={i} /> : <Badge {...EXEC_STATUS[i.exec_status]} />)}
+      <div className="sec-item-side">
+        {i.kind !== 'decisao' && <Badge {...EXEC_STATUS[i.exec_status]} />}
+        {canEdit && <button type="button" className="btn ghost sec-small" onClick={onEdit}>Alterar</button>}
+      </div>
     </>
   );
 }
 
-export function ItemsSection({ minuteId, items, canEdit, canTrack, meetingActive, defaultEvent }: {
-  minuteId: string; items: Item[]; canEdit: boolean; canTrack: boolean; meetingActive: boolean; defaultEvent?: string | null;
+export function ItemsSection({ minuteId, items, canEdit, defaultEvent }: {
+  minuteId: string; items: Item[]; canEdit: boolean; defaultEvent?: string | null;
 }) {
-  const me = useActiveSection().userId;
   const [editing, setEditing] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const finish = (msg: string) => { setEditing(null); setDone(msg); };
@@ -215,8 +214,7 @@ export function ItemsSection({ minuteId, items, canEdit, canTrack, meetingActive
                   {editing === i.id ? (
                     <ItemForm minuteId={minuteId} item={i} onDone={() => finish('Registo guardado.')} />
                   ) : (
-                    <ItemRow i={i} canEdit={canEdit} onEdit={() => { setDone(null); setEditing(i.id); }}
-                      canStatus={meetingActive && (canTrack || i.responsible_id === me)} />
+                    <ItemRow i={i} canEdit={canEdit} onEdit={() => { setDone(null); setEditing(i.id); }} />
                   )}
                 </li>
               ))}

@@ -3,6 +3,7 @@
 // telemóvel e utilizador sem permissão. API simulada (só para teste); as regras do servidor
 // estão em tests/db/presencas.test.ts.
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 type Row = Record<string, any>;
@@ -34,8 +35,13 @@ function stats(cells: Row[]) {
 }
 
 /** API simulada das Presenças, com estado. */
-async function installPres(page: Page, opts: { register?: boolean } = {}) {
+async function installPres(page: Page, opts: { register?: boolean; many?: boolean } = {}) {
   const register = opts.register ?? true;
+  // Quadro grande (só para as capturas): muitas pessoas, nomes longos e muitas sessões.
+  const extra = opts.many ? ['Maria Inês Albuquerque Figueiredo', 'João Pedro Vasconcelos', 'Beatriz Sousa', 'Tomás Rodrigues Carvalho', 'Leonor Martins',
+    'Francisco Xavier de Menezes Castelo Branco', 'Matilde Costa', 'Duarte Almeida', 'Carolina Pires Ferreira', 'Afonso Lopes', 'Inês Ribeiro', 'Gonçalo Teixeira']
+    .map((name, i) => ({ membership_id: `m-x${i}`, name, team_id: i % 2 ? 'teamA' : 'teamB', team_name: i % 2 ? 'Equipa Andorinha' : 'Equipa Bisonte', active: true })) : [];
+  const ALL = [...MEMBERS, ...extra].sort((x, y) => (x.team_id + x.name).localeCompare(y.team_id + y.name));
   const S = {
     sessions: [
       { id: 's1', date: day(-20), title: 'Reunião de setembro', kind: 'reuniao', audience: 'seccao', team_id: null, cal_event_id: null, status: 'ativa', notes: null, cancel_reason: null },
@@ -53,8 +59,19 @@ async function installPres(page: Page, opts: { register?: boolean } = {}) {
     events: [{ id: 'ev1', title: 'Acampamento de outono', audience: 'seccao', team_id: null, team_name: null, start: day(-3), end: day(-1) }],
     calls: [] as Row[],
   };
+  if (opts.many) {
+    for (let i = 0; i < 14; i++) {
+      const id = `sx${i}`;
+      S.sessions.push({ id, date: day(-21 - i), title: i % 3 ? 'Reunião semanal' : 'Atividade de patrulha', kind: i % 3 ? 'reuniao' : 'atividade', audience: 'seccao', team_id: null, cal_event_id: null, status: i === 4 ? 'cancelada' : 'ativa', notes: null, cancel_reason: null });
+      ALL.forEach((m, j) => {
+        const r = (i + j) % 7;
+        if (r < 6) S.records[`${id}|${m.membership_id}`] = { status: r < 4 ? 'presente' : r === 4 ? 'justificada' : 'injustificada', partial: r === 1, justification: null };
+      });
+    }
+    S.sessions.sort((x, y) => (x.date < y.date ? -1 : 1));
+  }
   const teamName = (id: string | null) => TEAMS.find((t) => t.id === id)?.name ?? null;
-  const applicable = (s: Row) => MEMBERS.filter((m) => s.audience === 'seccao' || m.team_id === s.team_id);
+  const applicable = (s: Row) => ALL.filter((m) => s.audience === 'seccao' || m.team_id === s.team_id);
   const cell = (s: Row, m: Row) => {
     const r = S.records[`${s.id}|${m.membership_id}`];
     const category = s.status === 'cancelada' ? 'cancelada' : s.date > TODAY ? 'futura' : r?.status ?? 'por_registar';
@@ -83,7 +100,7 @@ async function installPres(page: Page, opts: { register?: boolean } = {}) {
         if (!register) return ok(route, { can_register: false, today: TODAY, my_membership: 'm-p1', teams: [], sessions: [], members: [], cells: [], totals: stats([]), by_team: [], by_month: [] });
         const cells = allCells(b.p_from, b.p_to, b.p_team);
         const sessions = S.sessions.filter((s) => s.date >= b.p_from && s.date <= b.p_to && (!b.p_team || s.audience === 'seccao' || s.team_id === b.p_team));
-        const members = MEMBERS.filter((m) => !b.p_team || m.team_id === b.p_team).map((m) => ({ ...m, stats: stats(cells.filter((c) => c.m === m.membership_id)) }));
+        const members = ALL.filter((m) => !b.p_team || m.team_id === b.p_team).map((m) => ({ ...m, stats: stats(cells.filter((c) => c.m === m.membership_id)) }));
         return ok(route, {
           can_register: true, today: TODAY, my_membership: 'm-ana', teams: TEAMS,
           sessions: sessions.map((s) => sessionRow(s, cells)), members,
@@ -101,12 +118,12 @@ async function installPres(page: Page, opts: { register?: boolean } = {}) {
           can_register: register, today: TODAY,
           session: { ...s, team_name: teamName(s.team_id), effective_status: s.status, future: s.date > TODAY, created_by_name: 'Ana',
             cal_event: s.cal_event_id ? { id: 'ev1', title: 'Acampamento de outono', status: 'ativo', start: day(-3), end: day(-1) } : null },
-          members: cells.map((c) => ({ ...MEMBERS.find((m) => m.membership_id === c.m), ...c, membership_id: c.m, updated_at: null, updated_by_name: null })),
+          members: cells.map((c) => ({ ...ALL.find((m) => m.membership_id === c.m), ...c, membership_id: c.m, updated_at: null, updated_by_name: null })),
           history: S.history.filter((h) => h.session_id === s.id),
         });
       }
       case 'pres_member': {
-        const m = MEMBERS.find((x) => x.membership_id === b.p_membership)!;
+        const m = ALL.find((x) => x.membership_id === b.p_membership)!;
         const cells = allCells(b.p_from, b.p_to, null, m.membership_id);
         return ok(route, {
           can_register: register, is_self: !register, today: TODAY,
@@ -141,7 +158,7 @@ async function installPres(page: Page, opts: { register?: boolean } = {}) {
           const justification = status === 'presente' || !status ? null : b.p_justification === null ? old?.justification ?? null : b.p_justification || null;
           S.records[key] = { status, partial: !!b.p_partial, partial_note: b.p_partial_note, justification };
           S.history.unshift({ id: S.history.length + 1, session_id: s.id, session_title: s.title, session_date: s.date, membership_id: mid,
-            name: MEMBERS.find((m) => m.membership_id === mid)!.name, old_status: old?.status ?? null, new_status: status,
+            name: ALL.find((m) => m.membership_id === mid)!.name, old_status: old?.status ?? null, new_status: status,
             old_partial: old ? !!old.partial : null, new_partial: !!b.p_partial, justification_changed: (old?.justification ?? null) !== justification,
             reason: b.p_reason, changed_at: new Date().toISOString(), changed_by_name: 'Ana Dirigente' });
         }
@@ -175,9 +192,8 @@ test('quadro: membros e sessões, taxa com fórmula, filtros no endereço, sem r
   await expect(pedro.locator('td.pres-num').last()).toHaveText('50 %');
   const rita = table.locator('tbody tr', { has: page.getByRole('link', { name: 'Rita Teste', exact: true }) });
   await expect(rita.locator('td.pres-num').last()).toHaveText('0 %');
-  // Fórmula definida e visível.
-  await page.getByText('Como se calcula a taxa de assiduidade').click();
-  await expect(page.getByText('Presenças ÷ (Presenças + Faltas justificadas + Faltas injustificadas) × 100')).toBeVisible();
+  // Sem texto explicativo da fórmula.
+  await expect(page.getByText('Como se calcula a taxa de assiduidade')).toHaveCount(0);
   await expect(page.getByText(/ranking|classificação \d/i)).toHaveCount(0);
 
   // Filtros: equipa e mês ficam no endereço e sobrevivem ao recarregar.
@@ -252,8 +268,11 @@ test('correção individual com justificação restrita e histórico', async ({ 
   await expect(page.getByText(/de Falta injustificada para/)).toBeVisible();
   await expect(page.getByText(/motivo: Encarregado avisou/)).toBeVisible();
   // Cancelar a sessão: deixa de permitir registos.
-  await page.getByText('Cancelar sessão', { exact: true }).first().click();
+  await page.getByRole('main').getByRole('button', { name: 'Mais ações' }).click();
   await page.getByRole('button', { name: 'Cancelar sessão' }).click();
+  await page.getByLabel('Motivo (opcional)').fill('Chuva');
+  await page.getByRole('button', { name: 'Confirmar cancelamento' }).click();
+  expect(S.calls.filter((c) => c.fn === 'pres_session_cancel').pop()).toMatchObject({ p_session: 's1', p_cancel: true, p_reason: 'Chuva' });
   await expect(page.getByText('Esta sessão está cancelada: não é possível registar presenças.')).toBeVisible();
 });
 
@@ -263,19 +282,21 @@ test('nova sessão a partir de uma atividade do Calendário', async ({ page }) =
   await page.goto('/presencas');
   await page.getByRole('link', { name: 'Nova sessão' }).click();
   await page.getByRole('button', { name: 'Criar sessão' }).click();
-  await expect(page.getByText('Indica o título.')).toBeVisible();
-  await page.getByLabel('Atividade do Calendário').check();
-  await page.getByLabel('Atividade', { exact: true }).selectOption('ev1');
-  await expect(page.getByLabel('Título')).toHaveValue('Acampamento de outono');
-  await expect(page.getByLabel('Data')).toHaveValue(day(-3));
+  await expect(page.getByText('Indica o nome do evento.')).toBeVisible();
+  // Formulário simples: evento, data e notas; a ligação ao Calendário fica em «Mais opções».
+  await expect(page.getByLabel('Atividade do Calendário')).toBeHidden();
+  await page.getByText('Mais opções').click();
+  await page.getByLabel('Atividade do Calendário').selectOption('ev1');
+  await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Acampamento de outono');
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(day(-3).split('-').reverse().join('/'));
   await page.getByRole('button', { name: 'Criar sessão' }).click();
   await expect(page.getByRole('heading', { name: 'Acampamento de outono' })).toBeVisible();
   await expect(page.getByText(/Ligada à atividade do Calendário «Acampamento de outono»/)).toBeVisible();
   expect(S.calls.find((c) => c.fn === 'pres_session_save')).toMatchObject({ p_cal_event: 'ev1', p_kind: 'atividade', p_date: day(-3) });
   // A atividade deixa de aparecer nas opções (uma sessão por atividade).
   await page.goto('/presencas/nova');
-  await page.getByLabel('Atividade do Calendário').check();
-  await expect(page.getByText('Não há atividades do Calendário disponíveis.')).toBeVisible();
+  await page.getByText('Mais opções').click();
+  await expect(page.getByLabel('Atividade do Calendário').locator('option[value="ev1"]')).toHaveCount(0);
 });
 
 test('telemóvel: vista por sessão e por pessoa em vez do quadro largo', async ({ page }) => {
@@ -332,4 +353,47 @@ test('sem acesso ao módulo: página «Em desenvolvimento»', async ({ page }) =
   await expect(page.locator('.future-badge')).toBeVisible();
   await expect(page.getByText('Esta área ainda não está disponível.', { exact: false })).toBeVisible();
   expect(called).toBe(false);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`presenças ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await installPres(page);
+      await page.goto('/presencas');
+      await shoot(page, info, theme, 'presencas-inicio');
+      await page.goto('/presencas?vista=quadro');
+      await shoot(page, info, theme, 'presencas-quadro');
+      await page.goto('/presencas/sessoes/s3');
+      await shoot(page, info, theme, 'presencas-sessao');
+      await page.goto('/presencas/pessoas/m-p1');
+      await shoot(page, info, theme, 'presencas-pessoa');
+      await page.goto('/presencas/nova');
+      await shoot(page, info, theme, 'presencas-formulario');
+      await page.goto('/presencas?vista=pessoas');
+      await shoot(page, info, theme, 'presencas-pessoas');
+      await page.goto('/presencas?vista=resumo');
+      await shoot(page, info, theme, 'presencas-resumo');
+      await page.goto('/presencas/sessoes/s1?pessoa=m-p1');
+      await shoot(page, info, theme, 'presencas-sessao-correcao');
+    });
+    test(`presenças quadro grande ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await installPres(page, { many: true });
+      await page.goto('/presencas?vista=quadro');
+      await shoot(page, info, theme, 'presencas-quadro-grande');
+      const wrap = page.locator('.pres-table-wrap');
+      if (await wrap.count()) {
+        // Deslocado dentro do quadro: a 1.ª coluna e o cabeçalho ficam fixos.
+        await wrap.evaluate((el) => { el.scrollLeft = 300; el.scrollTop = 200; });
+        await page.waitForTimeout(100);
+        await wrap.screenshot({ path: `${process.env.CAPTURAS_DIR ?? 'test-results/capturas-modulos'}/presencas-quadro-grande-scroll-${info.project.name}-${theme === 'light' ? 'claro' : 'escuro'}.png` });
+      }
+    });
+  }
 });

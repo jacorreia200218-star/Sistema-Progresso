@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, Pencil } from 'lucide-react';
-import { Badge, ErrorBox, Loading, Notice, PageTitle } from '../../components/ui';
+import { Ban, CalendarDays, Pencil, RotateCcw } from 'lucide-react';
+import { Badge, ErrorBox, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatDay } from '../common';
@@ -22,6 +22,7 @@ export function SessionPage() {
     queryFn: () => call<SessionDetail>('pres_session', { p_section: section, p_session: id }),
   });
   const d = q.data;
+  const [cancelOpen, setCancelOpen] = useState(false);
   if (q.isLoading) return <Loading />;
   if (!d) return <><PageTitle title="Sessão" back="/presencas" /><ErrorBox error={q.error} retry={() => q.refetch()} /></>;
   const s = d.session;
@@ -29,9 +30,20 @@ export function SessionPage() {
   return (
     <>
       <PageTitle title={s.title} back={`/presencas${periodQuery()}`}
-        subtitle={`${formatDay(s.date)} · ${KIND_LABEL[s.kind]} · ${s.team_name ?? 'Secção'}`} />
+        actions={d.can_register ? (
+          <>
+            <Link to={`/presencas/sessoes/${s.id}/editar`} className="btn secondary"><Pencil size={15} aria-hidden="true" /> Editar</Link>
+            <MoreMenu>
+              <button type="button" className="btn" onClick={() => setCancelOpen(true)}>
+                {s.status === 'cancelada' ? <><RotateCcw size={15} aria-hidden="true" /> Reativar sessão</> : <><Ban size={15} aria-hidden="true" /> Cancelar sessão</>}
+              </button>
+            </MoreMenu>
+          </>
+        ) : undefined} />
+      {d.can_register && cancelOpen && <CancelPanel d={d} onClose={() => setCancelOpen(false)} />}
       <section className="card pres-facts">
         <div className="pres-badges">
+          <span className="pres-fact-date">{formatDay(s.date)} · {KIND_LABEL[s.kind]}</span>
           {cancelled ? <Badge label="Cancelada" tone="muted" icon="x" /> : s.future ? <Badge label="Sessão futura" tone="progress" icon="clock" /> : <Badge label="Realizada" tone="ok" icon="check" />}
           <Badge label={s.audience === 'equipa' ? `Equipa: ${s.team_name}` : 'Toda a secção'} tone="neutral" />
         </div>
@@ -43,7 +55,6 @@ export function SessionPage() {
         {s.status === 'cancelada' && <p className="pres-small">Cancelada{s.cancel_reason ? `: ${s.cancel_reason}` : '.'} Não conta para a assiduidade.</p>}
         {s.notes && <p className="prose pres-small">{s.notes}</p>}
         {s.future && !cancelled && <p className="faint pres-small">A sessão ainda não aconteceu: só é possível registar faltas justificadas antecipadas, que só contam depois da data.</p>}
-        {d.can_register && <SessionAdmin d={d} />}
       </section>
       {d.can_register ? <Register d={d} onDone={() => q.refetch()} /> : <OwnRecord d={d} />}
       {d.can_register && (
@@ -69,36 +80,38 @@ function OwnRecord({ d }: { d: SessionDetail }) {
   );
 }
 
-function SessionAdmin({ d }: { d: SessionDetail }) {
+/** Cancelar ou reativar a sessão (aberto a partir de «Mais»). */
+function CancelPanel({ d, onClose }: { d: SessionDetail; onClose: () => void }) {
   const section = useSectionId();
   const a = useAction();
   const [reason, setReason] = useState('');
   const s = d.session;
+  const cancel = s.status === 'ativa';
   return (
-    <div className="pres-admin">
+    <section className="card pres-cancel" aria-label={cancel ? 'Cancelar sessão' : 'Reativar sessão'}>
+      <h2 className="pres-h2">{cancel ? 'Cancelar sessão' : 'Reativar sessão'}</h2>
+      <p className="faint pres-small">
+        {cancel ? 'Uma sessão cancelada não conta para a assiduidade. Os registos não se apagam.' : 'A sessão volta a contar para a assiduidade.'}
+      </p>
+      {cancel && (
+        <label className="field">
+          <span className="label">Motivo (opcional)</span>
+          <input value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
+        </label>
+      )}
       <div className="btn-row">
-        <Link to={`/presencas/sessoes/${s.id}/editar`} className="btn secondary"><Pencil size={15} aria-hidden="true" /> Editar sessão</Link>
-      </div>
-      <details className="pres-cancel">
-        <summary>{s.status === 'cancelada' ? 'Reativar sessão' : 'Cancelar sessão'}</summary>
-        {s.status === 'ativa' && (
-          <label className="field">
-            <span className="label">Motivo (opcional)</span>
-            <input value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
-          </label>
-        )}
-        <p className="faint pres-small prose">
-          {s.status === 'cancelada' ? 'A sessão volta a contar para a assiduidade.' : 'Uma sessão cancelada não conta para a assiduidade. Os registos não se apagam.'}
-        </p>
-        <button type="button" className="btn secondary" disabled={a.busy}
-          onClick={() => a.run(() => call('pres_session_cancel', { p_section: section, p_session: s.id, p_cancel: s.status === 'ativa', p_reason: reason || null }),
-            s.status === 'ativa' ? 'Sessão cancelada.' : 'Sessão reativada.')}>
-          {s.status === 'cancelada' ? 'Reativar' : 'Cancelar sessão'}
+        <button type="button" className={`btn${cancel ? ' secondary danger' : ''}`} disabled={a.busy} aria-busy={a.busy}
+          onClick={async () => {
+            const r = await a.run(() => call('pres_session_cancel', { p_section: section, p_session: s.id, p_cancel: cancel, p_reason: reason || null }),
+              cancel ? 'Sessão cancelada.' : 'Sessão reativada.');
+            if (r.ok) onClose();
+          }}>
+          {cancel ? 'Confirmar cancelamento' : 'Reativar'}
         </button>
-      </details>
+        <button type="button" className="btn secondary" onClick={onClose}>Fechar</button>
+      </div>
       {a.error && <Notice kind="error">{a.error}</Notice>}
-      {a.success && <Notice kind="success">{a.success}</Notice>}
-    </div>
+    </section>
   );
 }
 
@@ -149,8 +162,18 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
 
   return (
     <section className="card">
-      <h2 className="pres-h2">Presenças ({d.members.length} {d.members.length === 1 ? 'pessoa conta' : 'pessoas contam'})</h2>
-      <p className="faint pres-small">{counts.map(([c, n]) => `${STATUS_LABEL[c]}: ${n}`).join(' · ')}</p>
+      <div className="pres-reg-head">
+        <h2 className="pres-h2">Presenças ({d.members.length} {d.members.length === 1 ? 'pessoa conta' : 'pessoas contam'})</h2>
+        <p className="faint pres-small">{counts.map(([c, n]) => `${STATUS_LABEL[c]}: ${n}`).join(' · ')}</p>
+      </div>
+      {!cancelled && (
+        <div className="pres-select-row">
+          <button type="button" className="btn ghost" onClick={() => setSelected(new Set(pending))} disabled={pending.length === 0}>
+            Selecionar os por registar ({pending.length})
+          </button>
+          <button type="button" className="btn ghost" onClick={() => setSelected(new Set())} disabled={selected.size === 0}>Limpar seleção</button>
+        </div>
+      )}
       <ul className="list pres-members" aria-label="Pessoas da sessão">
         {d.members.map((m) => (
           <li key={m.membership_id} id={`pres-m-${m.membership_id}`} className={`pres-member${focus === m.membership_id ? ' focus' : ''}`}>
@@ -181,13 +204,7 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
       ) : (
         <fieldset className="pres-quick">
           <legend>Registo rápido</legend>
-          <p className="faint pres-small prose">Seleciona as pessoas na lista acima e escolhe o estado. Ninguém é marcado por omissão: quem não for selecionado fica como está.</p>
-          <div className="btn-row pres-select-row">
-            <button type="button" className="btn ghost" onClick={() => setSelected(new Set(pending))} disabled={pending.length === 0}>
-              Selecionar os por registar ({pending.length})
-            </button>
-            <button type="button" className="btn ghost" onClick={() => setSelected(new Set())} disabled={selected.size === 0}>Limpar seleção</button>
-          </div>
+          <p className="faint pres-small">Marca as pessoas na lista e escolhe o estado. Ninguém é marcado por omissão.</p>
           <div className="pres-choices" role="radiogroup" aria-label="Estado a registar">
             {CHOICES.map((c) => (
               <label key={c} className={`pres-choice pres-${c}${status === c ? ' on' : ''}${allowed(c) ? '' : ' disabled'}`}>
@@ -197,7 +214,7 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
             ))}
           </div>
           {status === 'presente' && (
-            <div className="pres-partial">
+            <div className="pres-partial-box">
               <label className="pres-check"><input type="checkbox" checked={partial} onChange={(e) => setPartial(e.target.checked)} /> Participação parcial</label>
               {partial && (
                 <label className="field">

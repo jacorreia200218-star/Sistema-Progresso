@@ -10,7 +10,7 @@ describe('datas DD/MM/AAAA', () => {
   it('instantes em hora local', () => {
     const iso = new Date(2026, 9, 13, 9, 5).toISOString();
     expect(formatDate(iso)).toBe('13/10/2026');
-    expect(formatDateTime(iso)).toBe('13/10/2026, 09:05');
+    expect(formatDateTime(iso)).toBe('13/10/2026 · 09:05');
   });
   it('vazio ou inválido', () => {
     expect(formatDate(null)).toBe('—');

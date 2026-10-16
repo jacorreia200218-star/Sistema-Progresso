@@ -9,6 +9,7 @@ import { errorMessage } from '../lib/errors';
 import { formatDate, todayIso } from '../lib/labels';
 import { ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
 import { TrailPicker } from '../components/TrailPicker';
+import { DateInput } from '../components/DateInput';
 
 /** Diário pessoal de vivências: só o próprio vê. Registar uma vivência não valida nada. */
 export default function Experiences() {
@@ -45,7 +46,7 @@ export default function Experiences() {
           <textarea id="desc" value={form.description} maxLength={4000} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </Field>
         <Field label="Data (opcional)" htmlFor="date">
-            <input id="date" type="date" max={todayIso()} value={form.occurred_on} onChange={(e) => setForm({ ...form, occurred_on: e.target.value })} />
+            <DateInput id="date" max={todayIso()} value={form.occurred_on} onChange={(e) => setForm({ ...form, occurred_on: e.target.value })} />
           </Field>
         <TrailPicker catalog={catalog} id="trail" by="key" optional trailLabel="Trilho relacionado" value={form.trail_key} onChange={(v) => setForm({ ...form, trail_key: v })} />
         <button className="btn" disabled={action.busy || !form.title.trim()}>Guardar vivência</button>
