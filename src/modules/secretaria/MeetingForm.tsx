@@ -2,13 +2,12 @@
 // participantes, partilhas (documentos gerais) e atividade do calendário.
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatLisbon, isoToLisbon, lisbonToIso } from '../common';
-import { KIND_AUDIENCE, KIND_LABEL, useMeeting, usePeople, useSectionId, type MeetingKind, type People } from './api';
+import { BASE, KIND_AUDIENCE, KIND_LABEL, useEventOptions, useMeeting, usePeople, useSectionId, type MeetingKind, type People } from './api';
 
 export function PeoplePicker({ id, label, people, value, onChange }: {
   id: string; label: string; people: People['people']; value: string[]; onChange: (v: string[]) => void;
@@ -45,10 +44,7 @@ export function MeetingForm() {
   const section = useSectionId();
   const existing = useMeeting(id);
   const people = usePeople();
-  const events = useQuery({
-    queryKey: ['sec-events', section],
-    queryFn: () => call<{ id: string; title: string; starts_at: string }[]>('sec_event_options', { p_section: section }),
-  });
+  const events = useEventOptions();
   const action = useAction();
   const [kind, setKind] = useState<MeetingKind | ''>('');
   const [team, setTeam] = useState('');
@@ -96,7 +92,7 @@ export function MeetingForm() {
       p_starts_at: lisbonToIso(when), p_location: location.trim() || null, p_agenda: agenda, p_cal_event: event || null,
       p_participants: participants, p_share_profiles: kind === 'geral' ? shareP : [], p_share_teams: kind === 'geral' ? shareT : [],
     }), id ? 'Reunião guardada.' : 'Reunião criada.');
-    if (r.ok) navigate(`/secretaria/reunioes/${r.value}`, { replace: !!id });
+    if (r.ok) navigate(`${BASE}/reunioes/${r.value}`, { replace: !!id });
   }
 
   if (id && (existing.isLoading || !loaded)) return existing.error ? <ErrorBox error={existing.error} /> : <Loading />;
@@ -106,7 +102,7 @@ export function MeetingForm() {
 
   return (
     <>
-      <PageTitle title={id ? 'Alterar reunião' : 'Nova reunião'} back={id ? `/secretaria/reunioes/${id}` : '/secretaria'} />
+      <PageTitle title={id ? 'Alterar reunião' : 'Nova reunião'} back={id ? `${BASE}/reunioes/${id}` : BASE} />
       <ErrorBox error={people.error} />
       <form className="card sec-form" onSubmit={submit} noValidate>
         <Field label="Tipo" htmlFor="sec-kind" hint={kind ? KIND_AUDIENCE[kind] : 'O tipo define quem pode ver a reunião e a ata.'}>
@@ -140,10 +136,10 @@ export function MeetingForm() {
             <input id="sec-location" type="text" maxLength={300} value={location} onChange={(e) => setLocation(e.target.value)} />
           </Field>
         </div>
-        <Field label="Ordem de trabalhos" htmlFor="sec-agenda" hint="Um ponto por linha.">
+        <Field label="Assuntos (ordem de trabalhos)" htmlFor="sec-agenda" hint="Um assunto por linha.">
           <textarea id="sec-agenda" rows={5} maxLength={10000} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
         </Field>
-        <Field label="Atividade do calendário (opcional)" htmlFor="sec-event">
+        <Field label="Atividade relacionada (opcional)" htmlFor="sec-event">
           <select id="sec-event" value={event} onChange={(e) => setEvent(e.target.value)}>
             <option value="">Sem ligação</option>
             {eventOptions.map((ev) => <option key={ev.id} value={ev.id}>{formatLisbon(ev.starts_at)} · {ev.title}</option>)}

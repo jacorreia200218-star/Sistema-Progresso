@@ -2,7 +2,7 @@
 // empréstimo e formulários de empréstimo, devolução e reserva).
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Bell, CalendarClock, Layers, Package, Tags } from 'lucide-react';
+import { Bell, CalendarClock, Layers, Package, ShoppingCart, Tags } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { Badge, ConfirmButton, ErrorBox, Field, Notice } from '../../components/ui';
@@ -24,11 +24,15 @@ export function InvTabs() {
         {!!ov.data?.pending_requests && manage && <span className="nav-count" aria-label={`${ov.data.pending_requests} pedidos por decidir`}>{ov.data.pending_requests}</span>}
       </NavLink>
       <NavLink to="/inventario/reservas" className={tab}><CalendarClock size={16} aria-hidden="true" /> Reservas</NavLink>
+      <NavLink to="/inventario/comprar" className={tab}>
+        <ShoppingCart size={16} aria-hidden="true" /> A comprar
+        {!!ov.data?.summary?.purchases_pending && <span className="nav-count" aria-label={`${ov.data.summary.purchases_pending} compras pendentes`}>{ov.data.summary.purchases_pending}</span>}
+      </NavLink>
       <NavLink to="/inventario/alertas" className={tab}>
         <Bell size={16} aria-hidden="true" /> Alertas
         {!!ov.data?.overdue && <span className="nav-count" aria-label={`${ov.data.overdue} devoluções em atraso`}>{ov.data.overdue}</span>}
       </NavLink>
-      {manage && <NavLink to="/inventario/categorias" className={tab}><Tags size={16} aria-hidden="true" /> Categorias</NavLink>}
+      {manage && <NavLink to="/inventario/categorias" className={tab}><Tags size={16} aria-hidden="true" /> Tipos</NavLink>}
     </nav>
   );
 }
@@ -94,7 +98,17 @@ export function LoanCard({ l, canManage, me, showItem = true }: { l: Loan; canMa
         <div><dt>Devolver até</dt><dd>{when(l.due_at)}</dd></div>
         {l.status === 'ativo' && l.returned_qty > 0 && <div><dt>Devolvido</dt><dd>{l.returned_qty} de {qty(l.quantity, l.unit)}</dd></div>}
         {l.returned_at && <div><dt>Devolvido em</dt><dd>{when(l.returned_at)}</dd></div>}
+        {l.registered_by && <div><dt>Saída registada por</dt><dd>{l.registered_by}</dd></div>}
       </dl>
+      {l.returns.length > 0 && (
+        <ul className="inv-returns" aria-label="Devoluções">
+          {l.returns.map((r, k) => (
+            <li key={k} className="faint">
+              {when(r.at)} · devolvido {qty(r.quantity, l.unit)} · chegou {CONDITION_ARRIVAL[r.condition] ?? r.condition}{r.by ? ` · registado por ${r.by}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
       {l.pieces.length > 0 && (
         <p className="faint inv-pieces-line">Peças: {l.pieces.map((p) => `${p.code}${p.returned_at ? ' (devolvida)' : ''}`).join(', ')}</p>
       )}
@@ -125,6 +139,8 @@ export function LoanCard({ l, canManage, me, showItem = true }: { l: Loan; canMa
     </li>
   );
 }
+
+const CONDITION_ARRIVAL: Record<string, string> = { disponivel: 'em bom estado', danificado: 'danificado', reparacao: 'a precisar de reparação' };
 
 function ReturnForm({ l, onDone }: { l: Loan; onDone: (msg?: string) => void }) {
   const section = useSectionId();

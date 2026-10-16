@@ -4,7 +4,7 @@ import { Printer } from 'lucide-react';
 import { useEffect } from 'react';
 import { Back, ErrorBox, Loading } from '../../components/ui';
 import { formatDay, formatLisbon } from '../common';
-import { KIND_LABEL, MINUTE_STATUS, docLabel, useMinute } from './api';
+import { BASE, ITEM_KIND, KIND_LABEL, MINUTE_STATUS, docLabel, useMinute } from './api';
 
 export function PrintPage() {
   const { id } = useParams();
@@ -21,7 +21,7 @@ export function PrintPage() {
   return (
     <div className="sec-print">
       <div className="no-print sec-print-tools">
-        <Back to={`/secretaria/atas/${d.minute.id}`} />
+        <Back to={`${BASE}/atas/${d.minute.id}`} />
         <button type="button" className="btn" onClick={() => window.print()}><Printer size={16} aria-hidden="true" /> Imprimir ou guardar em PDF</button>
       </div>
       <article className="sec-doc" aria-label="Documento para imprimir">
@@ -30,6 +30,7 @@ export function PrintPage() {
           <p className="sec-doc-kind">{docLabel(d.minute.kind)} · {KIND_LABEL[c.kind]}{c.team_name ? ` · ${c.team_name}` : ''}</p>
           <h1>{c.title}</h1>
           <p>{formatLisbon(c.starts_at)}{c.location ? ` · ${c.location}` : ''}</p>
+          {c.cal_event_title && <p>Atividade relacionada: {c.cal_event_title}</p>}
           <p className="sec-doc-version">
             Versão {v.version_no} · {approved ? `Aprovada em ${formatDay(v.approved_at!.slice(0, 10))} por ${v.approved_by_name}` : v.frozen ? 'Em aprovação (não aprovada)' : MINUTE_STATUS.rascunho.label + ' (não aprovada)'}
           </p>
@@ -39,7 +40,7 @@ export function PrintPage() {
           <p>{c.participants.length ? c.participants.join(', ') : '—'}</p>
         </section>
         <section>
-          <h2>Ordem de trabalhos</h2>
+          <h2>Assuntos (ordem de trabalhos)</h2>
           <p className="sec-pre">{c.agenda.trim() || '—'}</p>
         </section>
         <section>
@@ -48,12 +49,13 @@ export function PrintPage() {
         </section>
         {c.items.length > 0 && (
           <section>
-            <h2>Decisões e tarefas</h2>
+            <h2>Decisões, tarefas e preparativos</h2>
             <ol>
               {c.items.map((i, n) => (
                 <li key={n}>
-                  <strong>{i.kind === 'tarefa' ? 'Tarefa' : 'Decisão'}:</strong> {i.text}
-                  {(i.responsible_name || i.due_date) && <> — {i.responsible_name ?? ''}{i.due_date ? `, prazo ${formatDay(i.due_date)}` : ''}</>}
+                  <strong>{ITEM_KIND[i.kind] ?? 'Registo'}:</strong> {i.text}
+                  {i.kind !== 'decisao' && <> — {[i.responsible_name, i.team_name].filter(Boolean).join(' · ') || 'responsável por definir'}, {i.due_date ? `prazo ${formatDay(i.due_date)}` : 'prazo por definir'}{i.event_title ? ` · ${i.event_title}` : ''}</>}
+                  {i.kind === 'decisao' && (i.responsible_name || i.due_date) && <> — {i.responsible_name ?? ''}{i.due_date ? `, prazo ${formatDay(i.due_date)}` : ''}</>}
                   {i.link_label && <> ({i.link_label})</>}
                 </li>
               ))}

@@ -1,0 +1,335 @@
+// Presenças (interface): quadro, filtros no endereço, registo rápido com seleção explícita,
+// correção com justificação, sessão a partir do Calendário, fórmula da taxa, vista de
+// telemóvel e utilizador sem permissão. API simulada (só para teste); as regras do servidor
+// estão em tests/db/presencas.test.ts.
+import { expect, test, type Page, type Route } from '@playwright/test';
+import { installMock, leader, pioneer } from './mock-api';
+
+type Row = Record<string, any>;
+const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1000) < 760;
+const day = (offset: number) => {
+  const d = new Date(Date.now() + offset * 86400e3);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(d);
+};
+const TODAY = day(0);
+const dmy = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+
+async function noHorizontalScroll(page: Page) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow, 'deslocamento horizontal').toBeLessThanOrEqual(1);
+}
+
+const TEAMS = [{ id: 'teamA', name: 'Equipa Andorinha' }, { id: 'teamB', name: 'Equipa Bisonte' }];
+const MEMBERS = [
+  { membership_id: 'm-guia', name: 'Guia Teste', team_id: 'teamA', team_name: 'Equipa Andorinha', active: true },
+  { membership_id: 'm-p1', name: 'Pedro Teste', team_id: 'teamA', team_name: 'Equipa Andorinha', active: true },
+  { membership_id: 'm-p3', name: 'Rita Teste', team_id: 'teamB', team_name: 'Equipa Bisonte', active: true },
+];
+
+function stats(cells: Row[]) {
+  const n = (c: string, f: (x: Row) => boolean = () => true) => cells.filter((x) => x.category === c && f(x)).length;
+  const p = n('presente'), j = n('justificada'), i = n('injustificada');
+  return { presencas: p, parciais: n('presente', (x) => x.partial), justificadas: j, injustificadas: i, faltas: j + i, contadas: p + j + i,
+    por_registar: n('por_registar'), futuras: n('futura'), canceladas: n('cancelada'), taxa: p + j + i === 0 ? null : Math.round((1000 * p) / (p + j + i)) / 10 };
+}
+
+/** API simulada das Presenças, com estado. */
+async function installPres(page: Page, opts: { register?: boolean } = {}) {
+  const register = opts.register ?? true;
+  const S = {
+    sessions: [
+      { id: 's1', date: day(-20), title: 'Reunião de setembro', kind: 'reuniao', audience: 'seccao', team_id: null, cal_event_id: null, status: 'ativa', notes: null, cancel_reason: null },
+      { id: 's2', date: day(-6), title: 'Reunião de equipa', kind: 'reuniao', audience: 'equipa', team_id: 'teamA', cal_event_id: null, status: 'ativa', notes: null, cancel_reason: null },
+      { id: 's3', date: day(-2), title: 'Reunião semanal', kind: 'reuniao', audience: 'seccao', team_id: null, cal_event_id: null, status: 'ativa', notes: null, cancel_reason: null },
+      { id: 's4', date: day(5), title: 'Reunião futura', kind: 'reuniao', audience: 'seccao', team_id: null, cal_event_id: null, status: 'ativa', notes: null, cancel_reason: null },
+    ] as Row[],
+    records: {
+      's1|m-guia': { status: 'presente', partial: false, justification: null },
+      's1|m-p1': { status: 'presente', partial: true, partial_note: 'Saiu mais cedo', justification: null },
+      's1|m-p3': { status: 'injustificada', partial: false, justification: null },
+      's2|m-p1': { status: 'justificada', partial: false, justification: 'Consulta médica' },
+    } as Record<string, Row>,
+    history: [] as Row[],
+    events: [{ id: 'ev1', title: 'Acampamento de outono', audience: 'seccao', team_id: null, team_name: null, start: day(-3), end: day(-1) }],
+    calls: [] as Row[],
+  };
+  const teamName = (id: string | null) => TEAMS.find((t) => t.id === id)?.name ?? null;
+  const applicable = (s: Row) => MEMBERS.filter((m) => s.audience === 'seccao' || m.team_id === s.team_id);
+  const cell = (s: Row, m: Row) => {
+    const r = S.records[`${s.id}|${m.membership_id}`];
+    const category = s.status === 'cancelada' ? 'cancelada' : s.date > TODAY ? 'futura' : r?.status ?? 'por_registar';
+    return { s: s.id, m: m.membership_id, status: r?.status ?? null, partial: !!r?.partial, partial_note: r?.partial_note ?? null,
+      justification: r?.justification ?? null, has_justification: !!r?.justification, category, team_id: m.team_id };
+  };
+  const allCells = (from: string, to: string, team: string | null, only?: string) => S.sessions
+    .filter((s) => s.date >= from && s.date <= to)
+    .flatMap((s) => applicable(s).map((m) => cell(s, m)))
+    .filter((c) => (!team || c.team_id === team) && (!only || c.m === only));
+  const sessionRow = (s: Row, cells: Row[]) => ({ ...s, team_name: teamName(s.team_id), cal_title: s.cal_event_id ? 'Acampamento de outono' : null,
+    future: s.date > TODAY, applicable: cells.filter((c) => c.s === s.id).length, registered: cells.filter((c) => c.s === s.id && c.status).length });
+  const ok = (route: Route, v: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(v) });
+  const fail = (route: Route, message: string, code = 'P0001') => route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code, message }) });
+
+  await page.route('http://mock.supabase.test/rest/v1/rpc/**', async (route) => {
+    const fn = new URL(route.request().url()).pathname.split('/').pop()!;
+    const b = route.request().postDataJSON?.() ?? {};
+    if (fn.startsWith('pres_')) S.calls.push({ fn, ...b });
+    switch (fn) {
+      case 'my_modules':
+        return ok(route, ['calendario', 'equipas', 'inventario', 'presencas', 'secretaria', 'tesouraria'].map((k) => k === 'presencas'
+          ? { module: k, status: 'teste', space: 'teste', grants: register ? ['presencas.registar'] : [], dirigente: false }
+          : { module: k, status: 'desenvolvimento', space: null, grants: [], dirigente: false }));
+      case 'pres_board': {
+        if (!register) return ok(route, { can_register: false, today: TODAY, my_membership: 'm-p1', teams: [], sessions: [], members: [], cells: [], totals: stats([]), by_team: [], by_month: [] });
+        const cells = allCells(b.p_from, b.p_to, b.p_team);
+        const sessions = S.sessions.filter((s) => s.date >= b.p_from && s.date <= b.p_to && (!b.p_team || s.audience === 'seccao' || s.team_id === b.p_team));
+        const members = MEMBERS.filter((m) => !b.p_team || m.team_id === b.p_team).map((m) => ({ ...m, stats: stats(cells.filter((c) => c.m === m.membership_id)) }));
+        return ok(route, {
+          can_register: true, today: TODAY, my_membership: 'm-ana', teams: TEAMS,
+          sessions: sessions.map((s) => sessionRow(s, cells)), members,
+          cells: cells.map(({ justification, team_id, ...c }) => c),
+          totals: stats(cells),
+          by_team: TEAMS.map((t) => ({ team_id: t.id, team_name: t.name, members: new Set(cells.filter((c) => c.team_id === t.id).map((c) => c.m)).size, stats: stats(cells.filter((c) => c.team_id === t.id)) })),
+          by_month: [{ month: TODAY.slice(0, 7), sessions: sessions.length, stats: stats(cells) }],
+        });
+      }
+      case 'pres_session': {
+        const s = S.sessions.find((x) => x.id === b.p_session);
+        if (!s) return fail(route, 'Registo não encontrado.');
+        const cells = applicable(s).map((m) => cell(s, m));
+        return ok(route, {
+          can_register: register, today: TODAY,
+          session: { ...s, team_name: teamName(s.team_id), effective_status: s.status, future: s.date > TODAY, created_by_name: 'Ana',
+            cal_event: s.cal_event_id ? { id: 'ev1', title: 'Acampamento de outono', status: 'ativo', start: day(-3), end: day(-1) } : null },
+          members: cells.map((c) => ({ ...MEMBERS.find((m) => m.membership_id === c.m), ...c, membership_id: c.m, updated_at: null, updated_by_name: null })),
+          history: S.history.filter((h) => h.session_id === s.id),
+        });
+      }
+      case 'pres_member': {
+        const m = MEMBERS.find((x) => x.membership_id === b.p_membership)!;
+        const cells = allCells(b.p_from, b.p_to, null, m.membership_id);
+        return ok(route, {
+          can_register: register, is_self: !register, today: TODAY,
+          member: { membership_id: m.membership_id, name: m.name, team_name: m.team_name, function: 'pioneiro', active: true, entry_date: day(-400) },
+          stats: stats(cells),
+          entries: cells.map((c) => { const s = S.sessions.find((x) => x.id === c.s)!; return { ...c, session_id: s.id, date: s.date, title: s.title, kind: s.kind, audience: s.audience, team_name: teamName(s.team_id) }; })
+            .sort((x, y) => (x.date < y.date ? 1 : -1)),
+          history: S.history.filter((h) => h.membership_id === m.membership_id),
+        });
+      }
+      case 'pres_event_options': return ok(route, S.events.filter((e) => !S.sessions.some((s) => s.cal_event_id === e.id)));
+      case 'pres_session_save': {
+        if (!String(b.p_title ?? '').trim()) return fail(route, 'Indica o título da sessão.');
+        const id = b.p_session ?? `s${S.sessions.length + 1}`;
+        const row = { id, date: b.p_date, title: b.p_title, kind: b.p_kind, audience: b.p_team ? 'equipa' : 'seccao', team_id: b.p_team, cal_event_id: b.p_cal_event, status: 'ativa', notes: b.p_notes, cancel_reason: null };
+        S.sessions = [...S.sessions.filter((s) => s.id !== id), row].sort((x, y) => (x.date < y.date ? -1 : 1));
+        return ok(route, id);
+      }
+      case 'pres_session_cancel': {
+        const s = S.sessions.find((x) => x.id === b.p_session)!;
+        s.status = b.p_cancel ? 'cancelada' : 'ativa';
+        s.cancel_reason = b.p_reason;
+        return ok(route, null);
+      }
+      case 'pres_record': {
+        if (!register) return fail(route, 'Não tens permissão para esta ação neste módulo.', '42501');
+        const s = S.sessions.find((x) => x.id === b.p_session)!;
+        for (const mid of b.p_memberships as string[]) {
+          const key = `${s.id}|${mid}`;
+          const old = S.records[key];
+          const status = b.p_status === 'por_registar' ? null : b.p_status;
+          const justification = status === 'presente' || !status ? null : b.p_justification === null ? old?.justification ?? null : b.p_justification || null;
+          S.records[key] = { status, partial: !!b.p_partial, partial_note: b.p_partial_note, justification };
+          S.history.unshift({ id: S.history.length + 1, session_id: s.id, session_title: s.title, session_date: s.date, membership_id: mid,
+            name: MEMBERS.find((m) => m.membership_id === mid)!.name, old_status: old?.status ?? null, new_status: status,
+            old_partial: old ? !!old.partial : null, new_partial: !!b.p_partial, justification_changed: (old?.justification ?? null) !== justification,
+            reason: b.p_reason, changed_at: new Date().toISOString(), changed_by_name: 'Ana Dirigente' });
+        }
+        return ok(route, (b.p_memberships as string[]).length);
+      }
+      default: return route.fallback();
+    }
+  });
+  return S;
+}
+
+test('quadro: membros e sessões, taxa com fórmula, filtros no endereço, sem rankings', async ({ page }) => {
+  test.skip(isMobile(page), 'O quadro largo é só para computador; no telemóvel há listas.');
+  await installMock(page, leader());
+  await installPres(page);
+  await page.goto('/presencas');
+  await expect(page.getByRole('heading', { name: 'Presenças', level: 1 })).toBeVisible();
+  const table = page.getByRole('region', { name: 'Quadro de presenças' });
+  await expect(table).toBeVisible();
+  if (process.env.PRES_SHOTS) await page.screenshot({ path: `${process.env.PRES_SHOTS}/quadro.png`, fullPage: true });
+  // Linhas: por equipa e nome (nunca por taxa).
+  const names = await table.locator('tbody th[scope="row"] a').allInnerTexts();
+  expect(names).toEqual(['Guia Teste', 'Pedro Teste', 'Rita Teste']);
+  // Colunas: sessões por data; células com ícone e texto acessível.
+  await expect(table.locator('thead th.pres-sess-col')).toHaveCount(4);
+  const pedro = table.locator('tbody tr', { has: page.getByRole('link', { name: 'Pedro Teste', exact: true }) });
+  await expect(pedro.getByText('Presente (parcial)')).toHaveCount(1);
+  await expect(pedro.getByText('Falta justificada')).toHaveCount(1);
+  await expect(pedro.getByText('Sessão futura')).toHaveCount(1);
+  // Pedro: 1 presença (parcial) e 1 falta justificada → 50 %; Guia: 1 presença → 100 %.
+  await expect(pedro.locator('td.pres-num').last()).toHaveText('50 %');
+  const rita = table.locator('tbody tr', { has: page.getByRole('link', { name: 'Rita Teste', exact: true }) });
+  await expect(rita.locator('td.pres-num').last()).toHaveText('0 %');
+  // Fórmula definida e visível.
+  await page.getByText('Como se calcula a taxa de assiduidade').click();
+  await expect(page.getByText('Presenças ÷ (Presenças + Faltas justificadas + Faltas injustificadas) × 100')).toBeVisible();
+  await expect(page.getByText(/ranking|classificação \d/i)).toHaveCount(0);
+
+  // Filtros: equipa e mês ficam no endereço e sobrevivem ao recarregar.
+  await page.getByLabel('Equipa').selectOption('teamB');
+  await expect(page).toHaveURL(/equipa=teamB/);
+  await expect(table.locator('tbody th[scope="row"] a')).toHaveText(['Rita Teste']);
+  await expect(table.locator('thead th.pres-sess-col')).toHaveCount(3);
+  await page.reload();
+  await expect(page.getByLabel('Equipa')).toHaveValue('teamB');
+  await page.getByLabel('Período').selectOption('datas');
+  await expect(page).toHaveURL(/de=\d{4}-\d{2}-\d{2}&ate=/);
+  await expect(page.getByLabel('De', { exact: true })).toBeVisible();
+
+  // Resumo por equipa e por período.
+  await page.getByLabel('Equipa').selectOption('');
+  await page.getByRole('button', { name: 'Resumo' }).click();
+  await expect(page).toHaveURL(/vista=resumo/);
+  await expect(page.getByRole('heading', { name: 'Por equipa' })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Equipa Andorinha/ })).toBeVisible();
+  if (process.env.PRES_SHOTS) await page.screenshot({ path: `${process.env.PRES_SHOTS}/resumo.png`, fullPage: true });
+  await expect(page.getByRole('heading', { name: 'Por mês' })).toBeVisible();
+  await noHorizontalScroll(page);
+});
+
+test('registo rápido: só as pessoas selecionadas, nada fica presente por omissão', async ({ page }) => {
+  await installMock(page, leader());
+  const S = await installPres(page);
+  await page.goto('/presencas/sessoes/s3');
+  await expect(page.getByRole('heading', { name: 'Reunião semanal' })).toBeVisible();
+  const members = page.getByRole('list', { name: 'Pessoas da sessão' });
+  await expect(members.getByText('Por registar')).toHaveCount(3);
+  // Sem seleção, não há nada para aplicar.
+  await expect(page.getByRole('button', { name: 'Seleciona pessoas' })).toBeDisabled();
+  await page.getByRole('checkbox', { name: /Pedro Teste/ }).check();
+  await page.getByRole('checkbox', { name: /Rita Teste/ }).check();
+  await expect(page.getByRole('button', { name: 'Escolhe o estado' })).toBeDisabled();
+  await page.getByRole('radio', { name: 'Presente' }).check();
+  await page.getByLabel('Participação parcial').check();
+  await page.getByLabel('Nota curta (opcional)').fill('Chegou às 16h');
+  await page.getByRole('button', { name: 'Aplicar a 2 pessoas' }).click();
+  await expect(page.getByText('Registado para 2 pessoas.')).toBeVisible();
+  const call = S.calls.find((c) => c.fn === 'pres_record')!;
+  expect(call.p_memberships.sort()).toEqual(['m-p1', 'm-p3']);
+  expect(call).toMatchObject({ p_status: 'presente', p_partial: true, p_partial_note: 'Chegou às 16h' });
+  await expect(members.getByText('Por registar')).toHaveCount(1); // o Guia ficou como estava
+  await expect(members.getByText('Presente (parcial)')).toHaveCount(2);
+
+  // «Selecionar os por registar» é uma escolha explícita.
+  await page.getByRole('button', { name: 'Selecionar os por registar (1)' }).click();
+  await expect(page.getByRole('checkbox', { name: /Guia Teste/ })).toBeChecked();
+  await page.getByRole('radio', { name: 'Falta injustificada' }).check();
+  await page.getByRole('button', { name: 'Aplicar a 1 pessoa' }).click();
+  await expect(members.getByText('Falta injustificada')).toHaveCount(1);
+  await noHorizontalScroll(page);
+});
+
+test('correção individual com justificação restrita e histórico', async ({ page }) => {
+  await installMock(page, leader());
+  const S = await installPres(page);
+  await page.goto('/presencas/sessoes/s1?pessoa=m-p3');
+  await expect(page.getByRole('form', { name: 'Corrigir registo de Rita Teste' })).toBeVisible();
+  const form = page.getByRole('form', { name: 'Corrigir registo de Rita Teste' });
+  await form.getByLabel('Estado').selectOption('justificada');
+  await expect(form.getByText('Só é visível para quem regista presenças e para o próprio.')).toBeVisible();
+  await form.getByLabel('Justificação (opcional)').fill('Doença');
+  await form.getByLabel('Motivo da correção (opcional)').fill('Encarregado avisou');
+  await form.getByRole('button', { name: 'Guardar' }).click();
+  await expect(form).toHaveCount(0);
+  const call = S.calls.filter((c) => c.fn === 'pres_record').pop()!;
+  expect(call).toMatchObject({ p_memberships: ['m-p3'], p_status: 'justificada', p_justification: 'Doença', p_reason: 'Encarregado avisou' });
+  await page.getByText(/Histórico de correções \(1\)/).click();
+  await expect(page.getByText(/de Falta injustificada para/)).toBeVisible();
+  await expect(page.getByText(/motivo: Encarregado avisou/)).toBeVisible();
+  // Cancelar a sessão: deixa de permitir registos.
+  await page.getByText('Cancelar sessão', { exact: true }).first().click();
+  await page.getByRole('button', { name: 'Cancelar sessão' }).click();
+  await expect(page.getByText('Esta sessão está cancelada: não é possível registar presenças.')).toBeVisible();
+});
+
+test('nova sessão a partir de uma atividade do Calendário', async ({ page }) => {
+  await installMock(page, leader());
+  const S = await installPres(page);
+  await page.goto('/presencas');
+  await page.getByRole('link', { name: 'Nova sessão' }).click();
+  await page.getByRole('button', { name: 'Criar sessão' }).click();
+  await expect(page.getByText('Indica o título.')).toBeVisible();
+  await page.getByLabel('Atividade do Calendário').check();
+  await page.getByLabel('Atividade', { exact: true }).selectOption('ev1');
+  await expect(page.getByLabel('Título')).toHaveValue('Acampamento de outono');
+  await expect(page.getByLabel('Data')).toHaveValue(day(-3));
+  await page.getByRole('button', { name: 'Criar sessão' }).click();
+  await expect(page.getByRole('heading', { name: 'Acampamento de outono' })).toBeVisible();
+  await expect(page.getByText(/Ligada à atividade do Calendário «Acampamento de outono»/)).toBeVisible();
+  expect(S.calls.find((c) => c.fn === 'pres_session_save')).toMatchObject({ p_cal_event: 'ev1', p_kind: 'atividade', p_date: day(-3) });
+  // A atividade deixa de aparecer nas opções (uma sessão por atividade).
+  await page.goto('/presencas/nova');
+  await page.getByLabel('Atividade do Calendário').check();
+  await expect(page.getByText('Não há atividades do Calendário disponíveis.')).toBeVisible();
+});
+
+test('telemóvel: vista por sessão e por pessoa em vez do quadro largo', async ({ page }) => {
+  test.skip(!isMobile(page), 'Só no telemóvel.');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMock(page, leader());
+  await installPres(page);
+  await page.goto('/presencas?vista=quadro');
+  await expect(page.getByRole('region', { name: 'Quadro de presenças' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Quadro' })).toHaveCount(0);
+  const sessions = page.getByRole('list', { name: 'Sessões' });
+  await expect(sessions.getByRole('link')).toHaveCount(4);
+  await expect(sessions.getByText('1/3 registadas')).toHaveCount(0);
+  await noHorizontalScroll(page);
+  await page.getByRole('button', { name: 'Pessoas' }).click();
+  const people = page.getByRole('list', { name: 'Pessoas' });
+  await expect(people.getByRole('link', { name: /Pedro Teste/ })).toContainText('50 %');
+  await people.getByRole('link', { name: /Pedro Teste/ }).click();
+  await expect(page.getByRole('heading', { name: 'Pedro Teste' })).toBeVisible();
+  await expect(page.getByTestId('taxa')).toHaveText('50 %');
+  await expect(page.getByText(dmy(day(-6))).first()).toBeVisible();
+  await expect(page.getByText('Justificação: Consulta médica')).toBeVisible();
+  await noHorizontalScroll(page);
+  await page.goto('/presencas/sessoes/s3');
+  await expect(page.getByRole('list', { name: 'Pessoas da sessão' })).toBeVisible();
+  await noHorizontalScroll(page);
+  if (process.env.PRES_SHOTS) await page.screenshot({ path: `${process.env.PRES_SHOTS}/mobile-session.png`, fullPage: true });
+});
+
+test('sem permissão de registo: só as próprias presenças e taxa, sem ações', async ({ page }) => {
+  await installMock(page, pioneer());
+  const S = await installPres(page, { register: false });
+  await page.goto('/presencas');
+  await expect(page.getByText(/As tuas presenças/).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Nova sessão' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Quadro de presenças' })).toHaveCount(0);
+  await expect(page.getByLabel('Equipa')).toHaveCount(0);
+  await expect(page.getByTestId('taxa')).toHaveText('50 %');
+  await expect(page.getByText('1 parcial')).toBeVisible();
+  expect(S.calls.every((c) => c.fn !== 'pres_board' || false)).toBe(true);
+  expect(S.calls.some((c) => c.fn === 'pres_member' && c.p_membership === 'm-p1')).toBe(true);
+  await noHorizontalScroll(page);
+});
+
+test('sem acesso ao módulo: página «Em desenvolvimento»', async ({ page }) => {
+  await installMock(page, pioneer());
+  await page.route('http://mock.supabase.test/rest/v1/rpc/my_modules', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify([{ module: 'presencas', status: 'desenvolvimento', space: null, grants: [], dirigente: false }]),
+  }));
+  let called = false;
+  await page.route('http://mock.supabase.test/rest/v1/rpc/pres_*', (route) => { called = true; return route.abort(); });
+  await page.goto('/presencas');
+  await expect(page.locator('.future-badge')).toBeVisible();
+  await expect(page.getByText('Esta área ainda não está disponível.', { exact: false })).toBeVisible();
+  expect(called).toBe(false);
+});

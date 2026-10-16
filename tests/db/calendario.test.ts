@@ -69,6 +69,78 @@ describe('acesso e permissões', () => {
   });
 });
 
+describe('v2: dias especiais e ano escutista', () => {
+  const cfg = (who: string) => rpc<any>(w.users[who], 'cal_config', { p_section: S() });
+  const save = (who: string, data: Record<string, unknown>, id: string | null = null) =>
+    rpc<string>(w.users[who], 'cal_special_day_save', { p_section: S(), p_id: id, p_data: data });
+
+  it('por omissão o ano escutista começa em setembro e não há dias especiais', async () => {
+    expect(await cfg('P1')).toEqual({ year_start_month: 9, can_manage: false, special_days: [] });
+    expect((await cfg('Tecnico')).can_manage).toBe(true);
+    await expectDenied(cfg('P3'), 'não está disponível');
+    await expectDenied(cfg('Ana'), 'não está disponível');
+  });
+
+  it('só quem gere configura; tester só consulta e membro sem acesso recusados', async () => {
+    await expectDenied(rpc(w.users.P1, 'cal_set_year_start', { p_section: S(), p_month: 10 }), 'permissão');
+    await expectDenied(rpc(w.users.GuiaA, 'cal_set_year_start', { p_section: S(), p_month: 10 }), 'permissão');
+    await expectDenied(rpc(w.users.P3, 'cal_set_year_start', { p_section: S(), p_month: 10 }), 'não está disponível');
+    await expectDenied(save('P1', { day: '2026-06-24', name: 'São João', kind: 'municipal', recurring: true }), 'permissão');
+    await expectDenied(rpc(w.users.Tecnico, 'cal_set_year_start', { p_section: S(), p_month: 13 }), 'Mês inválido');
+    await rpc(w.users.Tecnico, 'cal_set_year_start', { p_section: S(), p_month: 10 });
+    expect((await cfg('P1')).year_start_month).toBe(10);
+    await rpc(w.users.Rui, 'cal_set_year_start', { p_section: S(), p_month: 9 });
+    expect((await cfg('P1')).year_start_month).toBe(9);
+  });
+
+  it('feriado municipal recorrente e dia relevante único; corrigir e retirar sem apagar', async () => {
+    await expectDenied(save('Rui', { day: '2026-06-24', name: '  ' }), 'nome');
+    await expectDenied(save('Rui', { day: 'xx', name: 'X' }), 'Data inválida');
+    await expectDenied(save('Rui', { day: '2026-06-24', name: 'X', kind: 'nacional' }), 'Tipo de dia inválido');
+    const sj = await save('Rui', { day: '2026-06-24', name: 'São Joao', kind: 'municipal', recurring: true });
+    const rel = await save('Tecnico', { day: '2027-02-22', name: 'Dia do Pensamento', kind: 'relevante' });
+    await save('Rui', { day: '2026-06-24', name: 'São João', kind: 'municipal', recurring: true }, sj);
+    let c = await cfg('P1');
+    expect(c.special_days).toEqual([
+      { id: sj, day: '2026-06-24', name: 'São João', kind: 'municipal', recurring: true },
+      { id: rel, day: '2027-02-22', name: 'Dia do Pensamento', kind: 'relevante', recurring: false },
+    ]);
+    await expectDenied(rpc(w.users.P1, 'cal_special_day_remove', { p_section: S(), p_id: rel }), 'permissão');
+    await rpc(w.users.Rui, 'cal_special_day_remove', { p_section: S(), p_id: rel });
+    await expectDenied(rpc(w.users.Rui, 'cal_special_day_remove', { p_section: S(), p_id: rel }), 'já foi retirado');
+    await expectDenied(save('Rui', { day: '2027-02-22', name: 'X' }, rel), 'retirado');
+    c = await cfg('P1');
+    expect(c.special_days.map((d: any) => d.id)).toEqual([sj]);
+    const kept = await admin(`select status, cancelled_by from public.cal_special_days where id = $1`, [rel]);
+    expect(kept).toEqual([{ status: 'anulado', cancelled_by: w.users.Rui }]);
+    const audit = await admin(`select action from public.audit_log where entity = 'cal_special_day' and entity_id = $1 order by id`, [rel]);
+    expect(audit.map((a) => a.action)).toEqual(['cal_dia_especial_criado', 'cal_dia_especial_retirado']);
+  });
+
+  it('o espaço real não vê os dias especiais nem a configuração de teste', async () => {
+    const v = await buildWorld('calcfg');
+    await setupModule(v, 'calendario', 'teste', ['Rui', 'P1']);
+    const sd = await rpc<string>(v.users.Rui, 'cal_special_day_save', { p_section: v.section, p_id: null, p_data: { day: '2026-11-11', name: 'Teste', kind: 'relevante' } });
+    await rpc(v.users.Rui, 'cal_set_year_start', { p_section: v.section, p_month: 1 });
+    await setupModule(v, 'calendario', 'disponivel');
+    expect(await rpc(v.users.P3, 'cal_config', { p_section: v.section })).toMatchObject({ year_start_month: 9, special_days: [] });
+    await expectDenied(rpc(v.users.Rui, 'cal_special_day_remove', { p_section: v.section, p_id: sd }), 'Registo não encontrado');
+    await expectDenied(rpc(v.users.Rui, 'cal_special_day_save', { p_section: v.section, p_id: sd, p_data: { day: '2026-11-11', name: 'X' } }), 'Registo não encontrado');
+    await rpc(v.users.Ana, 'cal_set_year_start', { p_section: v.section, p_month: 8 });
+    await rpc(v.users.Ana, 'cal_special_day_save', { p_section: v.section, p_id: null, p_data: { day: '2026-07-04', name: 'Feriado municipal', kind: 'municipal', recurring: true } });
+    // Voltar a teste: os testers continuam a ver só o que é de teste
+    await setupModule(v, 'calendario', 'teste');
+    expect(await rpc(v.users.P1, 'cal_config', { p_section: v.section })).toMatchObject({
+      year_start_month: 1, special_days: [{ id: sd, name: 'Teste' }],
+    });
+    // Publicar passando os dados de teste: dias passam; a configuração real mantém-se
+    await rpc(v.users.Ana, 'set_module_status', { p_section: v.section, p_module: 'calendario', p_status: 'disponivel', p_move_test_data: true });
+    const real = await rpc<any>(v.users.P3, 'cal_config', { p_section: v.section });
+    expect(real.year_start_month).toBe(8);
+    expect(real.special_days.map((d: any) => d.name).sort()).toEqual(['Feriado municipal', 'Teste']);
+  });
+});
+
 describe('respostas (Vou / Não vou / Por confirmar) e prazo', () => {
   it('cada participante altera só a própria resposta e nota; gestores podem responder por outros', async () => {
     const id = await create('Rui', timed('Raid', 7 * D));
@@ -288,9 +360,12 @@ describe('publicar passando os dados de teste a reais', () => {
     await setupModule(v, 'calendario', 'teste', ['Rui', 'P1']);
     const id = await rpc<string>(v.users.Rui, 'cal_create_event', { p_section: v.section, p_data: timed('Atividade de teste', 4 * D, { reminder_minutes: [60] }) });
     await rpc(v.users.P1, 'cal_respond', { p_section: v.section, p_event: id, p_response: 'vou', p_note: null, p_profile: null });
+    await rpc(v.users.Rui, 'cal_set_year_start', { p_section: v.section, p_month: 10 });
     await rpc(v.users.Ana, 'set_module_status', { p_section: v.section, p_module: 'calendario', p_status: 'disponivel', p_move_test_data: true });
     const ev = await rpc<any>(v.users.P3, 'cal_event_get', { p_section: v.section, p_event: id });
     expect(ev.participants.find((p: any) => p.profile_id === v.users.P1).response).toBe('vou');
+    // Sem configuração real, a de teste passa a real
+    expect((await rpc<any>(v.users.P3, 'cal_config', { p_section: v.section })).year_start_month).toBe(10);
     expect(await admin(`select distinct space from public.cal_participants where event_id = $1`, [id])).toEqual([{ space: 'real' }]);
     expect(await admin(`select distinct space from public.module_reminders where entity_id = $1`, [id])).toEqual([{ space: 'real' }]);
     await admin(`update public.module_reminders set due_at = now() - interval '1 minute' where entity_id = $1 and profile_id = $2`, [id, v.users.P3]);

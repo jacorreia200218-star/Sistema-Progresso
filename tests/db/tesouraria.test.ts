@@ -1,6 +1,8 @@
 // Tesouraria: permissões (só «tesouraria.gerir»), resumos partilhados, situação própria,
 // cêntimos exatos, quotas e pagamentos sem duplicados, correções, anulações, auditoria,
 // comprovativos e isolamento entre o espaço de teste e o real.
+// v2: painel com saldo inicial e fórmula, evolução do saldo, período / ano escutista /
+// atividade, movimentos partilhados com pesquisa (sem dados pessoais para quem consulta).
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { admin, asUser, buildWorld, expectDenied, expectError, pool, rpc, setupModule, type World } from './helpers';
@@ -88,6 +90,12 @@ describe('permissões', () => {
     await expectDenied(rpc(u('P1'), 'fin_list_quotas', { p_section: S }), 'permissão');
     await expectDenied(rpc(u('P1'), 'fin_members', { p_section: S }), 'permissão');
     await expectDenied(rpc(u('P1'), 'fin_history', { p_section: S, p_entity_id: caixa }), 'permissão');
+    // v2: mas vê a lista partilhada de movimentos (sem dados pessoais)
+    const shared = await rpc<any>(u('P1'), 'fin_search_movements', { p_section: S });
+    expect(shared.can_manage).toBe(false);
+    expect(shared.items.length).toBeGreaterThan(0);
+    expect(shared.items[0]).not.toHaveProperty('notes');
+    expect(shared.items[0]).not.toHaveProperty('member_name');
   });
 });
 
@@ -375,5 +383,220 @@ describe('isolamento teste/real', () => {
     expect((await rpc<any[]>(u('P3'), 'fin_activity_results', { p_section: S })).map((a) => a.title)).toEqual(['Atividade real']);
     // A atividade real continua ligada
     expect((await summary('P3', { p_activity: realEvent })).totals.efetivo.receitas).toBe(250);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v2: painel financeiro (secção própria, para valores exatos)
+// ---------------------------------------------------------------------------
+describe('v2 — painel, saldo inicial e movimentos partilhados', () => {
+  let w2: World;
+  let S2: string;
+  const v = (n: string) => w2.users[n];
+  let cx: string; // caixa
+  let bk: string; // conta bancária
+  let ev: string; // atividade (teste)
+  let globalOpening: string;
+  let payP2: string;
+
+  const m2 = (extra: Record<string, unknown> = {}) => rpc<string>(v('GuiaA'), 'fin_create_movement', {
+    p_section: S2, p_kind: 'receita', p_on: '2025-09-10', p_description: 'Movimento', p_category: 'Outros',
+    p_amount: 100, p_account: cx, p_state: 'efetivo', ...extra,
+  });
+  const dash = (who: string, extra: Record<string, unknown> = {}) => rpc<any>(v(who), 'fin_dashboard', { p_section: S2, ...extra });
+  const opening = (who: string, extra: Record<string, unknown> = {}) => rpc<string>(v(who), 'fin_save_opening_balance', {
+    p_section: S2, p_id: null, p_account: null, p_reference_date: '2025-09-01', p_amount: 10000, p_notes: 'Transitado do ano anterior', ...extra,
+  });
+
+  beforeAll(async () => {
+    w2 = await buildWorld('tesouraria-v2');
+    S2 = w2.section;
+    await setupModule(w2, 'tesouraria', 'teste', ['Ana', 'Rui', 'GuiaA', 'P1', 'P2'], [['tesouraria.gerir', 'GuiaA']]);
+    cx = await rpc(v('GuiaA'), 'fin_save_account', { p_section: S2, p_id: null, p_name: 'Caixa', p_kind: 'caixa' });
+    bk = await rpc(v('GuiaA'), 'fin_save_account', { p_section: S2, p_id: null, p_name: 'Banco', p_kind: 'conta' });
+    ev = (await admin(`insert into public.cal_events (section_id, space, title, all_day, start_date, end_date, created_by)
+                       values ($1, 'teste', 'Raide', true, '2025-10-04', '2025-10-05', $2) returning id`, [S2, v('Ana')]))[0].id;
+  });
+
+  it('a assinatura de fin_create_movement (usada pelo Inventário) mantém-se', async () => {
+    const r = await admin(`select pg_get_function_identity_arguments('public.fin_create_movement'::regproc) a`);
+    expect(r[0].a).toBe('p_section uuid, p_kind text, p_on date, p_description text, p_category text, p_amount bigint, p_account uuid, p_state text, p_activity uuid, p_member uuid, p_notes text, p_client_key uuid');
+  });
+
+  it('sem saldo inicial: saldo atual = receitas − despesas (só efetivos não anulados)', async () => {
+    const d = await dash('P1');
+    expect(d.opening).toMatchObject({ mode: 'nenhum', total: 0, items: [] });
+    expect(d.current).toEqual({ saldo_inicial: 0, receitas: 0, despesas: 0, saldo: 0 });
+    expect(d.can_manage).toBe(false);
+  });
+
+  it('saldo inicial global: fórmula com os números que a compõem; anteriores à data não contam duas vezes', async () => {
+    globalOpening = await opening('GuiaA');
+    await m2({ p_on: '2025-08-20', p_amount: 5000, p_description: 'Antes do saldo inicial' }); // já incluído no saldo inicial
+    await m2({ p_on: '2025-09-10', p_amount: 2000 });
+    await m2({ p_on: '2025-10-05', p_amount: 750, p_kind: 'despesa', p_activity: ev, p_category: 'Alimentação' });
+    await m2({ p_on: '2025-10-04', p_amount: 1200, p_activity: ev, p_category: 'Atividades', p_account: bk });
+    await m2({ p_on: '2025-10-06', p_amount: 300, p_state: 'pendente' });
+    await m2({ p_on: '2025-10-06', p_amount: 400, p_state: 'previsto', p_kind: 'despesa' });
+    const anul = await m2({ p_on: '2025-10-07', p_amount: 9999 });
+    await rpc(v('GuiaA'), 'fin_void_movement', { p_section: S2, p_id: anul, p_reason: 'Registado por engano' });
+    for (const who of ['GuiaA', 'P1']) {
+      const d = await dash(who);
+      expect(d.opening).toMatchObject({ mode: 'global', total: 10000, reference_date: '2025-09-01' });
+      expect(d.opening.items).toHaveLength(1);
+      expect(d.current).toEqual({ saldo_inicial: 10000, receitas: 3200, despesas: 750, saldo: 12450 });
+      expect(d.before_opening).toEqual({ count: 1, receitas: 5000, despesas: 0 });
+    }
+    // Quem consulta não vê as notas nem quem registou o saldo inicial
+    expect((await dash('P1')).opening.items[0]).not.toHaveProperty('notes');
+    expect((await dash('GuiaA')).opening.items[0].notes).toBe('Transitado do ano anterior');
+    // A lista assinala o movimento anterior ao saldo inicial
+    const list = await rpc<any>(v('GuiaA'), 'fin_search_movements', { p_section: S2, p_search: 'antes do saldo' });
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0].before_opening).toBe(true);
+  });
+
+  it('período, ano escutista (setembro–agosto), mês e atividade', async () => {
+    const ano = await dash('P1', { p_from: '2025-09-01', p_to: '2026-08-31' });
+    expect(ano.totals.efetivo).toEqual({ receitas: 3200, despesas: 750, saldo: 2450 });
+    expect(ano.totals.pendente).toEqual({ receitas: 300, despesas: 0, saldo: 300 });
+    expect(ano.totals.previsto).toEqual({ receitas: 0, despesas: 400, saldo: -400 });
+    // O saldo atual não depende do filtro
+    expect(ano.current.saldo).toBe(12450);
+    // Evolução mensal desde a data do saldo inicial
+    expect(ano.evolution.granularity).toBe('mes');
+    expect(ano.evolution.points[0]).toEqual({ date: '2025-09-01', kind: 'inicio', saldo: 10000 });
+    expect(ano.evolution.points[1]).toEqual({ date: '2025-09-30', kind: 'mes', saldo: 12000 });
+    expect(ano.evolution.points[2]).toEqual({ date: '2025-10-31', kind: 'mes', saldo: 12450 });
+    expect(ano.evolution.points.at(-1)).toMatchObject({ date: '2026-08-31', saldo: 12450 });
+    expect(ano.years).toEqual(expect.arrayContaining([2025, 2024]));
+    // Ano escutista anterior: o movimento de agosto aparece nos totais do período, mas a evolução
+    // só começa no saldo inicial (não há pontos antes dele)
+    const anterior = await dash('P1', { p_from: '2024-09-01', p_to: '2025-08-31' });
+    expect(anterior.totals.efetivo.receitas).toBe(5000);
+    expect(anterior.evolution.points).toEqual([]);
+    // Mês de outubro: evolução diária
+    const out = await dash('P1', { p_from: '2025-10-01', p_to: '2025-10-31' });
+    expect(out.totals.efetivo).toEqual({ receitas: 1200, despesas: 750, saldo: 450 });
+    expect(out.evolution.granularity).toBe('dia');
+    expect(out.evolution.points).toEqual([
+      { date: '2025-10-01', kind: 'inicio', saldo: 12000 },
+      { date: '2025-10-04', kind: 'dia', saldo: 13200 },
+      { date: '2025-10-05', kind: 'dia', saldo: 12450 },
+      { date: '2025-10-31', kind: 'dia', saldo: 12450 },
+    ]);
+    // Atividade: totais e resultado da atividade
+    const act = await dash('P1', { p_activity: ev });
+    expect(act.totals.efetivo).toEqual({ receitas: 1200, despesas: 750, saldo: 450 });
+    expect(act.activity).toMatchObject({ title: 'Raide', efetivo: { receitas: 1200, despesas: 750, resultado: 450 } });
+    expect(act.latest.every((m: any) => m.activity_id === ev)).toBe(true);
+    await expectError(dash('P1', { p_from: '2025-10-31', p_to: '2025-10-01' }), 'período');
+  });
+
+  it('saldo inicial por conta: exclusivo com o global, um por conta, alterações auditadas', async () => {
+    await expectError(opening('GuiaA', { p_account: cx }), 'saldo inicial global');
+    await expectError(opening('GuiaA'), 'altera-o');
+    await expectError(rpc(v('GuiaA'), 'fin_void_opening_balance', { p_section: S2, p_id: globalOpening, p_reason: '' }), 'motivo');
+    await rpc(v('GuiaA'), 'fin_void_opening_balance', { p_section: S2, p_id: globalOpening, p_reason: 'Passamos a saldo por conta' });
+    const oc = await opening('GuiaA', { p_account: cx, p_reference_date: '2025-10-01', p_amount: 500, p_notes: null });
+    await expectError(opening('GuiaA'), 'por conta ou caixa');
+    await expectError(opening('GuiaA', { p_account: cx }), 'altera-o');
+    // Caixa: só conta o que é a partir de 01/10/2025; banco (sem saldo inicial): tudo
+    let d = await dash('P1');
+    expect(d.opening.mode).toBe('conta');
+    expect(d.current).toEqual({ saldo_inicial: 500, receitas: 1200, despesas: 750, saldo: 950 });
+    expect(d.before_opening).toEqual({ count: 2, receitas: 7000, despesas: 0 });
+    expect(d.accounts.find((a: any) => a.id === cx)).toMatchObject({ saldo: -250, movimentos: -750, opening: { amount_cents: 500, reference_date: '2025-10-01' } });
+    expect(d.accounts.find((a: any) => a.id === bk)).toMatchObject({ saldo: 1200, opening: null });
+    // O resumo v1 usa a mesma regra por conta
+    const s = await rpc<any>(v('P1'), 'fin_summary', { p_section: S2 });
+    expect(s.accounts.find((a: any) => a.id === cx).saldo).toBe(-250);
+    // Alterar (auditado, com valores antigos e novos); mudar de conta não
+    await rpc(v('GuiaA'), 'fin_save_opening_balance', { p_section: S2, p_id: oc, p_account: cx, p_reference_date: '2025-10-01', p_amount: 650, p_notes: 'Contagem da caixa' });
+    await expectError(rpc(v('GuiaA'), 'fin_save_opening_balance', { p_section: S2, p_id: oc, p_account: bk, p_reference_date: '2025-10-01', p_amount: 650 }), 'mudar a conta');
+    await expectError(opening('GuiaA', { p_account: bk, p_reference_date: '2099-01-01' }), 'futura');
+    d = await dash('P1');
+    expect(d.current.saldo).toBe(1100);
+    const h = await rpc<any[]>(v('GuiaA'), 'fin_history', { p_section: S2, p_entity_id: oc });
+    expect(h.map((x) => x.action)).toEqual(['criado', 'alterado']);
+    expect(h[1]).toMatchObject({ old_values: { amount_cents: 500, notes: null }, new_values: { amount_cents: 650, notes: 'Contagem da caixa' } });
+    const hg = await rpc<any[]>(v('GuiaA'), 'fin_history', { p_section: S2, p_entity_id: globalOpening });
+    expect(hg.map((x) => x.action)).toEqual(['criado', 'anulado']);
+    // Lista para quem gere inclui anulados; quem consulta só vê os ativos
+    expect(await rpc<any[]>(v('GuiaA'), 'fin_list_opening_balances', { p_section: S2 })).toHaveLength(2);
+    const pub = await rpc<any[]>(v('P1'), 'fin_list_opening_balances', { p_section: S2 });
+    expect(pub).toHaveLength(1);
+    expect(pub[0]).not.toHaveProperty('notes');
+  });
+
+  it('só quem tem tesouraria.gerir define o saldo inicial (dirigente e administração sem autorização não)', async () => {
+    for (const who of ['Rui', 'Ana', 'P1']) {
+      await expectDenied(opening(who, { p_account: bk }), 'permissão');
+      await expectDenied(rpc(v(who), 'fin_void_opening_balance', { p_section: S2, p_id: globalOpening, p_reason: 'Tentativa' }), 'permissão');
+      await expectDenied(rpc(v(who), 'fin_create_movement', { p_section: S2, p_kind: 'receita', p_on: '2025-10-01', p_description: 'X', p_category: 'Outros', p_amount: 1, p_account: cx, p_state: 'efetivo' }), 'permissão');
+    }
+    for (const fn of ['fin_dashboard', 'fin_search_movements', 'fin_list_opening_balances']) {
+      await expectDenied(rpc(v('P3'), fn, { p_section: S2 }), 'não está disponível');
+    }
+  });
+
+  it('movimentos partilhados: quem consulta nunca vê o membro, as observações nem comprovativos alheios', async () => {
+    payP2 = await m2({ p_on: '2025-10-08', p_amount: 1500, p_member: v('P2'), p_category: 'Atividades',
+                       p_description: 'Inscrição paga por P2 tesouraria-v2', p_notes: 'Nota privada sobre a família' });
+    await rpc(v('GuiaA'), 'module_file_prepare', { p_section: S2, p_module: 'tesouraria', p_entity: 'movimento', p_entity_id: payP2, p_file_name: 'recibo.pdf', p_mime: 'application/pdf' });
+    const voided = await m2({ p_on: '2025-10-09', p_amount: 42, p_description: 'Anulado com motivo pessoal' });
+    await rpc(v('GuiaA'), 'fin_void_movement', { p_section: S2, p_id: voided, p_reason: 'Motivo com nome de pessoa' });
+
+    const p1 = await rpc<any>(v('P1'), 'fin_search_movements', { p_section: S2 });
+    const row = p1.items.find((x: any) => x.id === payP2);
+    expect(row).toMatchObject({ description: 'Pagamento individual', category: 'Atividades', amount_cents: 1500, individual: true, mine: false, files: 0 });
+    for (const k of ['member_profile_id', 'member_name', 'notes', 'account_name', 'created_by_name', 'quota_name']) expect(row).not.toHaveProperty(k);
+    const txt = JSON.stringify(p1);
+    expect(txt).not.toContain(v('P2'));
+    expect(txt).not.toContain('P2 tesouraria-v2');
+    expect(txt).not.toContain('Nota privada');
+    expect(txt).not.toContain('Anulado com motivo');
+    // Pedir anulados sem permissão não os mostra
+    expect(JSON.stringify(await rpc(v('P1'), 'fin_search_movements', { p_section: S2, p_include_voided: true }))).not.toContain(voided);
+    // A pesquisa de quem consulta não encontra pelo que está escondido
+    expect((await rpc<any>(v('P1'), 'fin_search_movements', { p_section: S2, p_search: 'P2 tesouraria' })).items).toEqual([]);
+    expect((await rpc<any>(v('P1'), 'fin_search_movements', { p_section: S2, p_search: 'família' })).items).toEqual([]);
+    expect((await rpc<any>(v('P1'), 'fin_search_movements', { p_section: S2, p_search: 'aliment' })).items).toHaveLength(1);
+    expect((await rpc<any>(v('P1'), 'fin_search_movements', { p_section: S2, p_search: 'raide' })).items).toHaveLength(2);
+    // Os últimos movimentos do painel seguem a mesma regra
+    expect(JSON.stringify(await dash('P1'))).not.toContain('P2 tesouraria-v2');
+    // O próprio vê o seu pagamento e o comprovativo
+    const p2 = (await rpc<any>(v('P2'), 'fin_search_movements', { p_section: S2 })).items.find((x: any) => x.id === payP2);
+    expect(p2).toMatchObject({ description: 'Inscrição paga por P2 tesouraria-v2', mine: true, files: 1 });
+    expect(p2).not.toHaveProperty('notes');
+    // Quem gere vê tudo, pesquisa pelo nome e pelas observações e pode incluir anulados
+    const g = await rpc<any>(v('GuiaA'), 'fin_search_movements', { p_section: S2, p_search: 'família' });
+    expect(g.items).toHaveLength(1);
+    expect(g.items[0]).toMatchObject({ member_name: 'P2 tesouraria-v2', notes: 'Nota privada sobre a família', files: 1 });
+    expect((await rpc<any>(v('GuiaA'), 'fin_search_movements', { p_section: S2, p_include_voided: true })).items.some((x: any) => x.id === voided)).toBe(true);
+    expect((await rpc<any>(v('GuiaA'), 'fin_search_movements', { p_section: S2 })).items.some((x: any) => x.id === voided)).toBe(false);
+    // Filtros de período e estado
+    expect((await rpc<any>(v('P1'), 'fin_search_movements', { p_section: S2, p_from: '2025-10-06', p_to: '2025-10-06' })).total).toBe(2);
+    expect((await rpc<any>(v('P1'), 'fin_search_movements', { p_section: S2, p_state: 'pendente' })).total).toBe(1);
+  });
+
+  it('isolamento: o espaço real tem o seu próprio saldo inicial; ao publicar nunca ficam dois', async () => {
+    const testSaldo = (await dash('GuiaA')).current.saldo;
+    await setupModule(w2, 'tesouraria', 'disponivel');
+    let real = await dash('P3');
+    expect(real.opening.mode).toBe('nenhum');
+    expect(real.current).toEqual({ saldo_inicial: 0, receitas: 0, despesas: 0, saldo: 0 });
+    expect((await rpc<any>(v('P3'), 'fin_search_movements', { p_section: S2 })).items).toEqual([]);
+    await opening('GuiaA', { p_reference_date: '2026-09-01', p_amount: 777 });
+    expect((await dash('P3')).current.saldo).toBe(777);
+    await setupModule(w2, 'tesouraria', 'teste');
+    expect((await dash('GuiaA')).current.saldo).toBe(testSaldo);
+    // Passar os dados de teste a reais: o saldo inicial de teste é anulado (registado), o real mantém-se
+    await rpc(v('Ana'), 'set_module_status', { p_section: S2, p_module: 'tesouraria', p_status: 'disponivel', p_move_test_data: true });
+    real = await dash('P3');
+    expect(real.opening.mode).toBe('global');
+    expect(real.opening.total).toBe(777);
+    expect(await admin(`select count(*)::int n from public.fin_opening_balances where section_id = $1 and space = 'real' and voided_at is null`, [S2])).toEqual([{ n: 1 }]);
+    expect(await admin(`select count(*)::int n from public.fin_opening_balances where section_id = $1 and space = 'teste'`, [S2])).toEqual([{ n: 0 }]);
   });
 });

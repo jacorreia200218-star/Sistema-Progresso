@@ -1,73 +1,76 @@
 // Movimentos (só para quem gere): lista com filtros e CSV, registo, alteração,
 // correção ligada ao original, anulação com motivo, comprovativos e histórico.
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileText, Paperclip, Plus } from 'lucide-react';
+import { Download, FileText, Minus, Paperclip, Plus } from 'lucide-react';
 import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { downloadFile, eurosInput, formatDay, formatEuros, formatLisbon, parseEuros, todayLisbon, toCsv } from '../common';
 import { listModuleFiles, openModuleFile, removeModuleFile, uploadModuleFile } from '../files';
 import {
-  KIND_LABEL, STATE_LABEL, STATE_TONE, csvEuros, filtersFrom, newClientKey, periodLabel, useActivities, useHistory, useMembersFin,
-  useMovements, useOptions, useSectionId, type Kind, type MovState, type Movement,
+  KIND_LABEL, STATE_LABEL, STATE_TONE, csvEuros, filtersFrom, newClientKey, periodLabel, useActivities, useAllMovements, useHistory,
+  useMembersFin, useOptions, useSearchMovements, useSectionId, type Kind, type MovState, type Movement,
 } from './api';
-import { FiltersBar } from './shared';
+import { MovementList } from './Dashboard';
+import { FiltersBar, useCanManage } from './shared';
 
 export function MovementsPage() {
   const [params] = useSearchParams();
   const f = filtersFrom(params);
-  const q = useMovements(f);
-  const list = q.data ?? [];
+  const canManage = useCanManage();
+  const q = useSearchMovements(f, canManage);
+  const list = q.data?.items ?? [];
 
   const exportCsv = () => {
-    const rows: (string | number | null)[][] = [
-      ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor (€)', 'Estado', 'Conta/caixa', 'Atividade', 'Membro', 'Quota', 'Anulado', 'Motivo', 'Registado por', 'Registado em'],
-      ...list.map((m) => [
-        formatDay(m.occurred_on), KIND_LABEL[m.kind], m.description, m.category, csvEuros(m.kind === 'despesa' ? -m.amount_cents : m.amount_cents),
-        STATE_LABEL[m.state], m.account_name, m.activity_title, m.member_name, m.quota_name, m.voided_at ? 'sim' : 'não', m.void_reason,
-        m.created_by_name, formatLisbon(m.created_at),
-      ]),
+    const head = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor (€)', 'Estado', 'Atividade'];
+    const rows: (string | number | null | undefined)[][] = [
+      canManage ? [...head, 'Conta/caixa', 'Membro', 'Anulado'] : head,
+      ...list.map((m) => {
+        const base = [formatDay(m.occurred_on), KIND_LABEL[m.kind], m.description, m.category,
+          csvEuros(m.kind === 'despesa' ? -m.amount_cents : m.amount_cents), STATE_LABEL[m.state], m.activity_title];
+        return canManage ? [...base, m.account_name, m.member_name, m.voided_at ? 'sim' : 'não'] : base;
+      }),
     ];
     downloadFile(`tesouraria-movimentos-${todayLisbon()}.csv`, toCsv(rows), 'text/csv;charset=utf-8');
   };
 
   return (
     <div className="stack">
-      <FiltersBar withState />
+      <FiltersBar extended />
       <div className="row between fin-section-head">
         <h2 className="section-title">Movimentos · {periodLabel(f)}</h2>
         <div className="row">
-          <Link to="/tesouraria/movimentos/novo" className="btn"><Plus size={18} aria-hidden="true" /> Novo movimento</Link>
-          <button type="button" className="btn secondary" onClick={exportCsv} disabled={!list.length}>
+          {canManage && (
+            <>
+              <Link to="/tesouraria/movimentos/novo?tipo=receita" className="btn"><Plus size={18} aria-hidden="true" /> Nova receita</Link>
+              <Link to="/tesouraria/movimentos/novo?tipo=despesa" className="btn secondary"><Minus size={18} aria-hidden="true" /> Nova despesa</Link>
+            </>
+          )}
+          <button type="button" className="btn ghost" onClick={exportCsv} disabled={!list.length}>
             <Download size={18} aria-hidden="true" /> Exportar CSV
           </button>
         </div>
       </div>
+      {!canManage && (
+        <p className="faint prose">
+          Movimentos partilhados com quem tem acesso à tesouraria: data, descrição, categoria, valor e atividade. Os pagamentos
+          individuais de outras pessoas aparecem como «Pagamento individual», sem nome; observações e comprovativos são privados.
+        </p>
+      )}
       {q.isLoading ? <Loading rows={2} /> : q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : !list.length ? (
         <Empty title="Sem movimentos">
-          <p>Não há movimentos com estes filtros. Regista um com «Novo movimento» ou limpa os filtros.</p>
+          <p>Não há movimentos com estes filtros ou esta pesquisa. Experimenta outro período ou limpa os filtros.</p>
         </Empty>
       ) : (
-        <ul className="list card fin-movs" aria-label="Lista de movimentos">
-          {list.map((m) => (
-            <li key={m.id} className={m.voided_at ? 'is-voided' : undefined}>
-              <Link className="list-item" to={`/tesouraria/movimentos/${m.id}`}>
-                <span className="fin-date">{formatDay(m.occurred_on)}</span>
-                <span className="grow">
-                  <span className="fin-desc">{m.description}</span>
-                  <span className="faint fin-sub">
-                    {m.category}{m.activity_title ? ` · ${m.activity_title}` : ''}{m.member_name ? ` · ${m.member_name}` : ''}
-                    {m.files > 0 && <> · <Paperclip size={12} aria-label="Com comprovativo" /></>}
-                  </span>
-                </span>
-                {m.voided_at ? <Badge label={m.replaced_by ? 'Corrigido' : 'Anulado'} tone="muted" /> : <Badge label={STATE_LABEL[m.state]} tone={STATE_TONE[m.state]} />}
-                <span className={`fin-amount ${m.kind === 'despesa' ? 'neg' : 'pos'}`}>{formatEuros(m.kind === 'despesa' ? -m.amount_cents : m.amount_cents)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="faint" aria-live="polite">
+            {q.data!.total === 1 ? '1 movimento' : `${q.data!.total} movimentos`}
+            {q.data!.total > list.length ? ` (a mostrar os ${list.length} mais recentes)` : ''}
+          </p>
+          <div className="card fin-movs-card"><MovementList items={list} canManage={canManage} label="Lista de movimentos" /></div>
+        </>
       )}
     </div>
   );
@@ -86,7 +89,7 @@ const fromMovement = (m: Movement): FormValues => ({
 /** Formulário de movimento: criar, alterar ou corrigir. */
 function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
   initial: FormValues; mode: 'novo' | 'alterar' | 'corrigir'; locked?: boolean; busy: boolean; submitLabel: string;
-  onSubmit: (v: FormValues & { cents: number; reason: string; allowExcess: boolean }) => void;
+  onSubmit: (v: FormValues & { cents: number; reason: string; allowExcess: boolean; file: File | null }) => void;
 }) {
   const opts = useOptions();
   const acts = useActivities();
@@ -95,9 +98,19 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
   const [reason, setReason] = useState('');
   const [allowExcess, setAllowExcess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [file, setFile] = useState<File | null>(null);
   const set = <K extends keyof FormValues>(k: K, val: FormValues[K]) => setV((x) => ({ ...x, [k]: val }));
   const accounts = (opts.data?.accounts ?? []).filter((a) => !a.archived || a.id === initial.account);
   const id = (k: string) => `fin-${mode}-${k}`;
+  // Com uma só conta ou caixa ativa, fica escolhida (menos um passo no telemóvel).
+  const only = accounts.filter((a) => !a.archived);
+  useEffect(() => {
+    if (!v.account && only.length === 1) set('account', only[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [only.length]);
+  // Data anterior ao saldo inicial que cobre esta conta (ou global): fica registado, mas não soma ao saldo.
+  const ref = (opts.data?.opening ?? []).find((o) => o.account_id === null || o.account_id === v.account)?.reference_date;
+  const beforeOpening = !!(ref && v.on && v.on < ref && v.state === 'efetivo');
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -109,9 +122,10 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
     if (cents == null || cents <= 0) err.amount = 'Indica um valor superior a zero, por exemplo 12,30.';
     if (!v.account) err.account = 'Escolhe a conta ou caixa.';
     if (mode === 'corrigir' && reason.trim().length < 3) err.reason = 'Indica o motivo da correção.';
+    if (file && !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) err.file = 'O comprovativo tem de ser PDF, JPG, PNG ou WebP.';
     setErrors(err);
     if (Object.keys(err).length) return;
-    onSubmit({ ...v, cents: cents!, reason, allowExcess });
+    onSubmit({ ...v, cents: cents!, reason, allowExcess, file });
   };
   const fe = (k: string) => errors[k] && <span className="fin-error" role="alert">{errors[k]}</span>;
 
@@ -135,6 +149,11 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
         <Field label="Data" htmlFor={id('on')}>
           <input id={id('on')} type="date" value={v.on} disabled={locked} onChange={(e) => set('on', e.target.value)} aria-invalid={!!errors.on} />
           {fe('on')}
+          {beforeOpening && (
+            <span className="hint prose" role="note">
+              Data anterior ao saldo inicial ({formatDay(ref!)}): o movimento fica registado, mas não soma ao saldo atual porque já está incluído no saldo inicial.
+            </span>
+          )}
         </Field>
         <Field label="Valor (€)" htmlFor={id('amount')} hint="Em euros, com vírgula: 12,30">
           <input id={id('amount')} inputMode="decimal" autoComplete="off" value={v.amount} disabled={locked} onChange={(e) => set('amount', e.target.value)} aria-invalid={!!errors.amount} />
@@ -160,32 +179,42 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
           {fe('account')}
         </Field>
       </div>
-      <fieldset className="fin-fieldset" disabled={locked}>
-        <legend className="label">Estado</legend>
-        <div className="segmented" role="radiogroup" aria-label="Estado">
-          {(['previsto', 'pendente', 'efetivo'] as const).map((k) => (
-            <label key={k} className="segment"><input type="radio" name={id('state')} checked={v.state === k} onChange={() => set('state', k)} /> <span>{STATE_LABEL[k]}</span></label>
-          ))}
+      <Field label="Atividade (opcional)" htmlFor={id('activity')}>
+        <select id={id('activity')} value={v.activity} onChange={(e) => set('activity', e.target.value)}>
+          <option value="">Nenhuma</option>
+          {(acts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}{a.day ? ` · ${formatDay(a.day)}` : ''}{a.status === 'cancelado' ? ' (cancelada)' : ''}</option>)}
+        </select>
+      </Field>
+      <details className="fin-more" open={mode !== 'novo' || undefined}>
+        <summary>Estado ({STATE_LABEL[v.state].toLowerCase()}) e pagamento individual</summary>
+        <div className="stack">
+          <fieldset className="fin-fieldset" disabled={locked}>
+            <legend className="label">Estado</legend>
+            <div className="segmented" role="radiogroup" aria-label="Estado">
+              {(['previsto', 'pendente', 'efetivo'] as const).map((k) => (
+                <label key={k} className="segment"><input type="radio" name={id('state')} checked={v.state === k} onChange={() => set('state', k)} /> <span>{STATE_LABEL[k]}</span></label>
+              ))}
+            </div>
+            <span className="hint prose">Só os efetivos contam no saldo. Pendente: aguarda confirmação; previsto: ainda vai acontecer.</span>
+          </fieldset>
+          <Field label="Membro (pagamento individual, opcional)" htmlFor={id('member')}>
+            <select id={id('member')} value={v.member} disabled={locked} onChange={(e) => set('member', e.target.value)}>
+              <option value="">Nenhum</option>
+              {(members.data ?? []).map((m) => <option key={m.profile_id} value={m.profile_id}>{m.full_name}</option>)}
+            </select>
+            <span className="hint">O nome nunca aparece a quem só consulta a tesouraria.</span>
+          </Field>
         </div>
-        <span className="hint prose">Só os efetivos contam no saldo. Pendente: aguarda confirmação; previsto: ainda vai acontecer.</span>
-      </fieldset>
-      <div className="grid-2">
-        <Field label="Atividade (opcional)" htmlFor={id('activity')}>
-          <select id={id('activity')} value={v.activity} onChange={(e) => set('activity', e.target.value)}>
-            <option value="">Nenhuma</option>
-            {(acts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}{a.day ? ` · ${formatDay(a.day)}` : ''}{a.status === 'cancelado' ? ' (cancelada)' : ''}</option>)}
-          </select>
-        </Field>
-        <Field label="Membro (pagamento individual, opcional)" htmlFor={id('member')}>
-          <select id={id('member')} value={v.member} disabled={locked} onChange={(e) => set('member', e.target.value)}>
-            <option value="">Nenhum</option>
-            {(members.data ?? []).map((m) => <option key={m.profile_id} value={m.profile_id}>{m.full_name}</option>)}
-          </select>
-        </Field>
-      </div>
-      <Field label="Notas (opcional)" htmlFor={id('notes')}>
+      </details>
+      <Field label="Observações (opcional, privadas)" htmlFor={id('notes')}>
         <textarea id={id('notes')} rows={2} maxLength={1000} value={v.notes} onChange={(e) => set('notes', e.target.value)} />
       </Field>
+      {mode === 'novo' && (
+        <Field label="Comprovativo (opcional)" htmlFor={id('file')} hint="PDF ou imagem; só quem gere a tesouraria o vê.">
+          <input id={id('file')} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          {fe('file')}
+        </Field>
+      )}
       {mode === 'corrigir' && (
         <Field label="Motivo da correção" htmlFor={id('reason')}>
           <input id={id('reason')} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} aria-invalid={!!errors.reason} />
@@ -209,18 +238,28 @@ export function NewMovement() {
   const section = useSectionId();
   const nav = useNavigate();
   const act = useAction();
+  const [params] = useSearchParams();
   const [key] = useState(newClientKey);
-  const initial: FormValues = { kind: 'despesa', on: todayLisbon(), description: '', category: '', amount: '', account: '', state: 'efetivo', activity: '', member: '', notes: '' };
+  const tipo = params.get('tipo');
+  const kind: Kind = tipo === 'receita' ? 'receita' : 'despesa';
+  const title = tipo === 'receita' ? 'Nova receita' : tipo === 'despesa' ? 'Nova despesa' : 'Novo movimento';
+  const initial: FormValues = { kind, on: todayLisbon(), description: '', category: '', amount: '', account: '', state: 'efetivo', activity: '', member: '', notes: '' };
   return (
     <div className="fin-page">
-      <PageTitle title="Novo movimento" back="/tesouraria/movimentos" />
+      <PageTitle title={title} back="/tesouraria" />
       <ErrorBox error={act.error} />
-      <MovementForm initial={initial} mode="novo" busy={act.busy} submitLabel="Registar movimento" onSubmit={async (v) => {
+      <MovementForm key={kind} initial={initial} mode="novo" busy={act.busy} submitLabel="Registar movimento" onSubmit={async (v) => {
         const r = await act.run(() => call<string>('fin_create_movement', {
           p_section: section, p_kind: v.kind, p_on: v.on, p_description: v.description, p_category: v.category, p_amount: v.cents,
           p_account: v.account, p_state: v.state, p_activity: v.activity || null, p_member: v.member || null, p_notes: v.notes || null, p_client_key: key,
         }));
-        if (r.ok) nav(`/tesouraria/movimentos/${r.value}?registado=1`, { replace: true });
+        if (!r.ok) return;
+        // O comprovativo vai depois de o movimento existir; se falhar, o movimento fica e o aviso aparece no detalhe.
+        let proof = '';
+        if (v.file) {
+          try { await uploadModuleFile(section, 'tesouraria', 'movimento', r.value!, v.file); } catch { proof = '&comprovativo=erro'; }
+        }
+        nav(`/tesouraria/movimentos/${r.value}?registado=1${proof}`, { replace: true });
       }} />
     </div>
   );
@@ -231,7 +270,7 @@ export function MovementDetail() {
   const section = useSectionId();
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const q = useMovements({ de: null, ate: null, categoria: null, atividade: null, estado: null });
+  const q = useAllMovements();
   const act = useAction();
   const [mode, setMode] = useState<'ver' | 'alterar' | 'corrigir'>('ver');
   const [reason, setReason] = useState('');
@@ -246,6 +285,7 @@ export function MovementDetail() {
     <div className="fin-page stack">
       <PageTitle title={m.description} back="/tesouraria/movimentos" subtitle={`${KIND_LABEL[m.kind]} · ${formatDay(m.occurred_on)}`} />
       {params.get('registado') && !act.success && mode === 'ver' && <Notice kind="success">Movimento registado.</Notice>}
+      {params.get('comprovativo') === 'erro' && <Notice kind="warn">O movimento ficou registado, mas não foi possível anexar o comprovativo. Tenta de novo em «Comprovativos».</Notice>}
       {act.success && <Notice kind="success">{act.success}</Notice>}
       <ErrorBox error={act.error} />
       {m.voided_at && (
@@ -269,7 +309,7 @@ export function MovementDetail() {
             <dt>Atividade</dt><dd>{m.activity_title ?? '—'}</dd>
             <dt>Membro</dt><dd>{m.member_name ?? '—'}</dd>
             {m.quota_name && (<><dt>Quota</dt><dd>{m.quota_name}</dd></>)}
-            {m.notes && (<><dt>Notas</dt><dd className="prose">{m.notes}</dd></>)}
+            {m.notes && (<><dt>Observações</dt><dd className="prose">{m.notes}</dd></>)}
             <dt>Registado</dt><dd>{formatLisbon(m.created_at)}{m.created_by_name ? ` · ${m.created_by_name}` : ''}</dd>
             {m.updated_by_name && (<><dt>Última alteração</dt><dd>{formatLisbon(m.updated_at)} · {m.updated_by_name}</dd></>)}
           </dl>
@@ -372,7 +412,7 @@ const FIELD_LABEL: Record<string, string> = {
 const showVal = (k: string, v: unknown) => (v == null ? '—' : k === 'amount_cents' ? formatEuros(Number(v)) : k === 'occurred_on' ? formatDay(String(v))
   : k.endsWith('_id') || k === 'replaced_by' ? 'alterado' : String(v));
 
-function History({ id }: { id: string }) {
+export function History({ id }: { id: string }) {
   const h = useHistory(id);
   return (
     <section className="card" aria-labelledby={`hist-${id}`}>

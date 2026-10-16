@@ -1,36 +1,20 @@
-// Lista de reuniões (pesquisa e filtro no endereço) e «As minhas tarefas».
-import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, ClipboardList, Plus, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Badge, Empty, ErrorBox, Loading, Notice, PageTitle } from '../../components/ui';
-import { call } from '../../lib/api';
-import { formatDay, formatLisbon } from '../common';
-import { EXEC_STATUS, KIND_LABEL, MINUTE_STATUS, useMeetings, useSectionId, type Item, type MeetingKind } from './api';
-import { ItemStatusControl } from './Items';
+// Atas e reuniões: pesquisa e histórico por texto, data, equipa, tipo e atividade (no endereço).
+import { Link } from 'react-router-dom';
+import { CalendarDays, ClipboardList, FileText, ListChecks, Plus, Search, UserCheck } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Badge, Empty, ErrorBox, Loading, PageTitle } from '../../components/ui';
+import { formatLisbon } from '../common';
+import { BASE, KIND_LABEL, MINUTE_STATUS, MODULE_NAME, useMeetings, useParam, type MeetingKind } from './api';
 
-function useParam(key: string): [string, (v: string) => void] {
-  const [params, setParams] = useSearchParams();
-  const value = params.get(key) ?? '';
-  const set = (v: string) =>
-    setParams(() => {
-      const next = new URLSearchParams(window.location.search);
-      if (v) next.set(key, v);
-      else next.delete(key);
-      return next;
-    }, { replace: true });
-  return [value, set];
-}
-
-export function SecTabs({ current }: { current: 'reunioes' | 'tarefas' }) {
+export function SecTabs({ current }: { current: 'reunioes' | 'tarefas' | 'mine' }) {
+  const tab = (key: typeof current, to: string, icon: ReactNode, label: string) => (
+    <Link to={to} className="tab" aria-current={current === key ? 'page' : undefined}>{icon} {label}</Link>
+  );
   return (
-    <nav className="tabs" aria-label="Secretaria">
-      <Link to="/secretaria" className="tab" aria-current={current === 'reunioes' ? 'page' : undefined}>
-        <CalendarDays size={16} aria-hidden="true" /> Reuniões
-      </Link>
-      <Link to="/secretaria/tarefas" className="tab" aria-current={current === 'tarefas' ? 'page' : undefined}>
-        <ClipboardList size={16} aria-hidden="true" /> As minhas tarefas
-      </Link>
+    <nav className="tabs sec-tabs" aria-label={MODULE_NAME}>
+      {tab('reunioes', BASE, <FileText size={16} aria-hidden="true" />, 'Atas e reuniões')}
+      {tab('tarefas', `${BASE}/tarefas`, <ListChecks size={16} aria-hidden="true" />, 'Quadro de tarefas')}
+      {tab('mine', `${BASE}/o-que-me-diz-respeito`, <UserCheck size={16} aria-hidden="true" />, 'O que me diz respeito')}
     </nav>
   );
 }
@@ -38,40 +22,58 @@ export function SecTabs({ current }: { current: 'reunioes' | 'tarefas' }) {
 export function MeetingList() {
   const [q, setQ] = useParam('q');
   const [kind, setKind] = useParam('tipo');
+  const [team, setTeam] = useParam('equipa');
+  const [event, setEvent] = useParam('atividade');
+  const [from, setFrom] = useParam('de');
+  const [to, setTo] = useParam('ate');
   const [text, setText] = useState(q);
   // Pesquisa com pequena pausa, guardada no endereço (sobrevive ao «voltar»).
   useEffect(() => {
     const t = window.setTimeout(() => { if (text !== q) setQ(text); }, 300);
     return () => window.clearTimeout(t);
   }, [text]);
-  const list = useMeetings(q, kind);
+  const list = useMeetings({ q, kind, team, event, from, to });
   const data = list.data;
+  const filtered = !!(q || kind || team || event || from || to);
 
   return (
     <>
-      <PageTitle title="Secretaria" subtitle="Reuniões, atas, decisões e tarefas." />
+      <PageTitle title={MODULE_NAME} subtitle="Atas, sumários e tarefas das reuniões, num só sítio." />
       <SecTabs current="reunioes" />
       <div className="sec-toolbar">
-        <label className="search-field">
+        <label className="search-field sec-search">
           <Search size={16} aria-hidden="true" />
           <span className="sr-only">Pesquisar reuniões</span>
-          <input type="search" placeholder="Pesquisar por título ou ordem de trabalhos" value={text} onChange={(e) => setText(e.target.value)} />
+          <input type="search" placeholder="Pesquisar por título, assuntos, texto da ata ou decisões" value={text} onChange={(e) => setText(e.target.value)} />
         </label>
+        {data?.can_draft && (
+          <Link to={`${BASE}/nova`} className="btn"><Plus size={16} aria-hidden="true" /> Nova reunião</Link>
+        )}
+      </div>
+      <div className="sec-filters" role="group" aria-label="Filtros">
         <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filtrar por tipo">
           <option value="">Todos os tipos</option>
           {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        {data?.can_draft && (
-          <Link to="/secretaria/nova" className="btn"><Plus size={16} aria-hidden="true" /> Nova reunião</Link>
-        )}
+        <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Filtrar por equipa">
+          <option value="">Todas as equipas</option>
+          {(data?.teams ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <select value={event} onChange={(e) => setEvent(e.target.value)} aria-label="Filtrar por atividade">
+          <option value="">Todas as atividades</option>
+          {(data?.events ?? []).map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+        </select>
+        <label className="sec-date"><span>De</span><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Desde a data" /></label>
+        <label className="sec-date"><span>Até</span><input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até à data" /></label>
       </div>
       {list.isLoading && <Loading />}
       <ErrorBox error={list.error} retry={() => list.refetch()} />
       {data && data.meetings.length === 0 && (
         <div className="card">
-          <Empty title={q || kind ? 'Nenhuma reunião corresponde à pesquisa.' : 'Ainda não há reuniões que possas ver.'}>
+          <Empty title={filtered ? 'Nenhuma reunião corresponde à pesquisa.' : 'Ainda não há reuniões que possas ver.'}>
             <p className="faint prose sec-center-text">
-              {data.can_draft ? 'Cria a primeira reunião com «Nova reunião».' : 'Quando houver reuniões partilhadas contigo, aparecem aqui.'}
+              {filtered ? 'Experimenta outros filtros ou limpa a pesquisa.'
+                : data.can_draft ? 'Cria a primeira reunião com «Nova reunião».' : 'Quando houver reuniões partilhadas contigo, aparecem aqui.'}
             </p>
           </Empty>
         </div>
@@ -80,12 +82,17 @@ export function MeetingList() {
         <ul className="list card sec-list" aria-label="Reuniões">
           {data.meetings.map((m) => (
             <li key={m.id}>
-              <Link to={`/secretaria/reunioes/${m.id}`} className="list-item sec-row">
+              <Link to={`${BASE}/reunioes/${m.id}`} className="list-item sec-row">
                 <div className="grow">
                   <div className="sec-row-title">{m.title}</div>
                   <div className="faint sec-meta">
                     {formatLisbon(m.starts_at)} · {KIND_LABEL[m.kind as MeetingKind]}{m.team_name ? ` · ${m.team_name}` : ''}
-                    {m.open_tasks > 0 && ` · ${m.open_tasks} ${m.open_tasks === 1 ? 'tarefa aberta' : 'tarefas abertas'}`}
+                  </div>
+                  <div className="faint sec-meta sec-row-extra">
+                    {m.cal_event && <span><CalendarDays size={13} aria-hidden="true" /> {m.cal_event.title}</span>}
+                    {m.decisions > 0 && <span>{m.decisions} {m.decisions === 1 ? 'decisão' : 'decisões'}</span>}
+                    {m.open_tasks > 0 && <span><ClipboardList size={13} aria-hidden="true" /> {m.open_tasks} {m.open_tasks === 1 ? 'tarefa aberta' : 'tarefas abertas'}</span>}
+                    {m.summary && <span>{m.summary.status === 'publicado' ? 'Sumário publicado' : 'Sumário em revisão'}</span>}
                   </div>
                 </div>
                 {m.status === 'anulada' ? <Badge label="Anulada" tone="muted" icon="x" />
@@ -105,55 +112,12 @@ export function MeetingList() {
           <li><strong>Documento geral:</strong> só quem o criou e as pessoas ou equipas com quem foi partilhado.</li>
         </ul>
         <p className="prose faint">
-          Dirigentes autorizados são os dirigentes da secção e quem tem permissão de secretário ou de aprovação de atas.
-          Os secretários redigem só nas reuniões que podem ver; a aprovação cabe a quem tem permissão de aprovar ou aos dirigentes.
+          Dirigentes autorizados são os dirigentes da secção e quem tem permissão para redigir ou aprovar atas. Quem redige
+          prepara atas, sumários e tarefas nas reuniões que pode ver; aprovar atas e publicar sumários cabe a quem tem permissão
+          de aprovar ou aos dirigentes. Cada pessoa vê, em «O que me diz respeito», as tarefas e os preparativos que lhe foram
+          atribuídos — de reuniões reservadas, só o título revisto no sumário publicado, o prazo e a atividade.
         </p>
       </details>
-    </>
-  );
-}
-
-export function MyTasks() {
-  const section = useSectionId();
-  const [done, setDone] = useState<string | null>(null);
-  const tasks = useQuery({ queryKey: ['sec-my-tasks', section], queryFn: () => call<Item[]>('sec_my_tasks', { p_section: section }) });
-  const open = (tasks.data ?? []).filter((t) => t.exec_status === 'por_fazer' || t.exec_status === 'em_curso');
-  const closed = (tasks.data ?? []).filter((t) => !open.includes(t));
-  const row = (t: Item) => (
-    <li key={t.id} className="sec-item">
-      <div className="grow">
-        <p className="sec-item-text">{t.text}</p>
-        <p className="faint sec-meta">
-          {t.kind === 'tarefa' ? 'Tarefa' : 'Decisão'}
-          {t.due_date && ` · prazo ${formatDay(t.due_date)}`}
-          {t.meeting_id && <> · <Link to={`/secretaria/reunioes/${t.meeting_id}`}>{t.meeting_title}</Link></>}
-        </p>
-      </div>
-      {t.kind === 'tarefa' ? <ItemStatusControl item={t} onChanged={setDone} /> : <Badge {...EXEC_STATUS[t.exec_status]} />}
-    </li>
-  );
-  return (
-    <>
-      <PageTitle title="Secretaria" subtitle="Tarefas e decisões de que és responsável." />
-      <SecTabs current="tarefas" />
-      {done && <Notice kind="success">{done}</Notice>}
-      {tasks.isLoading && <Loading />}
-      <ErrorBox error={tasks.error} retry={() => tasks.refetch()} />
-      {tasks.data && tasks.data.length === 0 && (
-        <div className="card"><Empty title="Não tens tarefas atribuídas."><p className="faint sec-center-text">Quando te atribuírem uma tarefa numa ata, aparece aqui.</p></Empty></div>
-      )}
-      {open.length > 0 && (
-        <section className="card">
-          <h2 className="sec-h2">Por concluir</h2>
-          <ul className="list sec-items">{open.map(row)}</ul>
-        </section>
-      )}
-      {closed.length > 0 && (
-        <section className="card">
-          <h2 className="sec-h2">Concluídas ou canceladas</h2>
-          <ul className="list sec-items">{closed.map(row)}</ul>
-        </section>
-      )}
     </>
   );
 }

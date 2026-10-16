@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { call } from '../lib/api';
 import { useActiveSection } from '../lib/session';
 
-export type ModuleKey = 'calendario' | 'inventario' | 'tesouraria' | 'equipas' | 'secretaria';
+export type ModuleKey = 'calendario' | 'inventario' | 'tesouraria' | 'equipas' | 'secretaria' | 'presencas';
 export type ModuleStatus = 'desenvolvimento' | 'teste' | 'disponivel';
 export type ModuleAccess = { module: ModuleKey; status: ModuleStatus; space: 'teste' | 'real' | null; grants: string[]; dirigente: boolean };
 
@@ -19,9 +19,10 @@ export const MODULE_PERMISSIONS: Record<ModuleKey, { key: string; label: string;
   tesouraria: [{ key: 'tesouraria.gerir', label: 'Tesoureiro autorizado', hint: 'Criar, corrigir e anular movimentos, quotas e pagamentos. Nem os dirigentes têm este acesso sem autorização.' }],
   equipas: [{ key: 'equipas.gerir', label: 'Gerir cargos', hint: 'Nomear e terminar cargos e configurar as equipas. Os dirigentes já podem.' }],
   secretaria: [
-    { key: 'secretaria.redigir', label: 'Secretário', hint: 'Preparar atas das reuniões que pode ver.' },
-    { key: 'secretaria.aprovar', label: 'Aprovar atas', hint: 'Aprovar atas e aditamentos.' },
+    { key: 'secretaria.redigir', label: 'Redigir atas e tarefas', hint: 'Preparar atas, sumários e tarefas das reuniões que pode ver.' },
+    { key: 'secretaria.aprovar', label: 'Aprovar atas', hint: 'Aprovar atas e publicar sumários.' },
   ],
+  presencas: [{ key: 'presencas.registar', label: 'Registar presenças', hint: 'Registar e corrigir presenças e ver justificações. Os dirigentes já podem.' }],
 };
 
 export function useMyModules() {

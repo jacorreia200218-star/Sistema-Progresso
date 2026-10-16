@@ -4,7 +4,7 @@ import { Empty, ErrorBox, Loading, PageTitle } from '../../components/ui';
 import { InvTabs, LoanCard } from './parts';
 import { useLoans, useOverview } from './api';
 
-const FILTERS: [string, string][] = [['', 'Em curso'], ['pedido', 'Pedidos'], ['atrasado', 'Em atraso'], ['fechado', 'Terminados']];
+const FILTERS: [string, string][] = [['', 'Em curso'], ['ativo', 'Emprestados'], ['pedido', 'Pedidos'], ['atrasado', 'Em atraso'], ['fechado', 'Terminados'], ['todos', 'Histórico']];
 
 export function Emprestimos() {
   const [params, setParams] = useSearchParams();
@@ -18,7 +18,8 @@ export function Emprestimos() {
     return next;
   }, { replace: true });
   const empty = estado === 'pedido' ? 'Não há pedidos por decidir.' : estado === 'atrasado' ? 'Não há devoluções em atraso.'
-    : estado === 'fechado' ? 'Ainda não há empréstimos terminados.' : 'Não há material emprestado nem pedidos em curso.';
+    : estado === 'fechado' ? 'Ainda não há empréstimos terminados.' : estado === 'ativo' ? 'Não há material emprestado.'
+    : estado === 'todos' ? 'Ainda não há empréstimos registados.' : 'Não há material emprestado nem pedidos em curso.';
   return (
     <div className="inv-page">
       <PageTitle title="Empréstimos" subtitle="Material emprestado, pedidos e devoluções." />

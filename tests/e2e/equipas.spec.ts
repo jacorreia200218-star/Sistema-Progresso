@@ -104,6 +104,9 @@ test('vista por equipa: equipas do ano, guia, membros e cargos', async ({ page }
   await expect(cargos.first()).toContainText('Em funções');
   await expect(main.getByRole('heading', { name: 'Membros atuais' })).toBeVisible();
   await expect(main.getByRole('link', { name: /Pedro Teste/ })).toBeVisible();
+  // Na ficha, o cargo aparece junto ao nome de quem o exerce
+  await expect(main.locator('a.list-item:has(.badge)', { hasText: 'Guia Teste' }).locator('.badge')).toHaveText('Guia');
+  await expect(main.getByRole('link', { name: /Pedro Teste/ }).locator('.badge')).toHaveCount(0);
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/equipa-${info.project.name}.png`, fullPage: true });
   // Voltar mantém a vista

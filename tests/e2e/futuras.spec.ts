@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMock, leader, pioneer } from './mock-api';
 
-const AREAS = ['Calendário escutista', 'Inventário', 'Tesouraria', 'Equipas e cargos', 'Secretaria'];
+const AREAS = ['Calendário escutista', 'Presenças', 'Inventário', 'Tesouraria', 'Equipas e cargos', 'Reuniões e tarefas'];
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1000) < 960;
 
 async function noHorizontalScroll(page: Page) {
@@ -45,7 +45,7 @@ test('módulos em desenvolvimento: no menu, separados, só apresentação', asyn
 
 test('cada área tem a sua página; o progresso dos pioneiros não usa este estado', async ({ page }) => {
   await installMock(page, pioneer());
-  for (const [path, name] of [['/calendario', 'Calendário escutista'], ['/inventario', 'Inventário'], ['/equipas-e-cargos', 'Equipas e cargos'], ['/secretaria', 'Secretaria']]) {
+  for (const [path, name] of [['/calendario', 'Calendário escutista'], ['/inventario', 'Inventário'], ['/equipas-e-cargos', 'Equipas e cargos'], ['/reunioes-e-tarefas', 'Reuniões e tarefas'], ['/presencas', 'Presenças']]) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
     await expect(page.locator('main button, main form')).toHaveCount(0);

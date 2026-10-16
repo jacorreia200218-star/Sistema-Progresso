@@ -6,7 +6,7 @@ import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { uploadModuleFile } from '../files';
-import { useItem, useOverview, useSectionId, type ItemDetail, type Overview } from './api';
+import { CONSERVATION_LABEL, useItem, useOverview, useSectionId, type Conservation, type ItemDetail, type Overview } from './api';
 
 export function ArtigoForm() {
   const { id } = useParams();
@@ -34,7 +34,13 @@ function FormBody({ ov, it }: { ov: Overview; it?: ItemDetail }) {
   const [newCat, setNewCat] = useState('');
   const [description, setDescription] = useState(it?.description ?? '');
   const [unit, setUnit] = useState(it?.unit ?? 'un.');
-  const [location, setLocation] = useState(it?.location ?? '');
+  // Local exato (registos antigos: o texto da localização aparece como «sala»).
+  const [room, setRoom] = useState(it?.room ?? (it && !it.cabinet && !it.shelf && !it.box ? it.location ?? '' : ''));
+  const [cabinet, setCabinet] = useState(it?.cabinet ?? '');
+  const [shelf, setShelf] = useState(it?.shelf ?? '');
+  const [box, setBox] = useState(it?.box ?? '');
+  const [condition, setCondition] = useState<Conservation | ''>(it?.condition ?? '');
+  const [notes, setNotes] = useState(it?.notes ?? '');
   const [tracking, setTracking] = useState<'quantidade' | 'pecas'>(it?.tracking ?? 'quantidade');
   const [quantity, setQuantity] = useState('1');
   const [pieces, setPieces] = useState('');
@@ -65,7 +71,8 @@ function FormBody({ ov, it }: { ov: Overview; it?: ItemDetail }) {
       if (newCat.trim()) cat = await call<string>('inv_category_save', { p_section: section, p_id: null, p_name: newCat.trim() });
       const saved = await call<string>('inv_item_save', {
         p_section: section, p_id: it?.id ?? null, p_category: cat, p_name: name, p_description: description || null, p_unit: unit,
-        p_location: location || null, p_tracking: it ? null : tracking, p_quantity: it ? null : (tracking === 'quantidade' ? q : 0),
+        p_location: null, p_room: room.trim() || null, p_cabinet: cabinet.trim() || null, p_shelf: shelf.trim() || null, p_box: box.trim() || null,
+        p_condition: condition || null, p_notes: notes.trim() || null, p_tracking: it ? null : tracking, p_quantity: it ? null : (tracking === 'quantidade' ? q : 0),
         p_min_quantity: m, p_pieces: it || tracking !== 'pecas' ? null : pieceList,
       });
       if (photo) await uploadModuleFile(section, 'inventario', 'item', saved, photo);
@@ -85,13 +92,13 @@ function FormBody({ ov, it }: { ov: Overview; it?: ItemDetail }) {
         </Field>
         {errors.name && <p className="field-error" role="alert">{errors.name}</p>}
         <div className="grid-2">
-          <Field label="Categoria" htmlFor="inv-cat">
+          <Field label="Tipo" htmlFor="inv-cat">
             <select id="inv-cat" value={category} onChange={(e) => setCategory(e.target.value)} disabled={!!newCat.trim()}>
-              <option value="">Sem categoria</option>
+              <option value="">Sem tipo</option>
               {ov.categories.filter((c) => !c.archived || c.id === category).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>
-          <Field label="Ou nova categoria" htmlFor="inv-newcat">
+          <Field label="Ou novo tipo" htmlFor="inv-newcat">
             <input id="inv-newcat" type="text" maxLength={80} value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="Por exemplo: Cozinha" />
           </Field>
         </div>
@@ -102,11 +109,32 @@ function FormBody({ ov, it }: { ov: Overview; it?: ItemDetail }) {
           <Field label="Unidade" htmlFor="inv-unit">
             <input id="inv-unit" type="text" maxLength={20} value={unit} onChange={(e) => setUnit(e.target.value)} aria-invalid={!!errors.unit} />
           </Field>
-          <Field label="Localização (opcional)" htmlFor="inv-loc">
-            <input id="inv-loc" type="text" maxLength={120} list="inv-locations" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Por exemplo: Arrecadação" />
-            <datalist id="inv-locations">{ov.locations.map((l) => <option key={l} value={l} />)}</datalist>
+          <Field label="Estado de conservação" htmlFor="inv-cond">
+            <select id="inv-cond" value={condition} onChange={(e) => setCondition(e.target.value as Conservation | '')}>
+              <option value="">Não indicado</option>
+              {(Object.keys(CONSERVATION_LABEL) as Conservation[]).map((c) => <option key={c} value={c}>{CONSERVATION_LABEL[c]}</option>)}
+            </select>
           </Field>
         </div>
+        <fieldset className="inv-place">
+          <legend className="label">Onde está guardado (opcional)</legend>
+          <div className="grid-2">
+            <Field label="Sala ou espaço" htmlFor="inv-room">
+              <input id="inv-room" type="text" maxLength={120} list="inv-rooms" value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Por exemplo: Arrecadação" />
+              <datalist id="inv-rooms">{ov.rooms.map((l) => <option key={l} value={l} />)}</datalist>
+            </Field>
+            <Field label="Armário" htmlFor="inv-cab">
+              <input id="inv-cab" type="text" maxLength={80} list="inv-cabs" value={cabinet} onChange={(e) => setCabinet(e.target.value)} placeholder="Por exemplo: Armário 2" />
+              <datalist id="inv-cabs">{[...new Set(ov.cabinets.map((c) => c.cabinet))].map((l) => <option key={l} value={l} />)}</datalist>
+            </Field>
+            <Field label="Prateleira" htmlFor="inv-shelf">
+              <input id="inv-shelf" type="text" maxLength={80} value={shelf} onChange={(e) => setShelf(e.target.value)} />
+            </Field>
+            <Field label="Caixa" htmlFor="inv-box">
+              <input id="inv-box" type="text" maxLength={80} value={box} onChange={(e) => setBox(e.target.value)} />
+            </Field>
+          </div>
+        </fieldset>
         {errors.unit && <p className="field-error" role="alert">{errors.unit}</p>}
         {!it && (
           <fieldset className="radio-row">
@@ -131,6 +159,9 @@ function FormBody({ ov, it }: { ov: Overview; it?: ItemDetail }) {
           <input id="inv-min" type="number" inputMode="numeric" min={0} value={min} onChange={(e) => setMin(e.target.value)} aria-invalid={!!errors.min} />
         </Field>
         {errors.min && <p className="field-error" role="alert">{errors.min}</p>}
+        <Field label="Observações (opcional)" htmlFor="inv-notes">
+          <textarea id="inv-notes" maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </Field>
         <Field label={it?.has_photo ? 'Substituir fotografia (opcional)' : 'Fotografia (opcional)'} htmlFor="inv-photo">
           <input id="inv-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
         </Field>
