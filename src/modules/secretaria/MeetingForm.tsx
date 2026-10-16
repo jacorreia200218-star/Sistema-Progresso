@@ -106,24 +106,26 @@ export function MeetingForm() {
       <PageTitle title={id ? 'Alterar reunião' : 'Nova reunião'} back={id ? `${BASE}/reunioes/${id}` : BASE} />
       <ErrorBox error={people.error} />
       <form className="card sec-form" onSubmit={submit} noValidate>
-        <Field label="Tipo" htmlFor="sec-kind" hint={kind ? KIND_AUDIENCE[kind] : 'O tipo define quem pode ver a reunião e a ata.'}>
-          <select id="sec-kind" value={kind} disabled={hasMinutes} aria-invalid={!!errors.kind}
-            onChange={(e) => setKind(e.target.value as MeetingKind)}>
-            <option value="">Escolher…</option>
-            {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
-          {errors.kind && <span className="sec-error">{errors.kind}</span>}
-          {hasMinutes && <span className="faint sec-meta">O tipo não muda depois de criada a ata.</span>}
-        </Field>
-        {kind === 'equipa' && (
-          <Field label="Equipa" htmlFor="sec-team">
-            <select id="sec-team" value={team} onChange={(e) => setTeam(e.target.value)} aria-invalid={!!errors.team}>
+        <div className="grid-2">
+          <Field label="Tipo" htmlFor="sec-kind" hint={kind ? KIND_AUDIENCE[kind] : 'O tipo define quem pode ver a reunião e a ata.'}>
+            <select id="sec-kind" value={kind} disabled={hasMinutes} aria-invalid={!!errors.kind}
+              onChange={(e) => setKind(e.target.value as MeetingKind)}>
               <option value="">Escolher…</option>
-              {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </select>
-            {errors.team && <span className="sec-error">{errors.team}</span>}
+            {errors.kind && <span className="sec-error">{errors.kind}</span>}
+            {hasMinutes && <span className="faint sec-meta">O tipo não muda depois de criada a ata.</span>}
           </Field>
-        )}
+          {kind === 'equipa' && (
+            <Field label="Equipa" htmlFor="sec-team">
+              <select id="sec-team" value={team} onChange={(e) => setTeam(e.target.value)} aria-invalid={!!errors.team}>
+                <option value="">Escolher…</option>
+                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              {errors.team && <span className="sec-error">{errors.team}</span>}
+            </Field>
+          )}
+        </div>
         <Field label="Título" htmlFor="sec-title">
           <input id="sec-title" type="text" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!errors.title} />
           {errors.title && <span className="sec-error">{errors.title}</span>}
@@ -138,7 +140,7 @@ export function MeetingForm() {
           </Field>
         </div>
         <Field label="Assuntos (ordem de trabalhos)" htmlFor="sec-agenda" hint="Um assunto por linha.">
-          <textarea id="sec-agenda" rows={5} maxLength={10000} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
+          <textarea id="sec-agenda" rows={4} maxLength={10000} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
         </Field>
         <Field label="Atividade relacionada (opcional)" htmlFor="sec-event">
           <select id="sec-event" value={event} onChange={(e) => setEvent(e.target.value)}>
@@ -167,6 +169,7 @@ export function MeetingForm() {
         {Object.keys(errors).length > 0 && <Notice kind="error">Revê os campos assinalados.</Notice>}
         <div className="btn-row">
           <button type="submit" className="btn" disabled={action.busy}>{action.busy ? 'A guardar…' : id ? 'Guardar' : 'Criar reunião'}</button>
+          <button type="button" className="btn secondary" onClick={() => navigate(id ? `${BASE}/reunioes/${id}` : BASE)}>Cancelar</button>
         </div>
       </form>
     </>

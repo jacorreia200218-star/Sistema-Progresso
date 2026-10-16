@@ -243,13 +243,19 @@ test('nome novo, caminho novo e lista com pesquisa e filtros no endereço', asyn
   await expect(main.getByText('Secretaria')).toHaveCount(0);
   await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
   const tabs = main.getByRole('navigation', { name: 'Reuniões e tarefas' });
-  await expect(tabs.getByRole('link')).toHaveText([/Atas e reuniões/, /Quadro de tarefas/, /O que me diz respeito/]);
+  await expect(tabs.getByRole('link')).toHaveText([/^\s*Atas$/, /^\s*Tarefas$/, /O que me diz respeito/]);
+  await expect(main.locator('.page-head .lead')).toHaveCount(0);
+  // Resumo curto: título, data e hora, tipo e equipa, estado da ata e tarefas abertas
   const row = main.getByRole('link', { name: /Reunião de equipa de outubro/ });
   await expect(row).toContainText('Aprovada');
-  await expect(row).toContainText('10/10/2026');
-  await expect(row).toContainText('Acampamento de outono');
-  await expect(row).toContainText('1 decisão');
+  await expect(row).toContainText('10/10/2026 · 18:30');
+  await expect(row).toContainText('Reunião de Equipa · Equipa Andorinha');
   await expect(row).toContainText('2 tarefas abertas');
+  // No telemóvel os filtros ficam atrás do botão «Filtros»
+  if (isMobile(page)) {
+    await expect(main.getByLabel('Filtrar por equipa')).toBeHidden();
+    await main.getByRole('button', { name: 'Filtros' }).click();
+  }
   await main.getByLabel('Filtrar por equipa').selectOption('teamB');
   await expect(page).toHaveURL(/equipa=teamB/);
   await expect(main.getByText('Nenhuma reunião corresponde à pesquisa.')).toBeVisible();
@@ -266,10 +272,14 @@ test('nome novo, caminho novo e lista com pesquisa e filtros no endereço', asyn
   await row.click();
   await expect(main.getByRole('heading', { name: 'Reunião de equipa de outubro' })).toBeVisible();
   await expect(main).toContainText('Assuntos (ordem de trabalhos)');
+  // A página da reunião abre o detalhe: atividade e decisões
+  await expect(main).toContainText('Atividade: Acampamento de outono');
+  await expect(main.getByRole('region', { name: 'Decisões, tarefas e preparativos' })).toContainText('Fazer o raide em novembro');
   await page.goBack();
   await expect(main.getByPlaceholder(/Pesquisar/)).toHaveValue('outubro');
   await expect(main.getByLabel('Filtrar por atividade')).toHaveValue('ev1');
-  await main.getByText('Quem vê cada reunião').click();
+  await main.getByText('Mais informação').click();
+  await expect(main.getByText('Quem vê cada reunião')).toBeVisible();
   await expect(main).toContainText('Equipa de Animação: só os dirigentes autorizados');
   await noHorizontalScroll(page);
 });
@@ -280,6 +290,7 @@ test('criar reunião e ata, registos por definir, aprovar, corrigir com nova ver
   if (isMobile(page)) await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE);
   const main = page.locator('main');
+  await expect(main.locator('.page-actions').getByRole('link', { name: 'Nova reunião' })).toBeVisible();
   await main.getByRole('link', { name: 'Nova reunião' }).click();
   await expect(page).toHaveURL(new RegExp(`${BASE}/nova$`));
   await main.getByRole('button', { name: 'Criar reunião' }).click();
@@ -348,6 +359,9 @@ test('criar reunião e ata, registos por definir, aprovar, corrigir com nova ver
   await expect(main.getByText('Ata aprovada.')).toBeVisible();
   await page.screenshot({ path: `test-results/reunioes-ata-${info.project.name}.png`, fullPage: true });
 
+  await expect(main.getByRole('button', { name: 'Corrigir com nova versão' })).toBeHidden();
+  await main.getByRole('button', { name: 'Mais ações' }).click();
+  await expect(main.getByRole('button', { name: 'Criar aditamento' })).toBeVisible();
   await main.getByRole('button', { name: 'Corrigir com nova versão' }).click();
   await main.getByRole('button', { name: 'Criar nova versão' }).click();
   await expect(main.getByText('Indica o motivo da correção.')).toBeVisible();
@@ -440,9 +454,17 @@ test('quadro de tarefas: colunas, atraso, filtros no endereço, estado e histór
   const late = col('Por fazer').getByRole('listitem').filter({ hasText: 'Reservar o parque de campismo' });
   await expect(late).toContainText('Em atraso');
   await expect(late).toHaveClass(/is-overdue/);
+  await expect(late).toContainText('Pedro Teste');
+  await expect(late).toContainText('Prazo 10/01/2020');
+  // Atraso discreto: sem fundo vermelho no cartão
+  const lateBg = await late.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const cardBg = await col('Em curso').getByRole('listitem').first().evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(lateBg).toBe(cardBg);
   await expect(col('Em curso')).toContainText('Responsável por definir');
   await expect(col('Em curso')).toContainText('Prazo por definir');
-  await expect(late.getByRole('link', { name: /Ata: Reunião de equipa de outubro/ })).toHaveAttribute('href', `${BASE}/atas/at1`);
+  // Cartão curto: sem campos nem ligação à ata; abre a ficha da tarefa
+  await expect(main.locator('.sec-board select')).toHaveCount(0);
+  await expect(late.getByRole('link')).toHaveAttribute('href', `${BASE}/tarefas/i2`);
   // Três colunas lado a lado no computador; lista agrupada (uma por baixo da outra) no telemóvel
   const [a, b2] = [await col('Por fazer').boundingBox(), await col('Em curso').boundingBox()];
   if (isMobile(page)) expect(b2!.y).toBeGreaterThan(a!.y + a!.height - 1);
@@ -450,7 +472,8 @@ test('quadro de tarefas: colunas, atraso, filtros no endereço, estado e histór
   await page.screenshot({ path: `test-results/reunioes-quadro-${info.project.name}.png`, fullPage: true });
   await noHorizontalScroll(page);
 
-  // Filtros no endereço
+  // Filtros no endereço (no telemóvel, atrás do botão «Filtros»)
+  if (isMobile(page)) await main.getByRole('button', { name: 'Filtros' }).click();
   await main.getByLabel('Filtrar por responsável').selectOption('u-p1');
   await expect(page).toHaveURL(/responsavel=u-p1/);
   await expect(main.getByText('Comprar mapas')).toHaveCount(0);
@@ -461,19 +484,22 @@ test('quadro de tarefas: colunas, atraso, filtros no endereço, estado e histór
   await expect(main.getByText('Levar tendas')).toBeVisible();
   await main.getByLabel('Filtrar por atividade').selectOption('');
 
-  // Mudar o estado move a tarefa de coluna
-  await late.getByLabel(/Estado: Reservar/).selectOption('em_curso');
+  // Selecionar a tarefa abre a ficha; mudar o estado aí move a tarefa de coluna
+  await late.getByRole('link', { name: /Reservar o parque de campismo/ }).click();
+  await expect(page).toHaveURL(new RegExp(`${BASE}/tarefas/i2$`));
+  await main.getByLabel(/Estado: Reservar/).selectOption('em_curso');
   await expect(main.getByText('Estado atualizado.')).toBeVisible();
-  await expect(col('Em curso')).toContainText('Reservar o parque de campismo');
   expect(S.items.find((i) => i.id === 'i2')!.exec_status).toBe('em_curso');
 
   // Ficha da tarefa com histórico e ligação à ata de origem
-  await col('Em curso').getByRole('link', { name: 'Reservar o parque de campismo' }).click();
-  await expect(page).toHaveURL(new RegExp(`${BASE}/tarefas/i2$`));
   const histRegion = main.getByRole('region', { name: 'Histórico de conclusão e alterações' });
   await expect(histRegion).toContainText('Estado: Por fazer → Em curso');
   await expect(histRegion).toContainText('Registada · Tarefa');
   await expect(main.getByRole('link', { name: 'Ata de origem' })).toHaveAttribute('href', `${BASE}/atas/at1`);
+  // Alterar responsável e prazo só ao escolher a ação no menu «Mais»
+  await expect(main.getByRole('form', { name: 'Alterar tarefa' })).toHaveCount(0);
+  await main.getByRole('button', { name: 'Mais ações' }).click();
+  await main.getByRole('button', { name: 'Alterar responsável e prazo' }).click();
   await expect(main.getByRole('form', { name: 'Alterar tarefa' })).toBeVisible();
   await noHorizontalScroll(page);
   await page.goBack();
@@ -522,10 +548,11 @@ test('só consulta: sem botões de redação; a ata aprovada mostra-se fechada',
   await expect(main.getByRole('link', { name: 'Nova reunião' })).toHaveCount(0);
   await main.getByRole('link', { name: /Reunião de equipa de outubro/ }).click();
   await expect(main.getByRole('link', { name: 'Alterar reunião' })).toHaveCount(0);
+  await expect(main.getByRole('button', { name: 'Mais ações' })).toHaveCount(0);
   await expect(main.getByRole('link', { name: 'Preparar sumário' })).toHaveCount(0);
   await main.getByRole('link', { name: /^Ata/ }).click();
   await expect(main.locator('.sec-body')).toHaveText('Texto aprovado da ata de outubro.');
-  await expect(main.getByRole('button', { name: /Corrigir|Aprovar|Enviar/ })).toHaveCount(0);
+  await expect(main.getByRole('button', { name: /Corrigir|Aprovar|Enviar|aditamento|Voltar a rascunho/ })).toHaveCount(0);
   await expect(main.locator('textarea')).toHaveCount(0);
 });
 
@@ -558,6 +585,13 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'reunioes-tarefa');
       await page.goto(`${BASE}/nova`);
       await shoot(page, info, theme, 'reunioes-formulario');
+      await page.goto(`${BASE}/reunioes/mt1/sumario`);
+      await shoot(page, info, theme, 'reunioes-sumario');
+      await page.goto(`${BASE}/o-que-me-diz-respeito`);
+      await shoot(page, info, theme, 'reunioes-mine-vazio');
+      await page.goto(`${BASE}/reunioes/mt1`);
+      await page.locator('main').getByRole('button', { name: 'Mais ações' }).click();
+      await shoot(page, info, theme, 'reunioes-reuniao-mais');
     });
   }
 });

@@ -2,12 +2,12 @@
 // versões, correções (nova versão ou aditamento), decisões e tarefas, anexos e impressão.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { History, Printer } from 'lucide-react';
-import { Badge, ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
+import { FilePlus, History, Paperclip, Pencil, Printer, Undo2 } from 'lucide-react';
+import { Badge, ConfirmButton, ErrorBox, Field, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatDay, formatLisbon } from '../common';
-import { Attachments } from './Attachments';
+import { Attachments, pickAttachment } from './Attachments';
 import { ItemsSection } from './Items';
 import { BASE, ITEM_KIND, MINUTE_STATUS, docLabel, useMinute, useSectionId } from './api';
 
@@ -65,21 +65,33 @@ export function MinutePage() {
     if (r.ok) navigate(`${BASE}/atas/${r.value}`);
   };
 
+  const canCorrect = isCurrent && (d.can_revise || d.can_addendum);
+  const pick = (m: typeof mode) => { action.clear(); setReason(''); setReasonError(''); setMode(m); };
   const label = docLabel(d.minute.kind);
   const status = MINUTE_STATUS[d.minute.status];
   return (
     <>
       <PageTitle title={`${label} · ${d.meeting.title}`} back={`${BASE}/reunioes/${d.meeting.id}`}
-        subtitle={<>{formatLisbon(d.meeting.starts_at)}</>} />
+        actions={<>
+          <Link className="btn secondary" to={`${BASE}/atas/${d.minute.id}/imprimir?versao=${v.version_no}`}>
+            <Printer size={16} aria-hidden="true" /> Imprimir / PDF
+          </Link>
+          {(canCorrect || d.can_edit || (isCurrent && d.can_return)) && (
+            <MoreMenu>
+              {d.can_revise && <button type="button" className="btn" onClick={() => pick('corrigir')}><Pencil size={16} aria-hidden="true" /> Corrigir com nova versão</button>}
+              {d.can_addendum && <button type="button" className="btn" disabled={action.busy} onClick={addendum}><FilePlus size={16} aria-hidden="true" /> Criar aditamento</button>}
+              {isCurrent && d.can_return && <button type="button" className="btn" onClick={() => pick('devolver')}><Undo2 size={16} aria-hidden="true" /> Voltar a rascunho</button>}
+              {d.can_edit && <button type="button" className="btn" onClick={() => pickAttachment(d.minute.id)}><Paperclip size={16} aria-hidden="true" /> Anexar ficheiro</button>}
+            </MoreMenu>
+          )}
+        </>} />
       <div className="sec-status-bar">
         <Badge {...status} />
-        <span className="faint sec-meta">Versão {d.minute.current_version}</span>
+        <span className="faint sec-meta">Reunião de {formatLisbon(d.meeting.starts_at)}</span>
+        <span className="faint sec-meta">· versão {d.minute.current_version}</span>
         {d.minute.approved_version && d.minute.status !== 'aprovada' && (
           <span className="faint sec-meta">· versão aprovada em vigor: {d.minute.approved_version}</span>
         )}
-        <Link className="btn ghost sec-print-link" to={`${BASE}/atas/${d.minute.id}/imprimir?versao=${v.version_no}`}>
-          <Printer size={16} aria-hidden="true" /> Imprimir / PDF
-        </Link>
       </div>
       {d.parent && <Notice>Aditamento à <Link to={`${BASE}/atas/${d.parent.id}`}>ata aprovada</Link>.</Notice>}
       {!isCurrent && (
@@ -96,7 +108,7 @@ export function MinutePage() {
         {v.note && <p className="faint sec-meta">{v.note}</p>}
         {editable ? (
           <>
-            <Field label="Texto" htmlFor="sec-body" hint="Escreve o que foi tratado e decidido. As decisões, tarefas e preparativos acrescentam-se em baixo.">
+            <Field label="Texto" htmlFor="sec-body" hint="O que foi tratado e decidido. Decisões, tarefas e preparativos acrescentam-se em baixo.">
               <textarea id="sec-body" rows={12} maxLength={50000} value={body} onChange={(e) => setBody(e.target.value)} />
             </Field>
             <div className="btn-row">
@@ -120,15 +132,12 @@ export function MinutePage() {
             {v.approved_at && ` · aprovada em ${formatLisbon(v.approved_at)} por ${v.approved_by_name}`}
           </p>
         )}
-        {isCurrent && (d.can_approve || d.can_return) && (
+        {isCurrent && d.can_approve && (
           <div className="btn-row">
-            {d.can_approve && (
-              <ConfirmButton className="btn" disabled={action.busy} confirmLabel={`Aprovar versão ${v.version_no}`} onConfirm={approve}
-                description="Depois de aprovada, a ata não pode ser alterada: correções criam uma nova versão ou um aditamento.">
-                Aprovar
-              </ConfirmButton>
-            )}
-            {d.can_return && mode !== 'devolver' && <button type="button" className="btn secondary" onClick={() => setMode('devolver')}>Voltar a rascunho</button>}
+            <ConfirmButton className="btn" disabled={action.busy} confirmLabel={`Aprovar versão ${v.version_no}`} onConfirm={approve}
+              description="Depois de aprovada, a ata não pode ser alterada: correções criam uma nova versão ou um aditamento.">
+              Aprovar
+            </ConfirmButton>
           </div>
         )}
         {mode === 'devolver' && (
@@ -142,14 +151,8 @@ export function MinutePage() {
             </div>
           </div>
         )}
-        {isCurrent && (d.can_revise || d.can_addendum) && (
-          <>
-            <p className="prose faint sec-locked">Esta ata está aprovada e não pode ser alterada. Para corrigir, cria uma nova versão (a aprovada continua consultável) ou um aditamento.</p>
-            <div className="btn-row">
-              {d.can_revise && mode !== 'corrigir' && <button type="button" className="btn secondary" onClick={() => setMode('corrigir')}>Corrigir com nova versão</button>}
-              {d.can_addendum && <button type="button" className="btn secondary" disabled={action.busy} onClick={addendum}>Criar aditamento</button>}
-            </div>
-          </>
+        {canCorrect && mode === '' && (
+          <p className="faint sec-meta sec-locked">Aprovada: o texto já não muda. Para corrigir, usa «Mais» (nova versão ou aditamento).</p>
         )}
         {mode === 'corrigir' && (
           <div className="sec-inline-form">
@@ -166,7 +169,7 @@ export function MinutePage() {
       </section>
 
       {isCurrent ? (
-        <ItemsSection minuteId={d.minute.id} items={d.items} canEdit={editable} canTrack={d.can_track} meetingActive={d.meeting.status === 'ativa'} />
+        <ItemsSection minuteId={d.minute.id} items={d.items} canEdit={editable} />
       ) : (
         <section className="card">
           <h2 className="sec-h2">Decisões, tarefas e preparativos (nesta versão)</h2>
