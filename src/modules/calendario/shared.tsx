@@ -1,6 +1,6 @@
 // Peças partilhadas do Calendário: parâmetros no endereço, etiquetas e listas.
 import { Link, useSearchParams } from 'react-router-dom';
-import { Ban, CalendarDays, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { Badge } from '../../components/ui';
 import { MISSING_LABEL, RESPONSE_LABEL, RESPONSE_TONE, whenLabel, type CalListItem, type Missing, type Response } from './cal';
 
@@ -44,7 +44,6 @@ export function EventRow({ e }: { e: CalListItem }) {
   return (
     <li>
       <Link to={`/calendario/evento/${e.id}`} className={`list-item cal-event-row${cancelled ? ' is-cancelled' : ''}`}>
-        <span className="cal-event-icon" aria-hidden="true">{cancelled ? <Ban size={18} /> : <CalendarDays size={18} />}</span>
         <span className="grow">
           <span className="cal-event-title">{e.title}</span>
           <span className="cal-event-meta faint">

@@ -1071,3 +1071,5 @@ dl.summary-list .quote { margin-top: 0; }
 .date-input.is-disabled .date-input-btn { opacity: 0.5; pointer-events: none; }
 .datetime-input { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; width: 100%; }
 .time-input { text-align: center; font-variant-numeric: tabular-nums; }
+.btn.danger-solid { background: var(--danger-ink); color: var(--card); }
+.btn.danger-solid:hover { background: color-mix(in srgb, var(--danger-ink) 85%, var(--ink)); }

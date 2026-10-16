@@ -284,6 +284,7 @@ test('ano escutista e configuração de dias especiais', async ({ page }, info) 
   await page.screenshot({ path: `test-results/calendario-escutista-${info.project.name}.png`, fullPage: true });
 
   // Configurar: feriado municipal recorrente e mês inicial
+  await main.getByRole('button', { name: 'Mais ações' }).click();
   await main.getByRole('link', { name: 'Dias e ano escutista' }).click();
   await expect(page.getByRole('heading', { name: 'Dias especiais e ano escutista', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'Acrescentar' }).click();
@@ -340,7 +341,8 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   const body = cal.calls.find((c) => c.fn === 'cal_create_event')!.body;
   // 25/10/2026 já é hora de inverno (UTC+0)
   expect(body.p_data).toMatchObject({ starts_at: '2026-10-25T10:00:00.000Z', ends_at: '2026-10-25T12:00:00.000Z', needs_authorization: true, reminder_minutes: [1440, 60] });
-  await expect(page.locator('main')).toContainText('25/10/2026 · 10:00–12:00');
+  await expect(page.locator('main .cal-facts')).toContainText('Início25/10/2026 · 10:00');
+  await expect(page.locator('main .cal-facts')).toContainText('Fim25/10/2026 · 12:00');
 });
 
 test('pioneiro responde, vê o que lhe falta e exporta para o calendário', async ({ page }, info) => {
@@ -388,6 +390,7 @@ test('dirigente marca pendências e cancela', async ({ page }) => {
   expect(cal.calls.find((c) => c.fn === 'cal_set_pending')!.body).toMatchObject({ p_profile: 'u-p1', p_item: 'autorizacao', p_done: true });
   await main.getByRole('tab', { name: 'Com pendências' }).click();
   await expect(page).toHaveURL(/p=falta/);
+  await main.getByRole('button', { name: 'Mais ações' }).click();
   await main.getByRole('button', { name: 'Cancelar atividade…' }).click();
   await main.getByRole('button', { name: 'Cancelar atividade', exact: true }).click();
   await expect(main.getByText('Atividade cancelada', { exact: false }).first()).toBeVisible();
@@ -409,12 +412,18 @@ test.describe('capturas', () => {
       events.push({ ...events[0], id: 'ev4', title: 'Acampamento de Natal', all_day: true, starts_at: null, ends_at: null, start_date: '2026-12-27', end_date: '2026-12-29' });
       await page.goto('/calendario');
       await shoot(page, info, theme, 'calendario-ano');
+      if (info.project.name === 'telemovel') {
+        await page.goto('/calendario');
+        await page.locator('.cal-jump.is-current').click();
+        await page.waitForTimeout(600);
+        await shoot(page, info, theme, 'calendario-mes', { full: false });
+      }
       await page.goto(`/calendario?dia=${day}`);
       await page.getByRole('dialog').waitFor();
-      await shoot(page, info, theme, 'calendario-dia');
+      await shoot(page, info, theme, 'calendario-dia', { full: false });
       await page.goto('/calendario?dia=2026-12-25');
       await page.getByRole('dialog').waitFor();
-      await shoot(page, info, theme, 'calendario-feriado');
+      await shoot(page, info, theme, 'calendario-feriado', { full: false });
       await page.goto('/calendario/evento/ev1');
       await shoot(page, info, theme, 'calendario-detalhe');
       await page.goto('/calendario?vista=lista');

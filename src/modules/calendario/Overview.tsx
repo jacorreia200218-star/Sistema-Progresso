@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Download, Plus, Settings, X } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
-import { Empty, ErrorBox, Loading, PageTitle } from '../../components/ui';
+import { Empty, ErrorBox, Loading, MoreMenu, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
 import { downloadFile, formatDay, formatLisbon, MONTHS, todayLisbon } from '../common';
 import {
@@ -47,7 +47,14 @@ export function Overview() {
   const current = view === 'lista' ? 'lista' : mode === 'escutista' ? 'escutista' : 'civil';
   return (
     <div className="cal-page">
-      <PageTitle title="Calendário escutista" subtitle="O ano inteiro à vista: feriados, fins de semana livres e as atividades da secção." />
+      <PageTitle title="Calendário escutista" actions={canManage && (
+        <>
+          <Link to="/calendario/nova" className="btn"><Plus size={18} aria-hidden="true" /> Nova atividade</Link>
+          <MoreMenu>
+            <Link to="/calendario/configurar" className="btn"><Settings size={16} aria-hidden="true" /> Dias e ano escutista</Link>
+          </MoreMenu>
+        </>
+      )} />
       <div className="cal-toolbar">
         <div className="tabs" role="tablist" aria-label="Vistas do calendário">
           <button type="button" role="tab" className="tab" aria-selected={current === 'civil'} onClick={() => setView('ano', { tipo: '', ano: '', dia: '' })}>Ano civil</button>
@@ -57,12 +64,6 @@ export function Overview() {
         <label className="checkbox cal-mine">
           <input type="checkbox" checked={mine === '1'} onChange={(e) => setMine(e.target.checked ? '1' : '')} /> Só as minhas
         </label>
-        {canManage && (
-          <div className="cal-actions">
-            <Link to="/calendario/configurar" className="btn secondary"><Settings size={16} aria-hidden="true" /> Dias e ano escutista</Link>
-            <Link to="/calendario/nova" className="btn"><Plus size={18} aria-hidden="true" /> Nova atividade</Link>
-          </div>
-        )}
       </div>
       {current === 'lista' ? <Upcoming onlyMine={mine === '1'} /> : <YearView mode={current} onlyMine={mine === '1'} />}
     </div>
@@ -188,9 +189,11 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
       {cfg.error || q.error ? <ErrorBox error={cfg.error ?? q.error} retry={() => { cfg.refetch(); q.refetch(); }} /> : (
         <div className="cal-year-layout">
           <div className="cal-year-main">
+            <MonthJump months={p.months} today={today} />
             <div className={`cal-year${highlight === '1' ? ' show-free' : ''}`} aria-busy={!ready}>
               {p.months.map((ym) => (
-                <MiniMonth key={ym} ym={ym} today={today} marks={marks} busy={busyShown} free={freeDays} selected={selected} onPick={(d) => setDay(d)} />
+                <MiniMonth key={ym} ym={ym} today={today} marks={marks} busy={busyShown} free={freeDays} selected={selected} onPick={(d) => setDay(d)}
+                  showYear={p.from.slice(0, 4) !== p.to.slice(0, 4) && (ym === p.months[0] || ym.endsWith('-01'))} />
               ))}
             </div>
             <Legend highlight={highlight === '1'} setHighlight={(on) => setHighlight(on ? '1' : '')} />
@@ -216,6 +219,7 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
 
 const WD = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 const WD_FULL = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
+const MONTH_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 function dayLabel(d: string, marks: DayMark[], n: number, free: boolean, today: string) {
   const parts = [`${weekdayName(d)}, ${formatDay(d)}`];
@@ -226,19 +230,34 @@ function dayLabel(d: string, marks: DayMark[], n: number, free: boolean, today: 
   return parts.join(', ');
 }
 
-function MiniMonth({ ym, today, marks, busy, free, selected, onPick }: {
+/** Marcas das atividades dentro da célula: um ponto por atividade (até duas) ou «•+N». */
+function EventMarks({ n }: { n: number }) {
+  if (!n) return null;
+  return (
+    <span className="cal-dots" aria-hidden="true">
+      <i />{n === 2 && <i />}{n > 2 && <span className="cal-more">+{n - 1}</span>}
+    </span>
+  );
+}
+
+function MiniMonth({ ym, today, marks, busy, free, selected, onPick, showYear }: {
   ym: string; today: string; marks: Map<string, DayMark[]>; busy: Map<string, number>; free: Set<string>;
-  selected: string | null; onPick: (d: string) => void;
+  selected: string | null; onPick: (d: string) => void; showYear: boolean;
 }) {
   const first = `${ym}-01`;
   const last = addDays(`${addMonths(ym, 1)}-01`, -1);
   const lead = weekday(first);
   const days: string[] = [];
   for (let d = first; d <= last; d = addDays(d, 1)) days.push(d);
+  // Seis semanas em todos os meses: todos os cartões têm a mesma altura.
+  const trail = 42 - lead - days.length;
   const id = `cal-mm-${ym}`;
   return (
-    <section className={`cal-mm${monthOf(today) === ym ? ' is-current' : ''}`} aria-labelledby={id}>
-      <h3 id={id} className="cal-mm-title">{MONTHS[Number(ym.slice(5, 7)) - 1]} <span className="faint">{ym.slice(0, 4)}</span></h3>
+    <section className={`cal-mm${monthOf(today) === ym ? ' is-current' : ''}`} aria-labelledby={id} id={`mes-${ym}`}>
+      <h3 id={id} className="cal-mm-title">
+        {MONTHS[Number(ym.slice(5, 7)) - 1]}
+        <span className={showYear ? 'cal-mm-year' : 'sr-only'}> {ym.slice(0, 4)}</span>
+      </h3>
       <div className="cal-mm-grid">
         {WD.map((w, i) => <abbr key={i} title={WD_FULL[i]} className={`cal-mm-wd${i >= 5 ? ' is-weekend' : ''}`}>{w}</abbr>)}
         {Array.from({ length: lead }, (_, i) => <span key={`b${i}`} className="cal-mm-blank" aria-hidden="true" />)}
@@ -258,25 +277,40 @@ function MiniMonth({ ym, today, marks, busy, free, selected, onPick }: {
           return (
             <button key={d} type="button" data-day={d} className={cls.join(' ')} aria-label={label} title={label}
               aria-current={d === today ? 'date' : undefined} onClick={() => onPick(d)}>
-              {Number(d.slice(8))}
+              <span className="cal-dn">{Number(d.slice(8))}</span>
+              <EventMarks n={n} />
             </button>
           );
         })}
+        {Array.from({ length: trail }, (_, i) => <span key={`t${i}`} className="cal-mm-blank is-trail" aria-hidden="true" />)}
       </div>
     </section>
   );
 }
 
+/** Telemóvel: atalhos para cada mês (os meses ficam em coluna, com os dias em tamanho confortável). */
+function MonthJump({ months, today }: { months: string[]; today: string }) {
+  return (
+    <nav className="cal-month-jump" aria-label="Ir para o mês">
+      {months.map((ym) => (
+        <a key={ym} href={`#mes-${ym}`} className={`cal-jump${monthOf(today) === ym ? ' is-current' : ''}`}
+          onClick={(e) => { e.preventDefault(); document.getElementById(`mes-${ym}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
+          {MONTH_SHORT[Number(ym.slice(5, 7)) - 1]}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function Legend({ highlight, setHighlight }: { highlight: boolean; setHighlight: (on: boolean) => void }) {
   return (
-    <div className="card flat cal-legend" role="group" aria-label="Legenda">
+    <div className="cal-legend" role="group" aria-label="Legenda">
       <ul>
-        <li><span className="cal-sw is-weekend" aria-hidden="true">6</span> Fim de semana</li>
-        <li><span className="cal-sw is-holiday" aria-hidden="true">6</span> Feriado</li>
-        <li><span className="cal-sw is-relevant" aria-hidden="true">6</span> Dia relevante</li>
-        <li><span className="cal-sw is-today" aria-hidden="true">6</span> Hoje</li>
-        <li><span className="cal-sw has-events" aria-hidden="true">6</span> Com atividades</li>
-        <li><span className="cal-sw is-free-sw" aria-hidden="true">6</span> Fim de semana ou feriado livre</li>
+        <li><span className="cal-key key-event" aria-hidden="true" /> Atividade</li>
+        <li><span className="cal-key key-holiday" aria-hidden="true" /> Feriado</li>
+        <li><span className="cal-key key-relevant" aria-hidden="true" /> Dia relevante</li>
+        <li><span className="cal-key key-today" aria-hidden="true" /> Hoje</li>
+        <li><span className="cal-key key-weekend" aria-hidden="true" /> Fim de semana</li>
       </ul>
       <label className="checkbox"><input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} /> Destacar os dias livres</label>
     </div>
@@ -292,7 +326,7 @@ function MarksList({ p, marks, busy, onPick }: { p: Period; marks: Map<string, D
         {rows.flatMap(([d, ms]) => ms.map((m, i) => (
           <li key={`${d}-${i}`}>
             <button type="button" className="cal-mark-btn" onClick={() => onPick(d)}>
-              <span className={`cal-sw ${m.kind === 'relevante' ? 'is-relevant' : 'is-holiday'}`} aria-hidden="true" />
+              <span className={`cal-key ${m.kind === 'relevante' ? 'key-relevant' : 'key-holiday'}`} aria-hidden="true" />
               <span className="cal-mark-date">{formatDay(d)}</span>
               <span className="grow">{m.name}<span className="faint"> · {MARK_LABEL[m.kind]}{m.movable ? ' (móvel)' : ''}{busy.get(d) ? ' · com atividades' : ''}</span></span>
             </button>
@@ -329,17 +363,17 @@ function FreeCard({ free, today, p, onPick }: { free: ReturnType<typeof freeSlot
   return (
     <section className="card cal-free" aria-labelledby="cal-free-h">
       <h2 id="cal-free-h">Livres para planear</h2>
-      <dl className="cal-free-counts">
-        <div><dt>Fins de semana livres</dt><dd>{weekends}</dd></div>
-        <div><dt>Feriados livres em dias úteis</dt><dd>{holidays}</dd></div>
-      </dl>
-      <p className="faint cal-free-note">Em {p.label}, sem nenhuma atividade marcada na secção.</p>
+      <ul className="cal-free-counts">
+        <li><strong>{weekends}</strong> Fins de semana livres</li>
+        <li><strong>{holidays}</strong> Feriados livres em dias úteis</li>
+      </ul>
+      <p className="faint cal-free-note">Em {p.label}, sem atividades da secção.</p>
       {list.length > 0 && (
         <ul className="cal-free-list">
           {list.map((f) => (
             <li key={f.from}>
               <button type="button" className="cal-mark-btn" onClick={() => onPick(f.from)}>
-                <span className="cal-sw is-free-sw" aria-hidden="true" />
+                <span className="cal-key key-free" aria-hidden="true" />
                 <span className="grow">
                   {f.from === f.to ? `${weekdayName(f.from)}, ${formatDay(f.from)}` : `${formatDay(f.from)} a ${formatDay(f.to)}`}
                   {f.names.length > 0 && <span className="faint"> · {f.names.join(', ')}</span>}

@@ -156,7 +156,7 @@ export function MoreMenu({ children, label = 'Mais', className = '' }: { childre
   }, []);
   return (
     <details className={`menu more-menu ${className}`} ref={ref}>
-      <summary className="btn secondary" aria-label={label === 'Mais' ? 'Mais ações' : undefined}>
+      <summary className="btn secondary" role="button" aria-label={label === 'Mais' ? 'Mais ações' : undefined}>
         {label === 'Mais' ? <MoreHorizontal size={18} aria-hidden="true" /> : null}
         {label}
         <ChevronDown size={16} aria-hidden="true" className="more-chevron" />

@@ -3,15 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, CalendarClock, Check, Download, FileText, Link2, MapPin, Package, Paperclip, Pencil, User, Users, Wallet } from 'lucide-react';
+import { Ban, Check, Download, FileText, Link2, Package, Paperclip, Pencil, Users, Wallet } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
-import { ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
+import { ErrorBox, Field, Loading, MoreInfo, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
 import { downloadFile, formatDay, formatEuros, formatLisbon } from '../common';
 import { listModuleFiles, openModuleFile, uploadModuleFile } from '../files';
-import { MISSING_LABEL, RESPONSE_LABEL, reminderLabel, whenLabel, type CalDetail, type CalParticipant, type PendingItem, type Response } from './cal';
+import { eventDays, MISSING_LABEL, RESPONSE_LABEL, reminderLabel, type CalDetail, type CalParticipant, type PendingItem, type Response } from './cal';
 import { buildIcs, icsFileName } from './ics';
 import { MissingList, ResponseBadge, useParam } from './shared';
 
@@ -22,6 +22,7 @@ export function EventDetail() {
   const section = useActiveSection().membership.section_id;
   const { space } = useModuleCtx();
   const location = useLocation();
+  const [cancelling, setCancelling] = useState(false);
   const q = useQuery({
     queryKey: ['cal-event', section, space, id],
     queryFn: () => call<CalDetail>('cal_event_get', { p_section: section, p_event: id }),
@@ -39,50 +40,75 @@ export function EventDetail() {
   const e = q.data;
   const cancelled = e.status === 'cancelado';
   const flash = (location.state as { flash?: string } | null)?.flash;
+  const exportIcs = () => downloadFile(icsFileName(e.title), buildIcs([e]), 'text/calendar;charset=utf-8');
+  const manage = e.can_manage && !cancelled;
   return (
     <>
-      <PageTitle title={e.title} back="/calendario" />
+      <PageTitle title={e.title} back="/calendario" actions={manage ? (
+        <>
+          <Link to={`/calendario/evento/${e.id}/editar`} className="btn secondary"><Pencil size={16} aria-hidden="true" /> Alterar</Link>
+          <MoreMenu>
+            <button type="button" className="btn" onClick={exportIcs}><Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)</button>
+            <button type="button" className="btn danger" onClick={() => setCancelling(true)}><Ban size={16} aria-hidden="true" /> Cancelar atividade…</button>
+          </MoreMenu>
+        </>
+      ) : (
+        <button type="button" className="btn secondary" onClick={exportIcs}><Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)</button>
+      )} />
       {flash && <Notice kind="success">{flash}</Notice>}
       {cancelled && (
         <Notice kind="warn">
           <strong>Atividade cancelada</strong>{e.cancelled_at && <> a {formatLisbon(e.cancelled_at)}</>}.{e.cancel_reason && <> Motivo: {e.cancel_reason}</>}
         </Notice>
       )}
+      {manage && cancelling && <ManageBox e={e} onClose={() => setCancelling(false)} />}
 
       <section className="card cal-info" aria-label="Dados da atividade">
-        <ul className="cal-facts">
-          <li><CalendarClock size={18} aria-hidden="true" /><span>{whenLabel(e)}</span></li>
-          {e.location && <li><MapPin size={18} aria-hidden="true" /><span>{e.location}</span></li>}
-          <li><Users size={18} aria-hidden="true" /><span>{e.audience === 'equipa' ? `Equipa: ${e.team_name ?? '—'}` : 'Toda a secção'}</span></li>
-          {e.responsible_name && <li><User size={18} aria-hidden="true" /><span>Responsável: {e.responsible_name}</span></li>}
+        <dl className="meta cal-facts">
+          <When e={e} />
+          {e.location && <><dt>Local</dt><dd>{e.location}</dd></>}
+          <dt>Para</dt><dd>{e.audience === 'equipa' ? `Equipa ${e.team_name ?? '—'}` : 'Toda a secção'}</dd>
+          {e.responsible_name && <><dt>Responsável</dt><dd>{e.responsible_name}</dd></>}
           {e.registration_deadline && (
-            <li className={e.deadline_passed ? 'is-late' : ''}><Bell size={18} aria-hidden="true" />
-              <span>Prazo de inscrição: {formatLisbon(e.registration_deadline)}{e.deadline_passed && ' (terminou)'}</span></li>
+            <><dt>Prazo de inscrição</dt><dd className={e.deadline_passed ? 'is-late' : ''}>{formatLisbon(e.registration_deadline)}{e.deadline_passed && ' (terminou)'}</dd></>
           )}
-        </ul>
+          {e.can_manage && (
+            <><dt>Lembretes</dt><dd>
+              {e.reminder_minutes.length ? e.reminder_minutes.map(reminderLabel).join(', ') : 'nenhum'} antes
+              {e.registration_deadline && <> · {e.deadline_reminder_minutes.length ? e.deadline_reminder_minutes.map(reminderLabel).join(', ') : 'nenhum'} antes do prazo</>}
+            </dd></>
+          )}
+        </dl>
         {e.description && <p className="prose cal-description">{e.description}</p>}
         {(e.required.length > 0) && (
           <div className="cal-requires">
             <span className="label">Pede-se a cada participante</span>
             <ul className="chips">{e.required.map((r) => <li key={r} className="chip">{MISSING_LABEL[r]}</li>)}</ul>
-            {e.material && <p className="cal-material"><strong>Material:</strong> {e.material}</p>}
+            {e.material && <p className="cal-material"><span className="faint">Material:</span> {e.material}</p>}
           </div>
         )}
-        <div className="btn-row">
-          <button type="button" className="btn secondary" onClick={() => downloadFile(icsFileName(e.title), buildIcs([e]), 'text/calendar;charset=utf-8')}>
-            <Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)
-          </button>
-          {e.can_manage && !cancelled && (
-            <Link to={`/calendario/evento/${e.id}/editar`} className="btn secondary"><Pencil size={16} aria-hidden="true" /> Alterar</Link>
-          )}
-        </div>
       </section>
 
       {(e.involved || e.can_respond) && <MyResponse e={e} />}
       <Participants e={e} />
       <Linked e={e} />
       <Attachments e={e} />
-      {e.can_manage && !cancelled && <ManageBox e={e} />}
+    </>
+  );
+}
+
+/** «Início: 16/10/2026 · 09:00» e «Fim: 18/10/2026 · 17:00» (dias inteiros: só a data). */
+function When({ e }: { e: CalDetail }) {
+  if (e.all_day) {
+    const { from, to } = eventDays(e);
+    return from === to
+      ? <><dt>Data</dt><dd>{formatDay(from)} · dia inteiro</dd></>
+      : <><dt>Início</dt><dd>{formatDay(from)}</dd><dt>Fim</dt><dd>{formatDay(to)}</dd></>;
+  }
+  return (
+    <>
+      <dt>Início</dt><dd>{formatLisbon(e.starts_at!)}</dd>
+      {e.ends_at && e.ends_at !== e.starts_at && <><dt>Fim</dt><dd>{formatLisbon(e.ends_at)}</dd></>}
     </>
   );
 }
@@ -151,24 +177,31 @@ function Participants({ e }: { e: CalDetail }) {
   return (
     <section className="card cal-people" aria-labelledby="cal-people-h">
       <h2 id="cal-people-h">Participantes</h2>
-      <dl className="cal-counts">
-        <div><dt>Vou</dt><dd>{count('vou')}</dd></div>
-        <div><dt>Não vou</dt><dd>{count('nao_vou')}</dd></div>
-        <div><dt>Por confirmar</dt><dd>{count('por_confirmar')}</dd></div>
-        <div><dt>Sem resposta</dt><dd>{count(null)}</dd></div>
-      </dl>
-      <div className="tabs" role="tablist" aria-label="Filtrar participantes">
-        {FILTERS.filter(([k]) => k !== 'falta' || e.can_see_pending).map(([k, label]) => (
-          <button key={k} type="button" role="tab" className="tab" aria-selected={filter === k} onClick={() => setFilter(k)}>{label}</button>
-        ))}
+      <div className="tabs cal-people-tabs" role="tablist" aria-label="Filtrar participantes">
+        {FILTERS.filter(([k]) => k !== 'falta' || e.can_see_pending).map(([k, label]) => {
+          const n = k === '' ? e.participants.length : k === 'sem' ? count(null) : k === 'falta' ? e.participants.filter((p) => (p.missing ?? []).length > 0).length : count(k as Response);
+          return (
+            <button key={k} type="button" role="tab" className="tab" aria-selected={filter === k} onClick={() => setFilter(k)}>
+              {label} <span className="fc-n">{n}</span>
+            </button>
+          );
+        })}
       </div>
-      {!e.can_see_pending && <p className="faint prose">Vês as respostas de todos; as pendências de cada pessoa só são visíveis para a própria, para quem gere o calendário e para o responsável.</p>}
+      {!e.can_see_pending && <MoreInfoLine />}
       {list.length === 0 ? <p className="faint">Ninguém nesta lista.</p> : (
         <ul className="list cal-people-list">
           {list.map((p) => <ParticipantRow key={p.profile_id} e={e} p={p} />)}
         </ul>
       )}
     </section>
+  );
+}
+
+function MoreInfoLine() {
+  return (
+    <MoreInfo label="Quem vê as pendências">
+      Vês as respostas de todos; as pendências de cada pessoa só são visíveis para a própria, para quem gere o calendário e para o responsável.
+    </MoreInfo>
   );
 }
 
@@ -194,12 +227,13 @@ function ParticipantRow({ e, p }: { e: CalDetail; p: CalParticipant }) {
         <ResponseBadge response={p.response} />
       </div>
       {p.note && <p className="cal-person-note">«{p.note}»</p>}
-      {p.missing && !cancelled && <MissingList missing={missing} label="O que falta" />}
+      {p.missing && !cancelled && !(e.can_manage && e.required.length > 0 && p.response !== 'nao_vou') && <MissingList missing={missing} label="O que falta" />}
       {p.missing && !cancelled && p.response !== 'nao_vou' && missing.length === 0 && <p className="cal-ok"><Check size={14} aria-hidden="true" /> Tudo tratado</p>}
       {e.can_manage && !cancelled && (
         <div className="cal-person-actions">
           {e.required.length > 0 && p.response !== 'nao_vou' && (
             <div className="cal-toggles" role="group" aria-label={`Pendências de ${p.name}`}>
+              <span className="faint cal-toggles-label">O que falta:</span>
               {e.required.map((item) => {
                 const done = !missing.includes(item);
                 return (
@@ -371,29 +405,29 @@ function Attachments({ e }: { e: CalDetail }) {
   );
 }
 
-function ManageBox({ e }: { e: CalDetail }) {
+function ManageBox({ e, onClose }: { e: CalDetail; onClose: () => void }) {
   const section = useActiveSection().membership.section_id;
   const action = useAction();
   const [reason, setReason] = useState('');
   useEffect(() => { action.clear(); }, [e.id]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <section className="card danger-zone" aria-labelledby="cal-manage-h">
-      <h2 id="cal-manage-h">Gestão</h2>
+      <h2 id="cal-manage-h">Cancelar atividade</h2>
       <p className="faint prose">
-        Lembretes antes da atividade: {e.reminder_minutes.length ? e.reminder_minutes.map(reminderLabel).join(', ') : 'nenhum'}.
-        {e.registration_deadline && <> Antes do prazo: {e.deadline_reminder_minutes.length ? e.deadline_reminder_minutes.map(reminderLabel).join(', ') : 'nenhum'}.</>}
-        {' '}Ao alterar ou cancelar, os envolvidos são avisados e os lembretes são reagendados ou retirados.
+        A atividade fica marcada como cancelada (não é apagada), deixa de aceitar respostas e os envolvidos são avisados; os lembretes são retirados.
       </p>
       <Field label="Motivo do cancelamento (opcional)" htmlFor="cal-reason">
         <input id="cal-reason" maxLength={500} value={reason} onChange={(ev) => setReason(ev.target.value)} />
       </Field>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
-      <ConfirmButton className="btn secondary danger" confirmLabel="Cancelar atividade" disabled={action.busy}
-        description="A atividade fica marcada como cancelada (não é apagada), deixa de aceitar respostas e os envolvidos são avisados."
-        onConfirm={() => void action.run(() => call('cal_cancel_event', { p_section: section, p_event: e.id, p_reason: reason.trim() || null }), 'Atividade cancelada. Os envolvidos foram avisados.')}>
-        Cancelar atividade…
-      </ConfirmButton>
+      <div className="btn-row">
+        <button type="button" className="btn danger-solid" disabled={action.busy}
+          onClick={() => void action.run(() => call('cal_cancel_event', { p_section: section, p_event: e.id, p_reason: reason.trim() || null }), 'Atividade cancelada. Os envolvidos foram avisados.')}>
+          Cancelar atividade
+        </button>
+        <button type="button" className="btn secondary" onClick={onClose}>Voltar</button>
+      </div>
     </section>
   );
 }

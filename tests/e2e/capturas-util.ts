@@ -28,11 +28,11 @@ export async function settle(page: Page) {
   await page.waitForTimeout(250);
 }
 
-export async function shoot(page: Page, info: TestInfo, theme: Theme, name: string) {
+export async function shoot(page: Page, info: TestInfo, theme: Theme, name: string, opts: { full?: boolean } = {}) {
   await settle(page);
   await noIsoDates(page);
   await noHorizontalOverflow(page);
   await page.addStyleTag({ content: '.topbar, .bottom-nav { position: static !important; } *, *::before, *::after { animation: none !important; transition: none !important; }' });
   const t = theme === 'light' ? 'claro' : 'escuro';
-  await page.screenshot({ path: `${DIR}/${name}-${info.project.name}-${t}.png`, fullPage: true });
+  await page.screenshot({ path: `${DIR}/${name}-${info.project.name}-${t}.png`, fullPage: opts.full ?? true });
 }
