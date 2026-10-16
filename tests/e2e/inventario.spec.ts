@@ -15,6 +15,12 @@ async function noHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
+/** No telemóvel os filtros ficam atrás do botão «Filtros»: abre-o antes de mexer nos selects. */
+async function openFilters(page: Page) {
+  const toggle = page.locator('main').getByRole('button', { name: /^Filtros/ });
+  if (await toggle.isVisible() && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+}
+
 async function mockInventario(page: Page, manage: boolean, finOk = false) {
   const cats = [{ id: 'c1', name: 'Campismo', archived: false }, { id: 'c2', name: 'Cozinha', archived: false }];
   const items: Row[] = [
@@ -192,12 +198,16 @@ test('lista: pesquisa e filtros ficam no endereço e sobrevivem ao «voltar»', 
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await expect(page).toHaveURL(/q=tenda/);
   await main.getByPlaceholder('Pesquisar material').fill('');
+  await openFilters(page);
   await main.getByLabel('Filtrar por localização').selectOption('Arrecadação');
   await expect(list.getByRole('listitem')).toHaveCount(2);
   await main.getByLabel('Filtrar por estado').selectOption('reparacao');
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await expect(list).toContainText('Tenda canadiana');
   await expect(list).toContainText('Em reparação');
+  // Cada linha: material, quantidade disponível, local curto e um só estado.
+  await expect(list.getByRole('listitem').first()).toContainText('5 de 6 un.');
+  await expect(list.getByRole('listitem').first().locator('.badge')).toHaveCount(1);
   await expect(page).toHaveURL(/local=Arrecada.*estado=reparacao|estado=reparacao.*local=Arrecada/);
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/inventario-lista-${info.project.name}.png`, fullPage: true });
@@ -207,6 +217,7 @@ test('lista: pesquisa e filtros ficam no endereço e sobrevivem ao «voltar»', 
   await page.goBack();
   await expect(main.getByLabel('Filtrar por estado')).toHaveValue('reparacao');
   await expect(main.getByLabel('Filtrar por localização')).toHaveValue('Arrecadação');
+  await openFilters(page);
   await main.getByLabel('Filtrar por tipo').selectOption('c2');
   await expect(main.getByText('Nenhum artigo com estes filtros.')).toBeVisible();
   await main.getByRole('button', { name: 'Limpar filtros' }).click();
@@ -240,7 +251,9 @@ test('criar artigo com validação clara', async ({ page }) => {
     p_condition: 'novo', p_notes: 'Verificar a válvula', p_tracking: 'quantidade', p_quantity: 3, p_min_quantity: 1 });
   await expect(main.getByRole('list', { name: 'Quantidades' })).toContainText('Disponível');
   await expect(main.getByRole('definition').filter({ hasText: 'Caixa verde' })).toBeVisible();
-  await expect(main.getByText('Conservação: novo')).toBeVisible();
+  const ficha = main.getByRole('region', { name: 'Dados do artigo' });
+  await expect(ficha.getByRole('term').filter({ hasText: 'Conservação' }).locator('..')).toContainText('Novo');
+  await expect(ficha.getByRole('term').filter({ hasText: 'Tipo' }).locator('..')).toContainText('Cozinha');
 });
 
 test('emprestar e devolver (parcial e total)', async ({ page }, info) => {
@@ -277,6 +290,32 @@ test('emprestar e devolver (parcial e total)', async ({ page }, info) => {
   await expect(main.locator('.inv-loan').first()).toContainText('Saída registada por');
   await expect(main.locator('.inv-loan').first().getByRole('list', { name: 'Devoluções' }).getByRole('listitem')).toHaveCount(2);
   expect(m.calls.filter((c) => c.fn === 'inv_loan_return').map((c) => c.body.p_quantity)).toEqual([1, 1]);
+  await noHorizontalScroll(page);
+});
+
+test('ficha: ação principal «Emprestar», restantes no menu «Mais» e arquivar só a pedido', async ({ page }) => {
+  await installMock(page, leader());
+  const m = await mockInventario(page, true);
+  await page.goto('/inventario/artigo/i1');
+  const main = page.locator('main');
+  await expect(main.getByRole('heading', { name: 'Tenda canadiana', level: 1 })).toBeVisible();
+  // Local completo e dados secundários na ficha
+  await expect(main.getByRole('definition').filter({ hasText: 'Prateleira 2' })).toBeVisible();
+  // O formulário de arquivo não está aberto por omissão
+  await expect(main.getByText('Retirar do inventário')).toHaveCount(0);
+  await expect(main.getByRole('button', { name: 'Reservar' })).toBeHidden();
+  await main.locator('.page-head').getByRole('button', { name: 'Mais ações' }).click();
+  for (const label of ['Reservar', 'Entrada ou saída', 'Mudar estado', 'Pôr na lista «A comprar»', 'Arquivar']) {
+    await expect(main.getByRole('button', { name: label, exact: true })).toBeVisible();
+  }
+  await expect(main.getByRole('link', { name: /Editar/ })).toBeVisible();
+  await main.getByRole('button', { name: 'Arquivar', exact: true }).click();
+  const box = main.getByRole('region', { name: 'Arquivo' });
+  await expect(box).toContainText('Retirar do inventário');
+  await box.getByLabel('Motivo (opcional)').fill('Rota');
+  await box.getByRole('button', { name: 'Arquivar artigo' }).click();
+  await expect.poll(() => m.calls.filter((c) => c.fn === 'inv_item_archive').length).toBe(1);
+  expect(m.calls.find((c) => c.fn === 'inv_item_archive')!.body).toMatchObject({ p_item: 'i1', p_archived: true, p_note: 'Rota' });
   await noHorizontalScroll(page);
 });
 
@@ -320,18 +359,25 @@ test('resumo centrado e filtros por local exato no endereço', async ({ page }, 
   // Cartões centrados
   const align = await summary.locator('.stat').first().evaluate((el) => getComputedStyle(el).textAlign);
   expect(align).toBe('center');
+  // Todos os cartões com a mesma altura (com ou sem dica)
+  const heights = await summary.locator('.stat').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+  expect(new Set(heights).size).toBe(1);
   const list = main.getByRole('list', { name: 'Material' });
+  await openFilters(page);
   await main.getByLabel('Filtrar por localização').selectOption('Arrecadação');
   await expect(list.getByRole('listitem')).toHaveCount(2);
   await main.getByLabel('Filtrar por armário').selectOption('Armário 2');
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await expect(list).toContainText('Lanterna frontal');
-  await expect(list).toContainText('Arrecadação · Armário 2 · Caixa azul');
+  // Na lista só o local curto; o armário e a caixa ficam na ficha
+  await expect(list).toContainText('Arrecadação');
+  await expect(list).not.toContainText('Caixa azul');
   await expect(page).toHaveURL(/armario=Arm/);
   await main.getByLabel('Filtrar por armário').selectOption('');
   await main.getByLabel('Filtrar por conservação').selectOption('bom');
   await expect(list.getByRole('listitem')).toHaveCount(1);
-  await expect(list).toContainText('Conservação: bom');
+  await expect(list).toContainText('Tenda canadiana');
+  await expect(list).not.toContainText('Conservação');
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/inventario-resumo-${info.project.name}.png`, fullPage: true });
   // Mudar de local limpa o armário escolhido
@@ -445,6 +491,17 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'inventario-emprestimos');
       await page.goto('/inventario/novo');
       await shoot(page, info, theme, 'inventario-formulario');
+      await page.goto('/inventario/reservas');
+      await shoot(page, info, theme, 'inventario-reservas');
+      await page.goto('/inventario/alertas');
+      await shoot(page, info, theme, 'inventario-alertas');
+      await page.goto('/inventario/categorias');
+      await shoot(page, info, theme, 'inventario-tipos');
+      await page.goto('/inventario?q=nada-disto');
+      await shoot(page, info, theme, 'inventario-vazio');
+      await page.goto('/inventario/artigo/i1');
+      await page.locator('main .page-head').getByRole('button', { name: 'Mais ações' }).click();
+      await shoot(page, info, theme, 'inventario-artigo-menu');
     });
   }
 });

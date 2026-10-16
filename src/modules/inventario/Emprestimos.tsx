@@ -22,7 +22,8 @@ export function Emprestimos() {
     : estado === 'todos' ? 'Ainda não há empréstimos registados.' : 'Não há material emprestado nem pedidos em curso.';
   return (
     <div className="inv-page">
-      <PageTitle title="Empréstimos" subtitle="Material emprestado, pedidos e devoluções." />
+      <PageTitle title="Empréstimos"
+        info={!ov.data?.can_manage ? 'Para pedir material, abre o artigo na lista e usa «Pedir empréstimo». Os pedidos ficam a aguardar aprovação.' : undefined} />
       <InvTabs />
       <div className="filter-chips" role="radiogroup" aria-label="Estado dos empréstimos">
         {FILTERS.map(([k, l]) => (
@@ -34,9 +35,6 @@ export function Emprestimos() {
           <input type="checkbox" checked={mine} onChange={(e) => set('meus', e.target.checked ? '1' : '')} /> Só os meus
         </label>
       </div>
-      {!ov.data?.can_manage && (
-        <p className="faint prose">Para pedir material, abre o artigo na lista e usa «Pedir empréstimo». Os pedidos ficam a aguardar aprovação.</p>
-      )}
       {loans.isLoading || ov.isLoading ? <Loading /> : loans.error ? <ErrorBox error={loans.error} retry={() => loans.refetch()} /> : (loans.data ?? []).length === 0 ? (
         <div className="card"><Empty title={empty} /></div>
       ) : (

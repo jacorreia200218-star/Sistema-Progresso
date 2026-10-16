@@ -3,21 +3,21 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MapPin, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { call } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { useAction } from '../../lib/useAction';
-import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
+import { Badge, Empty, ErrorBox, Field, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { listModuleFiles } from '../files';
 import { useModuleCtx } from '../ModuleShell';
 import { LoanCard, LoanForm, ReservationCard, ReservationForm, Section, StateBadges, useFormAction } from './parts';
 import { PurchaseCard, PurchaseForm } from './Comprar';
 import {
-  CONSERVATION_LABEL, CONSERVATION_TONE, MOVEMENT_LABEL, PIECE_LABEL, PIECE_TONE, STATE_LABEL, placeParts, qty, useItem, useOverview, useSectionId, when,
+  CONSERVATION_LABEL, MOVEMENT_LABEL, PIECE_LABEL, PIECE_TONE, STATE_LABEL, placeParts, qty, useItem, useOverview, useSectionId, when,
   type Condition, type ItemDetail, type Piece,
 } from './api';
 
-type Panel = 'emprestar' | 'pedir' | 'reservar' | 'stock' | 'estado' | 'peca' | 'comprar' | null;
+type Panel = 'emprestar' | 'pedir' | 'reservar' | 'stock' | 'estado' | 'peca' | 'comprar' | 'arquivar' | null;
 
 export function Artigo() {
   const { id } = useParams();
@@ -34,57 +34,36 @@ export function Artigo() {
   const s = it.stock;
   const manage = it.can_manage;
   const archived = !!it.archived_at;
+  const place = placeParts(it);
+  const actions = archived ? (
+    manage ? <button type="button" className="btn secondary" aria-expanded={panel === 'arquivar'} onClick={() => toggle('arquivar')}>Reativar</button> : null
+  ) : manage ? (
+    <>
+      <button type="button" className="btn" aria-expanded={panel === 'emprestar'} onClick={() => toggle('emprestar')}>Emprestar</button>
+      <MoreMenu>
+        <button type="button" className="btn" onClick={() => toggle('reservar')}>Reservar</button>
+        {it.tracking === 'quantidade' ? (
+          <>
+            <button type="button" className="btn" onClick={() => toggle('stock')}>Entrada ou saída</button>
+            <button type="button" className="btn" onClick={() => toggle('estado')}>Mudar estado</button>
+          </>
+        ) : (
+          <button type="button" className="btn" onClick={() => toggle('peca')}>Acrescentar peça</button>
+        )}
+        <button type="button" className="btn" onClick={() => toggle('comprar')}>Pôr na lista «A comprar»</button>
+        <hr />
+        <Link to={`/inventario/artigo/${it.id}/editar`} className="btn"><Pencil size={16} aria-hidden="true" /> Editar</Link>
+        <button type="button" className="btn danger" onClick={() => toggle('arquivar')}>Arquivar</button>
+      </MoreMenu>
+    </>
+  ) : (
+    <button type="button" className="btn" aria-expanded={panel === 'pedir'} onClick={() => toggle('pedir')}>Pedir empréstimo</button>
+  );
+  const broken = s.damaged + s.repair;
   return (
     <div className="inv-page">
-      <PageTitle title={it.name} back="/inventario"
-        subtitle={<>{it.category ?? 'Sem tipo'}{it.location && <> · <MapPin size={13} aria-hidden="true" className="inv-pin" />{it.location}</>}</>} />
+      <PageTitle title={it.name} back="/inventario" actions={actions} />
       {archived && <Notice kind="warn">Artigo arquivado em {when(it.archived_at!)}. O histórico mantém-se.</Notice>}
-      <div className="inv-head">
-        {it.has_photo && <Photo itemId={it.id} name={it.name} />}
-        <div className="inv-head-text">
-          {it.description && <p className="prose">{it.description}</p>}
-          <div className="row inv-badges">
-            <StateBadges states={s.states} />
-            {it.condition && <Badge label={`Conservação: ${CONSERVATION_LABEL[it.condition].toLowerCase()}`} tone={CONSERVATION_TONE[it.condition]} />}
-            {it.tracking === 'pecas' && <Badge label="Peças identificadas" tone="neutral" />}
-          </div>
-          {placeParts(it).length > 0 && (
-            <dl className="inv-dl inv-place-dl" aria-label="Onde está guardado">
-              {placeParts(it).map((p) => <div key={p.label}><dt>{p.label}</dt><dd>{p.value}</dd></div>)}
-            </dl>
-          )}
-          {it.notes && <p className="prose inv-notes"><span className="faint">Observações: </span>{it.notes}</p>}
-        </div>
-      </div>
-      <ul className="stats inv-stats" aria-label="Quantidades">
-        <li><div className="stat stat-verde"><span className="stat-value">{s.available}</span><span className="stat-label">Disponível</span><span className="stat-hint">de {qty(s.total, it.unit)}</span></div></li>
-        <li><div className="stat stat-azul"><span className="stat-value">{s.lent}</span><span className="stat-label">Emprestado</span></div></li>
-        <li><div className="stat stat-lilas"><span className="stat-value">{s.reserved}</span><span className="stat-label">Reservado agora</span>{s.reservations > 0 && <span className="stat-hint">{s.reservations} {s.reservations === 1 ? 'reserva' : 'reservas'}</span>}</div></li>
-        <li><div className="stat stat-ambar"><span className="stat-value">{s.damaged + s.repair}</span><span className="stat-label">Danificado ou em reparação</span>{it.min_quantity != null && <span className="stat-hint">Mínimo: {qty(it.min_quantity, it.unit)}</span>}</div></li>
-      </ul>
-
-      {!archived && (
-        <div className="btn-row inv-actions">
-          {manage ? (
-            <>
-              <button type="button" className="btn" aria-expanded={panel === 'emprestar'} onClick={() => toggle('emprestar')}>Emprestar</button>
-              <button type="button" className="btn secondary" aria-expanded={panel === 'reservar'} onClick={() => toggle('reservar')}>Reservar</button>
-              {it.tracking === 'quantidade' ? (
-                <>
-                  <button type="button" className="btn secondary" aria-expanded={panel === 'stock'} onClick={() => toggle('stock')}>Entrada ou saída</button>
-                  <button type="button" className="btn secondary" aria-expanded={panel === 'estado'} onClick={() => toggle('estado')}>Mudar estado</button>
-                </>
-              ) : (
-                <button type="button" className="btn secondary" aria-expanded={panel === 'peca'} onClick={() => toggle('peca')}>Acrescentar peça</button>
-              )}
-              <button type="button" className="btn secondary" aria-expanded={panel === 'comprar'} onClick={() => toggle('comprar')}>Pôr na lista «A comprar»</button>
-              <Link to={`/inventario/artigo/${it.id}/editar`} className="btn ghost"><Pencil size={16} aria-hidden="true" /> Editar</Link>
-            </>
-          ) : (
-            <button type="button" className="btn" aria-expanded={panel === 'pedir'} onClick={() => toggle('pedir')}>Pedir empréstimo</button>
-          )}
-        </div>
-      )}
       {flash && <Notice kind="success">{flash}</Notice>}
       {panel === 'emprestar' && <LoanForm item={it} mode="emprestar" onDone={done} />}
       {panel === 'pedir' && <LoanForm item={it} mode="pedir" onDone={done} />}
@@ -93,6 +72,34 @@ export function Artigo() {
       {panel === 'estado' && <ConditionForm it={it} onDone={done} />}
       {panel === 'peca' && <PieceForm it={it} onDone={done} />}
       {panel === 'comprar' && <PurchaseForm item={it} onDone={done} />}
+      {panel === 'arquivar' && manage && <ArchiveForm it={it} onDone={done} />}
+
+      <ul className="stats inv-stats" aria-label="Quantidades">
+        <li><div className="stat stat-verde"><span className="stat-value">{s.available}</span><span className="stat-label">Disponível</span><span className="stat-hint">de {qty(s.total, it.unit)}</span></div></li>
+        <li><div className="stat stat-azul"><span className="stat-value">{s.lent}</span><span className="stat-label">Emprestado</span><span className="stat-hint">{s.lent === 0 ? 'Nada fora' : 'Fora da sede'}</span></div></li>
+        <li><div className="stat stat-lilas"><span className="stat-value">{s.reserved}</span><span className="stat-label">Reservado agora</span><span className="stat-hint">{s.reservations === 1 ? '1 reserva' : `${s.reservations} reservas`}</span></div></li>
+        <li><div className="stat stat-ambar"><span className="stat-value">{broken}</span><span className="stat-label">Danificado ou em reparação</span><span className="stat-hint">{broken === 0 ? 'Tudo em bom estado' : [s.damaged > 0 && `${s.damaged} danificado`, s.repair > 0 && `${s.repair} em reparação`].filter(Boolean).join(' · ')}</span></div></li>
+      </ul>
+
+      <section className="card inv-sheet" aria-label="Dados do artigo">
+        {it.has_photo && <Photo itemId={it.id} name={it.name} />}
+        <div className="inv-head-text">
+          {it.description && <p className="prose inv-desc">{it.description}</p>}
+          <dl className="inv-dl inv-facts" aria-label="Ficha">
+            <div><dt>Estado</dt><dd className="inv-badges inv-badges-start"><StateBadges states={s.states} /></dd></div>
+            <div><dt>Tipo</dt><dd>{it.category ?? 'Sem tipo'}</dd></div>
+            <div><dt>Conservação</dt><dd>{it.condition ? CONSERVATION_LABEL[it.condition] : 'Não indicada'}</dd></div>
+            <div><dt>Controlo</dt><dd>{it.tracking === 'pecas' ? 'Peças identificadas' : 'Por quantidade'}</dd></div>
+            {it.min_quantity != null && <div><dt>Mínimo</dt><dd>{qty(it.min_quantity, it.unit)}</dd></div>}
+          </dl>
+          {place.length > 0 && (
+            <dl className="inv-dl inv-facts inv-place-dl" aria-label="Onde está guardado">
+              {place.map((p) => <div key={p.label}><dt>{p.label}</dt><dd>{p.value}</dd></div>)}
+            </dl>
+          )}
+          {it.notes && <p className="prose inv-notes"><span className="faint">Observações: </span>{it.notes}</p>}
+        </div>
+      </section>
 
       {it.tracking === 'pecas' && (
         <Section title="Peças" count={it.pieces.length}>
@@ -140,7 +147,6 @@ export function Artigo() {
         )}
       </Section>
 
-      {manage && <ArchiveBox it={it} />}
     </div>
   );
 }
@@ -314,29 +320,30 @@ function PieceRow({ p, manage }: { p: Piece; manage: boolean }) {
   );
 }
 
-function ArchiveBox({ it }: { it: ItemDetail }) {
+function ArchiveForm({ it, onDone }: { it: ItemDetail; onDone: (msg?: string) => void }) {
   const section = useSectionId();
-  const action = useAction();
+  const action = useFormAction(onDone);
   const { isTest } = useModuleCtx();
   const [note, setNote] = useState('');
   const archived = !!it.archived_at;
   return (
-    <section className="card danger-zone inv-archive" aria-label="Arquivo">
-      <h2 className="label">{archived ? 'Reativar artigo' : 'Retirar do inventário'}</h2>
+    <section className="inv-form card flat" aria-label="Arquivo">
+      <h3 className="label">{archived ? 'Reativar artigo' : 'Retirar do inventário'}</h3>
       <p className="faint prose">
         {archived ? 'O artigo volta à lista de material.' : `Arquivar retira o artigo da lista${isTest ? ' de teste' : ''} sem apagar o histórico. Só é possível sem empréstimos, pedidos ou reservas em curso.`}
       </p>
       <ErrorBox error={action.error} />
-      {action.success && <Notice kind="success">{action.success}</Notice>}
       {!archived && (
         <Field label="Motivo (opcional)" htmlFor="inv-arch-n"><input id="inv-arch-n" type="text" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
       )}
-      <ConfirmButton className="btn secondary" confirmLabel={archived ? 'Reativar' : 'Arquivar'} disabled={action.busy}
-        description={archived ? `Reativar «${it.name}»?` : `Arquivar «${it.name}»? O histórico mantém-se.`}
-        onConfirm={() => action.run(() => call('inv_item_archive', { p_section: section, p_item: it.id, p_archived: !archived, p_note: note || null }),
-          archived ? 'Artigo reativado.' : 'Artigo arquivado.')}>
-        {archived ? 'Reativar' : 'Arquivar artigo'}
-      </ConfirmButton>
+      <div className="btn-row">
+        <button type="button" className={archived ? 'btn' : 'btn danger-solid'} disabled={action.busy}
+          onClick={() => action.run(() => call('inv_item_archive', { p_section: section, p_item: it.id, p_archived: !archived, p_note: note || null }),
+            archived ? 'Artigo reativado.' : 'Artigo arquivado.')}>
+          {archived ? 'Reativar' : 'Arquivar artigo'}
+        </button>
+        <button type="button" className="btn secondary" onClick={() => onDone()}>Cancelar</button>
+      </div>
     </section>
   );
 }

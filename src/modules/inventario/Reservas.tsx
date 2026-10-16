@@ -11,13 +11,13 @@ export function Reservas() {
   const res = useReservations(past);
   return (
     <div className="inv-page">
-      <PageTitle title="Reservas" subtitle="Material guardado para atividades." />
+      <PageTitle title="Reservas"
+        info={ov.data?.can_manage ? 'Para reservar, abre o artigo e usa «Reservar» (no menu «Mais»). A reserva pode herdar o período de uma atividade do calendário.' : undefined} />
       <InvTabs />
       <div className="filter-chips" role="radiogroup" aria-label="Reservas">
         <label className="filter-chip"><input type="radio" name="inv-res" checked={!past} onChange={() => setParams({}, { replace: true })} /> Ativas</label>
         <label className="filter-chip"><input type="radio" name="inv-res" checked={past} onChange={() => setParams({ ver: 'terminadas' }, { replace: true })} /> Terminadas e canceladas</label>
       </div>
-      {ov.data?.can_manage && !past && <p className="faint prose">Para reservar, abre o artigo e usa «Reservar». A reserva pode herdar o período de uma atividade do calendário.</p>}
       {res.isLoading ? <Loading /> : res.error ? <ErrorBox error={res.error} retry={() => res.refetch()} /> : (res.data ?? []).length === 0 ? (
         <div className="card"><Empty title={past ? 'Sem reservas terminadas.' : 'Não há reservas ativas.'} /></div>
       ) : (
