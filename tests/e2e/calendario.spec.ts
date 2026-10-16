@@ -247,11 +247,11 @@ test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', as
   await expect(page.getByRole('dialog')).toContainText('Sem atividades neste dia.');
   await page.getByRole('dialog').getByRole('link', { name: 'Nova atividade neste dia' }).click();
   await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
-  await expect(page.getByLabel('Início', { exact: true })).toHaveValue(fmt(target));
-  await expect(page.getByLabel('Hora de início')).toHaveValue('10:00');
-  await page.getByLabel('Título').fill('Jogo de cidade (teste)');
-  await page.getByLabel('Dia inteiro (um ou vários dias)').check();
-  await expect(page.getByLabel('Primeiro dia')).toHaveValue(fmt(target));
+  // Formulário simples: evento, data e notas; o resto fica em «Mais opções».
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(fmt(target));
+  await expect(page.getByLabel('Hora de início')).toBeHidden();
+  await page.getByLabel('Evento', { exact: true }).fill('Jogo de cidade (teste)');
+  await page.getByText('Mais opções').click();
   const last = lisbonDay(isoIn(11 * D));
   await page.getByLabel('Último dia').fill(last);
   await noHorizontalScroll(page);
@@ -324,14 +324,17 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await page.locator('main').getByRole('link', { name: 'Nova atividade' }).click();
   await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'Criar atividade' }).click();
-  await expect(page.getByText('Indica o título da atividade.')).toBeVisible();
-  await page.getByLabel('Título').fill('Fogo de conselho (teste)');
-  await page.getByLabel('Local (opcional)').fill('Sede (teste)');
-  await page.getByLabel('Início', { exact: true }).fill('2026-10-25T10:00');
-  await page.getByLabel('Fim', { exact: true }).fill('2026-10-25T09:00');
+  await expect(page.getByText('Indica o nome do evento.')).toBeVisible();
+  await page.getByLabel('Evento', { exact: true }).fill('Fogo de conselho (teste)');
+  await page.getByLabel('Data', { exact: true }).fill('25/10/2026');
+  await page.getByLabel('Notas (opcional)').fill('Trazer lenha.');
+  await page.getByText('Mais opções').click();
+  await page.getByLabel('Local', { exact: true }).fill('Sede (teste)');
+  await page.getByLabel('Hora de início').fill('10:00');
+  await page.getByLabel('Hora de fim').fill('09:00');
   await page.getByRole('button', { name: 'Criar atividade' }).click();
   await expect(page.getByText('O fim não pode ser antes do início.')).toBeVisible();
-  await page.getByLabel('Fim', { exact: true }).fill('2026-10-25T12:00');
+  await page.getByLabel('Hora de fim').fill('12:00');
   await page.getByLabel('Pede autorização').check();
   await page.getByLabel('1 hora').check();
   await noHorizontalScroll(page);
@@ -340,7 +343,7 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Fogo de conselho (teste)', level: 1 })).toBeVisible();
   const body = cal.calls.find((c) => c.fn === 'cal_create_event')!.body;
   // 25/10/2026 já é hora de inverno (UTC+0)
-  expect(body.p_data).toMatchObject({ starts_at: '2026-10-25T10:00:00.000Z', ends_at: '2026-10-25T12:00:00.000Z', needs_authorization: true, reminder_minutes: [1440, 60] });
+  expect(body.p_data).toMatchObject({ description: 'Trazer lenha.', all_day: false, starts_at: '2026-10-25T10:00:00.000Z', ends_at: '2026-10-25T12:00:00.000Z', needs_authorization: true, reminder_minutes: [1440, 60] });
   await expect(page.locator('main .cal-facts')).toContainText('Início25/10/2026 · 10:00');
   await expect(page.locator('main .cal-facts')).toContainText('Fim25/10/2026 · 12:00');
 });

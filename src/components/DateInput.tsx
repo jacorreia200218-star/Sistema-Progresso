@@ -109,16 +109,24 @@ export function DateTimeInput({ value, onChange, min, max, id, disabled, timeLab
       <DateInput {...rest} id={id} disabled={disabled} value={day} min={min?.slice(0, 10)} max={max?.slice(0, 10)}
         onChange={(e) => { setDay(e.target.value); emit(e.target.value, time); }}
         onDateTime={(d, t) => { setDay(d); setTime(t); emit(d, t); }} />
-      <input type="text" inputMode="numeric" autoComplete="off" placeholder="hh:mm" maxLength={5} className="time-input"
-        aria-label={timeLabel} id={id ? `${id}-hora` : undefined} disabled={disabled}
-        value={time}
-        onChange={(e) => {
-          let t = e.target.value.replace(/[^\d:h]/gi, '');
-          if (/^\d{3,4}$/.test(t)) t = `${t.slice(0, t.length - 2)}:${t.slice(-2)}`;
-          setTime(t);
-          emit(day, t);
-        }}
-        onBlur={() => { const t = parseTimeText(time); if (t) setTime(t); }} />
+      <TimeInput aria-label={timeLabel} id={id ? `${id}-hora` : undefined} disabled={disabled} value={time}
+        onChange={(e) => { setTime(e.target.value); emit(day, e.target.value); }} />
     </span>
+  );
+}
+
+/** Hora em 24 horas (hh:mm). Devolve o texto escrito; use parseTimeText para validar. */
+export function TimeInput({ value, onChange, className, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
+  value: string; onChange: (e: ValueEvent) => void;
+}) {
+  return (
+    <input {...rest} type="text" inputMode="numeric" autoComplete="off" placeholder="hh:mm" maxLength={5}
+      className={`time-input${className ? ` ${className}` : ''}`} value={value}
+      onChange={(e) => {
+        let t = e.target.value.replace(/[^\d:h]/gi, '');
+        if (/^\d{3,4}$/.test(t)) t = `${t.slice(0, t.length - 2)}:${t.slice(-2)}`;
+        onChange({ target: { value: t } });
+      }}
+      onBlur={(e) => { const t = parseTimeText(value); if (t && t !== value) onChange({ target: { value: t } }); rest.onBlur?.(e); }} />
   );
 }

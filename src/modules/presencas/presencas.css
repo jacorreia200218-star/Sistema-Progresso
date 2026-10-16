@@ -31,9 +31,7 @@
 .module-presencas .pres-por_registar, .module-presencas .pres-futura, .module-presencas .pres-cancelada { background: var(--muted-tint); color: var(--ink-faint); }
 
 /* Fórmula */
-.module-presencas .pres-formula summary, .module-presencas .pres-details summary { cursor: pointer; font-weight: 700; min-height: 36px; display: flex; align-items: center; }
-.module-presencas .pres-formula-eq { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; text-align: center; margin: 8px 0; line-height: 1.6; }
-.module-presencas .pres-formula ul { padding-left: 18px; }
+.module-presencas .pres-details summary { cursor: pointer; font-weight: 700; min-height: 36px; display: flex; align-items: center; }
 
 /* Indicadores */
 .module-presencas .pres-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); gap: 8px; }

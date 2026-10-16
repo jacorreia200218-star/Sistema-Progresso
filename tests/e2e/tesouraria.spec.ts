@@ -141,13 +141,8 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   const heights = await page.locator('.fin-kpis .stat').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
   expect(heights).toHaveLength(3);
   expect(new Set(heights).size).toBe(1);
-  // Fórmula com os números e saldo inicial identificado (em «Mais informação»); regra dos movimentos anteriores
-  await expect(page.getByTestId('formula')).toBeHidden();
-  await page.getByText('Como se calcula o saldo atual').click();
-  await expect(page.getByTestId('formula')).toHaveText('Saldo atual = Saldo inicial + Receitas − Despesas');
-  await expect(page.getByTestId('formula-valores')).toHaveText('110,30 € = 100,00 € + 15,30 € − 5,00 €');
-  await expect(page.getByTestId('saldo-inicial')).toContainText('100,00 € em 01/09/2026');
-  await expect(page.getByTestId('anteriores')).toContainText('já incluídos no saldo inicial');
+  // Sem texto explicativo da fórmula
+  await expect(page.getByText('Como se calcula o saldo atual')).toHaveCount(0);
   // Gráfico com descrição e tabela alternativa
   const chart = page.getByRole('img', { name: 'Evolução do saldo' });
   await expect(chart).toBeVisible();

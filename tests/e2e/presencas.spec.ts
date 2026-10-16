@@ -192,9 +192,8 @@ test('quadro: membros e sessões, taxa com fórmula, filtros no endereço, sem r
   await expect(pedro.locator('td.pres-num').last()).toHaveText('50 %');
   const rita = table.locator('tbody tr', { has: page.getByRole('link', { name: 'Rita Teste', exact: true }) });
   await expect(rita.locator('td.pres-num').last()).toHaveText('0 %');
-  // Fórmula definida e visível.
-  await page.getByText('Como se calcula a taxa de assiduidade').click();
-  await expect(page.getByText('Presenças ÷ (Presenças + Faltas justificadas + Faltas injustificadas) × 100')).toBeVisible();
+  // Sem texto explicativo da fórmula.
+  await expect(page.getByText('Como se calcula a taxa de assiduidade')).toHaveCount(0);
   await expect(page.getByText(/ranking|classificação \d/i)).toHaveCount(0);
 
   // Filtros: equipa e mês ficam no endereço e sobrevivem ao recarregar.
@@ -283,19 +282,21 @@ test('nova sessão a partir de uma atividade do Calendário', async ({ page }) =
   await page.goto('/presencas');
   await page.getByRole('link', { name: 'Nova sessão' }).click();
   await page.getByRole('button', { name: 'Criar sessão' }).click();
-  await expect(page.getByText('Indica o título.')).toBeVisible();
-  await page.getByLabel('Atividade do Calendário').check();
-  await page.getByLabel('Atividade', { exact: true }).selectOption('ev1');
-  await expect(page.getByLabel('Título')).toHaveValue('Acampamento de outono');
-  await expect(page.getByLabel('Data')).toHaveValue(day(-3).split('-').reverse().join('/'));
+  await expect(page.getByText('Indica o nome do evento.')).toBeVisible();
+  // Formulário simples: evento, data e notas; a ligação ao Calendário fica em «Mais opções».
+  await expect(page.getByLabel('Atividade do Calendário')).toBeHidden();
+  await page.getByText('Mais opções').click();
+  await page.getByLabel('Atividade do Calendário').selectOption('ev1');
+  await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Acampamento de outono');
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(day(-3).split('-').reverse().join('/'));
   await page.getByRole('button', { name: 'Criar sessão' }).click();
   await expect(page.getByRole('heading', { name: 'Acampamento de outono' })).toBeVisible();
   await expect(page.getByText(/Ligada à atividade do Calendário «Acampamento de outono»/)).toBeVisible();
   expect(S.calls.find((c) => c.fn === 'pres_session_save')).toMatchObject({ p_cal_event: 'ev1', p_kind: 'atividade', p_date: day(-3) });
   // A atividade deixa de aparecer nas opções (uma sessão por atividade).
   await page.goto('/presencas/nova');
-  await page.getByLabel('Atividade do Calendário').check();
-  await expect(page.getByText('Não há atividades do Calendário disponíveis.')).toBeVisible();
+  await page.getByText('Mais opções').click();
+  await expect(page.getByLabel('Atividade do Calendário').locator('option[value="ev1"]')).toHaveCount(0);
 });
 
 test('telemóvel: vista por sessão e por pessoa em vez do quadro largo', async ({ page }) => {

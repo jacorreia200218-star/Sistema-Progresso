@@ -8,7 +8,7 @@ import { formatDay, todayLisbon } from '../common';
 import { useModuleCtx } from '../ModuleShell';
 import { formatRate, KIND_LABEL, useBoard, useNarrow, type Board, type Cell, type Stats } from './api';
 import { MemberView } from './MemberPage';
-import { Filters, Formula, Legend, markLabel, periodQuery, StatsTiles, StatusMark, useParam, usePeriod } from './parts';
+import { Filters, Legend, markLabel, periodQuery, StatsTiles, StatusMark, useParam, usePeriod } from './parts';
 
 type View = 'quadro' | 'sessoes' | 'pessoas' | 'resumo';
 
@@ -64,7 +64,6 @@ function RegisterHome() {
       {d && view === 'sessoes' && <SessionList d={d} />}
       {d && view === 'pessoas' && <PeopleList d={d} />}
       {d && view === 'resumo' && <Summary d={d} />}
-      <Formula />
     </div>
   );
 }

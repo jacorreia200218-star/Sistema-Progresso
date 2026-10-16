@@ -42,10 +42,6 @@
 .fin-neg, .fin-amount.neg { color: var(--danger-ink); }
 
 /* Fórmula do saldo (em «Mais informação») */
-.fin-formula p { margin: 0 0 6px; }
-.fin-formula-text { font-weight: 700; color: var(--ink); }
-.fin-formula-text span { white-space: nowrap; }
-.fin-formula-nums { font-variant-numeric: tabular-nums; color: var(--ink); overflow-wrap: anywhere; }
 .fin-opening { margin: 0 0 6px; color: var(--ink); }
 .fin-opening-list { list-style: none; padding: 0; margin: 4px 0 0; }
 

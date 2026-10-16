@@ -294,14 +294,17 @@ test('criar reunião e ata, registos por definir, aprovar, corrigir com nova ver
   await main.getByRole('link', { name: 'Nova reunião' }).click();
   await expect(page).toHaveURL(new RegExp(`${BASE}/nova$`));
   await main.getByRole('button', { name: 'Criar reunião' }).click();
-  await expect(main.getByText('Escolhe o tipo de reunião.')).toBeVisible();
+  await expect(main.getByText('Indica o nome da reunião.')).toBeVisible();
+  // Formulário simples: reunião, data e notas; o resto fica em «Mais opções».
+  await expect(main.getByLabel('Tipo')).toBeHidden();
+  await main.getByLabel('Reunião', { exact: true }).fill('Conselho de novembro');
+  await main.getByLabel('Data e hora').fill('2026-11-07T15:00');
+  await main.getByLabel('Notas (opcional)').fill('1. Atividade de Natal\n2. Quotas');
+  await main.getByText('Mais opções').click();
   await main.getByLabel('Tipo').selectOption('equipa');
   await expect(main.getByText('Veem: os membros dessa equipa e os dirigentes autorizados.')).toBeVisible();
   await main.getByLabel('Equipa', { exact: true }).selectOption('teamA');
-  await main.getByLabel('Título').fill('Conselho de novembro');
-  await main.getByLabel('Data e hora').fill('2026-11-07T15:00');
-  await main.getByLabel('Assuntos (ordem de trabalhos)').fill('1. Atividade de Natal\n2. Quotas');
-  await main.getByLabel('Atividade relacionada (opcional)').selectOption('ev1');
+  await main.getByLabel('Atividade relacionada').selectOption('ev1');
   await main.getByRole('group', { name: 'Participantes' }).getByLabel('Pedro Teste').check();
   await noHorizontalScroll(page);
   await main.getByRole('button', { name: 'Criar reunião' }).click();

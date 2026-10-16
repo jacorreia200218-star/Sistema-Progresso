@@ -6,7 +6,7 @@ import { Empty, ErrorBox, Loading, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { formatDay, todayLisbon } from '../common';
 import { KIND_LABEL, useSectionId, type MemberDetail } from './api';
-import { Filters, Formula, HistoryList, periodQuery, StatsTiles, StatusMark, usePeriod } from './parts';
+import { Filters, HistoryList, periodQuery, StatsTiles, StatusMark, usePeriod } from './parts';
 
 export function MemberPage() {
   const { id = '' } = useParams();
@@ -70,8 +70,7 @@ export function MemberView({ membershipId, self }: { membershipId: string; self?
             <summary>Histórico de correções</summary>
             <HistoryList rows={d.history} showSession />
           </details>
-          <Formula />
-        </>
+            </>
       )}
     </>
   );

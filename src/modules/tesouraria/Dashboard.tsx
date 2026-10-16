@@ -3,7 +3,7 @@
 // atividade, totais por categoria e saldo por conta. Filtros (ano escutista, mês, atividade) no URL.
 import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Minus, Plus, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
-import { Badge, Empty, ErrorBox, Loading, MoreInfo, MoreMenu, Notice } from '../../components/ui';
+import { Badge, Empty, ErrorBox, Loading, MoreMenu } from '../../components/ui';
 import { downloadFile, formatDay, formatEuros, todayLisbon, toCsv } from '../common';
 import { STATE_LABEL, STATE_TONE, csvEuros, filtersFrom, periodLabel, useDashboard, type Dashboard as D, type SharedMovement } from './api';
 import { BalanceChart } from './BalanceChart';
@@ -87,7 +87,6 @@ export function Dashboard() {
               Resultado do período:{' '}
               <strong className={`fin-num${d.totals.efetivo.saldo < 0 ? ' fin-neg' : ''}`} data-testid="resultado-periodo">{formatEuros(d.totals.efetivo.saldo)}</strong>
             </p>
-            <Formula d={d} canManage={canManage} />
           </section>
 
           {d.activity && (
@@ -201,52 +200,6 @@ export function Dashboard() {
         </>
       )}
     </div>
-  );
-}
-
-/** A fórmula do saldo atual, com os números e a regra do saldo inicial. */
-function Formula({ d, canManage }: { d: D; canManage: boolean }) {
-  const c = d.current;
-  const o = d.opening;
-  return (
-    <MoreInfo label="Como se calcula o saldo atual">
-      <div className="fin-formula">
-      <p className="fin-formula-text" data-testid="formula">
-        <span>Saldo atual</span> = <span>Saldo inicial</span> + <span>Receitas</span> − <span>Despesas</span>
-      </p>
-      <p className="fin-formula-nums" data-testid="formula-valores">
-        <strong>{formatEuros(c.saldo)}</strong> = {formatEuros(c.saldo_inicial)} + {formatEuros(c.receitas)} − {formatEuros(c.despesas)}
-      </p>
-      {o.mode === 'nenhum' ? (
-        <Notice kind="info">
-          Ainda não foi definido um saldo inicial: o cálculo parte de 0,00 € e soma todos os movimentos efetivos.
-          {canManage && <> <Link to="/tesouraria/contas">Definir o saldo inicial</Link>.</>}
-        </Notice>
-      ) : (
-        <div className="fin-opening" data-testid="saldo-inicial">
-          <strong>Saldo inicial:</strong>{' '}
-          {o.mode === 'global'
-            ? <>{formatEuros(o.total)} em {formatDay(o.reference_date!)} (todas as contas e caixas)</>
-            : (
-              <ul className="fin-opening-list">
-                {o.items.map((i) => <li key={i.id}>{i.account_name}: {formatEuros(i.amount_cents)} em {formatDay(i.reference_date)}</li>)}
-              </ul>
-            )}
-        </div>
-      )}
-      <p>
-        Receitas e despesas são os movimentos <strong>efetivos</strong> e não anulados desde a data do saldo inicial, em todos os períodos
-        (não dependem dos filtros). Os pendentes e previstos aparecem à parte e não entram no saldo. O saldo inicial é o dinheiro que havia
-        no início desse dia: os movimentos com data anterior já estão incluídos nele, por isso ficam registados mas não somam outra vez.
-      </p>
-      {d.before_opening.count > 0 && (
-        <p data-testid="anteriores">
-          {d.before_opening.count === 1 ? 'Há 1 movimento efetivo' : `Há ${d.before_opening.count} movimentos efetivos`} com data anterior ao saldo
-          inicial (receitas {formatEuros(d.before_opening.receitas)}, despesas {formatEuros(d.before_opening.despesas)}): já incluídos no saldo inicial, não contam de novo.
-        </p>
-      )}
-      </div>
-    </MoreInfo>
   );
 }
 

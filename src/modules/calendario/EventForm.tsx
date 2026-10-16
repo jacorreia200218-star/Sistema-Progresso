@@ -5,17 +5,19 @@ import { useQuery } from '@tanstack/react-query';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
-import { ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
+import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { formatDay, isoToLisbon, lisbonToIso, todayLisbon } from '../common';
+import { isoToLisbon, lisbonToIso, todayLisbon } from '../common';
 import { REMINDER_OPTIONS, type CalDetail } from './cal';
-import { DateInput, DateTimeInput } from '../../components/DateInput';
+import { DateInput, DateTimeInput, TimeInput } from '../../components/DateInput';
+import { parseTimeText } from '../../lib/dates';
 
 type Options = { teams: { id: string; name: string }[]; members: { id: string; name: string; function: string | null; team_id: string | null }[] };
 
 interface FormState {
-  title: string; description: string; location: string; all_day: boolean;
-  start: string; end: string; startDay: string; endDay: string;
+  title: string; description: string; location: string;
+  /** Sem hora de início, a atividade é de dia inteiro. */
+  startDay: string; endDay: string; startTime: string; endTime: string;
   audience: 'seccao' | 'equipa'; team_id: string; responsible_id: string; deadline: string;
   needs_authorization: boolean; needs_payment: boolean; needs_registration: boolean; material: string;
   reminder_minutes: number[]; deadline_reminder_minutes: number[];
@@ -23,37 +25,48 @@ interface FormState {
 
 /** Nova atividade; «day» (AAAA-MM-DD) vem do dia escolhido no calendário anual. */
 const empty = (day = todayLisbon()): FormState => ({
-  title: '', description: '', location: '', all_day: false,
-  start: `${day}T10:00`, end: `${day}T12:00`, startDay: day, endDay: day,
+  title: '', description: '', location: '',
+  startDay: day, endDay: '', startTime: '', endTime: '',
   audience: 'seccao', team_id: '', responsible_id: '', deadline: '',
   needs_authorization: false, needs_payment: false, needs_registration: false, material: '',
   reminder_minutes: [1440], deadline_reminder_minutes: [1440],
 });
 
 const fromEvent = (e: CalDetail): FormState => ({
-  title: e.title, description: e.description ?? '', location: e.location ?? '', all_day: e.all_day,
-  start: e.starts_at ? isoToLisbon(e.starts_at) : `${e.start_date}T10:00`,
-  end: e.ends_at ? isoToLisbon(e.ends_at) : `${e.end_date}T12:00`,
-  startDay: e.start_date ?? isoToLisbon(e.starts_at!).slice(0, 10),
-  endDay: e.end_date ?? isoToLisbon(e.ends_at!).slice(0, 10),
+  title: e.title, description: e.description ?? '', location: e.location ?? '',
+  startDay: e.all_day ? e.start_date! : isoToLisbon(e.starts_at!).slice(0, 10),
+  endDay: e.all_day ? (e.end_date !== e.start_date ? e.end_date ?? '' : '') : sameOr(isoToLisbon(e.ends_at!).slice(0, 10), isoToLisbon(e.starts_at!).slice(0, 10)),
+  startTime: e.all_day ? '' : isoToLisbon(e.starts_at!).slice(11, 16),
+  endTime: e.all_day ? '' : isoToLisbon(e.ends_at!).slice(11, 16),
   audience: e.audience, team_id: e.team_id ?? '', responsible_id: e.responsible_id ?? '',
   deadline: e.registration_deadline ? isoToLisbon(e.registration_deadline) : '',
   needs_authorization: e.needs_authorization, needs_payment: e.needs_payment, needs_registration: e.needs_registration,
   material: e.material ?? '', reminder_minutes: e.reminder_minutes, deadline_reminder_minutes: e.deadline_reminder_minutes,
 });
 
+/** Último dia só quando é diferente do primeiro. */
+const sameOr = (end: string, start: string) => (end === start ? '' : end);
+
+/** Início e fim («AAAA-MM-DDTHH:MM») de uma atividade com hora; null se for de dia inteiro. */
+function times(f: FormState) {
+  const st = parseTimeText(f.startTime);
+  if (!st) return null;
+  const et = parseTimeText(f.endTime) ?? st;
+  return { start: `${f.startDay}T${st}`, end: `${f.endDay || f.startDay}T${et}` };
+}
+
 function validate(f: FormState): Record<string, string> {
   const err: Record<string, string> = {};
-  if (!f.title.trim()) err.title = 'Indica o título da atividade.';
-  if (f.all_day) {
-    if (!f.startDay) err.start = 'Indica o dia de início.';
-    else if (f.endDay && f.endDay < f.startDay) err.end = 'O fim não pode ser antes do início.';
-  } else {
-    if (!f.start) err.start = 'Indica o dia e a hora de início.';
-    else if (f.end && f.end < f.start) err.end = 'O fim não pode ser antes do início.';
-  }
+  if (!f.title.trim()) err.title = 'Indica o nome do evento.';
+  if (!f.startDay) err.start = 'Indica a data.';
+  else if (f.endDay && f.endDay < f.startDay) err.end = 'O último dia não pode ser antes da data.';
+  if (f.startTime.trim() && !parseTimeText(f.startTime)) err.time = 'Escreve a hora como 09:30.';
+  else if (f.endTime.trim() && !parseTimeText(f.endTime)) err.time = 'Escreve a hora como 09:30.';
+  else if (!f.startTime.trim() && f.endTime.trim()) err.time = 'Indica também a hora de início.';
+  const t = times(f);
+  if (t && f.startDay && t.end < t.start) err.time = 'O fim não pode ser antes do início.';
   if (f.deadline) {
-    const limit = f.all_day ? `${f.startDay}T23:59` : f.start;
+    const limit = t ? t.start : `${f.startDay}T23:59`;
     if (f.deadline > limit) err.deadline = 'O prazo de inscrição tem de terminar antes do início da atividade.';
   }
   if (f.audience === 'equipa' && !f.team_id) err.team = 'Escolhe a equipa.';
@@ -101,10 +114,11 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
     const err = validate(f);
     setErrors(err);
     if (Object.keys(err).length) return;
+    const t = times(f);
     const data = {
-      title: f.title.trim(), description: f.description, location: f.location, all_day: f.all_day,
-      ...(f.all_day ? { start_date: f.startDay, end_date: f.endDay || f.startDay }
-        : { starts_at: lisbonToIso(f.start), ends_at: lisbonToIso(f.end || f.start) }),
+      title: f.title.trim(), description: f.description, location: f.location, all_day: !t,
+      ...(t ? { starts_at: lisbonToIso(t.start), ends_at: lisbonToIso(t.end) }
+        : { start_date: f.startDay, end_date: f.endDay || f.startDay }),
       audience: f.audience, team_id: f.audience === 'equipa' ? f.team_id : null, responsible_id: f.responsible_id || null,
       registration_deadline: f.deadline ? lisbonToIso(f.deadline) : null,
       needs_authorization: f.needs_authorization, needs_payment: f.needs_payment, needs_registration: f.needs_registration,
@@ -121,48 +135,47 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
     }
   };
 
+  // Abre as opções quando já têm valores (ao alterar) ou quando há erros nelas.
+  const moreOpen = !!event && (!event.all_day || !!f.endDay || !!f.location || f.audience !== 'seccao' || !!f.responsible_id || !!f.deadline
+    || f.needs_authorization || f.needs_payment || f.needs_registration || !!f.material)
+    || ['time', 'end', 'team', 'deadline'].some((k) => errors[k]);
   const errId = (k: string) => (errors[k] ? `cal-err-${k}` : undefined);
   const Err = ({ k }: { k: string }) => (errors[k] ? <p className="field-error" id={`cal-err-${k}`}>{errors[k]}</p> : null);
 
   return (
     <>
       <PageTitle title={title} back="/calendario" />
-      {!event && preset && <p className="faint">Dia escolhido no calendário: {formatDay(f.startDay)}. Podes mudar as datas e horas abaixo.</p>}
-      <form className="card cal-form" onSubmit={submit} noValidate>
+            <form className="card cal-form" onSubmit={submit} noValidate>
         {Object.keys(errors).length > 0 && <Notice kind="error">Revê os campos assinalados.</Notice>}
-        <Field label="Título" htmlFor="cal-title">
+        <Field label="Evento" htmlFor="cal-title">
           <input id="cal-title" maxLength={200} value={f.title} onChange={(e) => set('title', e.target.value)} aria-invalid={!!errors.title} aria-describedby={errId('title')} />
         </Field>
         <Err k="title" />
-        <Field label="Descrição (opcional)" htmlFor="cal-desc">
+        <Field label="Data" htmlFor="cal-sd">
+          <DateInput id="cal-sd" value={f.startDay} onChange={(e) => set('startDay', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} />
+        </Field>
+        <Err k="start" />
+        <Field label="Notas (opcional)" htmlFor="cal-desc">
           <textarea id="cal-desc" rows={3} maxLength={5000} value={f.description} onChange={(e) => set('description', e.target.value)} />
         </Field>
-        <Field label="Local (opcional)" htmlFor="cal-loc">
-          <input id="cal-loc" maxLength={300} value={f.location} onChange={(e) => set('location', e.target.value)} />
-        </Field>
+
+        <MoreOptions open={moreOpen}>
+          <fieldset>
+            <legend className="label">Horário e duração</legend>
+            <div className="cal-time-row">
+              <Field label="Hora de início" htmlFor="cal-st"><TimeInput id="cal-st" className="time-field" value={f.startTime} onChange={(e) => set('startTime', e.target.value)} aria-invalid={!!errors.time} aria-describedby={errId('time')} /></Field>
+              <Field label="Hora de fim" htmlFor="cal-et"><TimeInput id="cal-et" className="time-field" value={f.endTime} onChange={(e) => set('endTime', e.target.value)} aria-invalid={!!errors.time} aria-describedby={errId('time')} /></Field>
+              <Field label="Último dia" htmlFor="cal-ed"><DateInput id="cal-ed" value={f.endDay} min={f.startDay} onChange={(e) => set('endDay', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
+            </div>
+            <Err k="time" /><Err k="end" />
+            <p className="faint">Sem hora, conta como dia inteiro. Último dia só se durar vários dias.</p>
+          </fieldset>
+          <Field label="Local" htmlFor="cal-loc">
+            <input id="cal-loc" maxLength={300} value={f.location} onChange={(e) => set('location', e.target.value)} />
+          </Field>
 
         <fieldset className="cal-fieldset">
-          <legend className="label">Quando</legend>
-          <label className="checkbox"><input type="checkbox" checked={f.all_day} onChange={(e) => set('all_day', e.target.checked)} /> Dia inteiro (um ou vários dias)</label>
-          <div className="grid-2">
-            {f.all_day ? (
-              <>
-                <Field label="Primeiro dia" htmlFor="cal-sd"><DateInput id="cal-sd" value={f.startDay} onChange={(e) => set('startDay', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} /></Field>
-                <Field label="Último dia" htmlFor="cal-ed"><DateInput id="cal-ed" value={f.endDay} min={f.startDay} onChange={(e) => set('endDay', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
-              </>
-            ) : (
-              <>
-                <Field label="Início" htmlFor="cal-s"><DateTimeInput timeLabel="Hora de início" id="cal-s" value={f.start} onChange={(e) => set('start', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} /></Field>
-                <Field label="Fim" htmlFor="cal-e"><DateTimeInput timeLabel="Hora de fim" id="cal-e" value={f.end} min={f.start} onChange={(e) => set('end', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
-              </>
-            )}
-          </div>
-          <Err k="start" /><Err k="end" />
-          <p className="faint">Horas de Portugal continental (Lisboa).</p>
-        </fieldset>
-
-        <fieldset className="cal-fieldset">
-          <legend className="label">Secção ou equipa envolvida</legend>
+          <legend className="label">Para quem</legend>
           <div className="radio-row">
             <label className="radio"><input type="radio" name="aud" checked={f.audience === 'seccao'} onChange={() => set('audience', 'seccao')} /> Toda a secção</label>
             <label className="radio"><input type="radio" name="aud" checked={f.audience === 'equipa'} onChange={() => set('audience', 'equipa')} /> Uma equipa</label>
@@ -176,7 +189,7 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
             </Field>
           )}
           <Err k="team" />
-          <Field label="Responsável (opcional)" htmlFor="cal-resp">
+          <Field label="Responsável" htmlFor="cal-resp">
             <select id="cal-resp" value={f.responsible_id} onChange={(e) => set('responsible_id', e.target.value)}>
               <option value="">Sem responsável</option>
               {options.members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -186,14 +199,14 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
 
         <fieldset className="cal-fieldset">
           <legend className="label">Inscrição e pendências</legend>
-          <Field label="Prazo de inscrição (opcional)" htmlFor="cal-dl" hint="Depois do prazo, só os dirigentes e gestores podem mudar respostas.">
+          <Field label="Prazo de inscrição" htmlFor="cal-dl" hint="Depois do prazo, só os dirigentes e gestores podem mudar respostas.">
             <DateTimeInput timeLabel="Hora do prazo de inscrição" id="cal-dl" value={f.deadline} onChange={(e) => set('deadline', e.target.value)} aria-invalid={!!errors.deadline} aria-describedby={errId('deadline')} />
           </Field>
           <Err k="deadline" />
           <label className="checkbox"><input type="checkbox" checked={f.needs_authorization} onChange={(e) => set('needs_authorization', e.target.checked)} /> Pede autorização</label>
           <label className="checkbox"><input type="checkbox" checked={f.needs_payment} onChange={(e) => set('needs_payment', e.target.checked)} /> Pede pagamento</label>
           <label className="checkbox"><input type="checkbox" checked={f.needs_registration} onChange={(e) => set('needs_registration', e.target.checked)} /> Pede inscrição formal</label>
-          <Field label="Material a levar (opcional)" htmlFor="cal-mat">
+          <Field label="Material a levar" htmlFor="cal-mat">
             <textarea id="cal-mat" rows={2} maxLength={2000} value={f.material} onChange={(e) => set('material', e.target.value)} />
           </Field>
         </fieldset>
@@ -217,6 +230,7 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
             </>
           )}
         </fieldset>
+        </MoreOptions>
 
         <ErrorBox error={action.error} />
         <div className="btn-row">

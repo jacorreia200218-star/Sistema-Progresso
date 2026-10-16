@@ -1035,6 +1035,15 @@ dl.summary-list .quote { margin-top: 0; }
 .more-info > summary:hover { color: var(--accent-ink); }
 .more-info-body { font-size: var(--fs-small); color: var(--ink-soft); max-width: 68ch; margin: 2px 0 4px; }
 .more-info-body p { margin: 0 0 6px; }
+/* Campos opcionais recolhidos nos formulários */
+.more-options { margin: 14px 0 4px; border-top: 1px solid var(--line); padding-top: 10px; }
+.more-options > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: var(--fs-body); font-weight: 600; color: var(--accent-ink); min-height: 40px; }
+.more-options > summary::-webkit-details-marker { display: none; }
+.more-options > summary .more-chevron { transform: rotate(-90deg); transition: transform .15s; }
+.more-options[open] > summary .more-chevron { transform: none; }
+.more-options-body { padding-top: 4px; }
+.more-options-body > fieldset { border: 0; padding: 0; margin: 12px 0 0; min-width: 0; }
+.time-field { max-width: 140px; }
 
 .more-menu > summary { gap: 6px; }
 .more-menu > summary .more-chevron { color: var(--ink-faint); }

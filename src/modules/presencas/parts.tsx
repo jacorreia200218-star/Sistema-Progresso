@@ -30,25 +30,6 @@ export function StatusMark({ category, partial, compact }: { category: Category;
   );
 }
 
-/** Fórmula da taxa de assiduidade e o que conta (mostrada nas páginas com indicadores). */
-export function Formula({ open }: { open?: boolean }) {
-  return (
-    <details className="card flat pres-formula" open={open}>
-      <summary>Como se calcula a taxa de assiduidade</summary>
-      <p className="pres-formula-eq" aria-label="Taxa de assiduidade igual a presenças a dividir por presenças mais faltas justificadas mais faltas injustificadas, vezes cem">
-        <strong>Taxa de assiduidade</strong> = Presenças ÷ (Presenças + Faltas justificadas + Faltas injustificadas) × 100
-      </p>
-      <ul className="prose">
-        <li>Contam só sessões <strong>até hoje</strong>, <strong>não canceladas</strong>, <strong>aplicáveis</strong> à pessoa e <strong>com registo</strong>.</li>
-        <li>Não contam como faltas: sessões futuras, canceladas, de outra equipa, anteriores à entrada na secção (ou depois da saída) e as que estão por registar.</li>
-        <li>A participação parcial conta como presença e é indicada à parte. As faltas injustificadas também aparecem à parte.</li>
-        <li>Contam pioneiros e guias; os dirigentes não entram nas contas. Sem registos contados não há taxa («—»), nunca 0 %.</li>
-      </ul>
-      <p className="prose faint">A informação serve para acompanhamento: não há classificações nem ordenação por taxa.</p>
-    </details>
-  );
-}
-
 /** Indicadores de uma pessoa, equipa ou período. */
 export function StatsTiles({ stats, label }: { stats: Stats; label: string }) {
   const tiles: [string, number | string, string?][] = [

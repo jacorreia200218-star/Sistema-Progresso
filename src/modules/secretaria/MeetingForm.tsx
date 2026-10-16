@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
-import { ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
+import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatLisbon, isoToLisbon, lisbonToIso } from '../common';
@@ -47,7 +47,8 @@ export function MeetingForm() {
   const people = usePeople();
   const events = useEventOptions();
   const action = useAction();
-  const [kind, setKind] = useState<MeetingKind | ''>('');
+  // Por omissão, Conselho de Guias (veem os participantes e os dirigentes autorizados); muda-se em «Mais opções».
+  const [kind, setKind] = useState<MeetingKind | ''>('conselho_guias');
   const [team, setTeam] = useState('');
   const [title, setTitle] = useState('');
   const [when, setWhen] = useState('');
@@ -84,7 +85,7 @@ export function MeetingForm() {
     const errs: Record<string, string> = {};
     if (!kind) errs.kind = 'Escolhe o tipo de reunião.';
     if (kind === 'equipa' && !team) errs.team = 'Escolhe a equipa.';
-    if (!title.trim()) errs.title = 'Indica o título.';
+    if (!title.trim()) errs.title = 'Indica o nome da reunião.';
     if (!when) errs.when = 'Indica a data e a hora.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -106,6 +107,18 @@ export function MeetingForm() {
       <PageTitle title={id ? 'Alterar reunião' : 'Nova reunião'} back={id ? `${BASE}/reunioes/${id}` : BASE} />
       <ErrorBox error={people.error} />
       <form className="card sec-form" onSubmit={submit} noValidate>
+        <Field label="Reunião" htmlFor="sec-title">
+          <input id="sec-title" type="text" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!errors.title} />
+          {errors.title && <span className="sec-error">{errors.title}</span>}
+        </Field>
+        <Field label="Data e hora" htmlFor="sec-when">
+          <DateTimeInput timeLabel="Hora da reunião" id="sec-when" value={when} onChange={(e) => setWhen(e.target.value)} aria-invalid={!!errors.when} />
+          {errors.when && <span className="sec-error">{errors.when}</span>}
+        </Field>
+        <Field label="Notas (opcional)" htmlFor="sec-agenda">
+          <textarea id="sec-agenda" rows={3} maxLength={10000} value={agenda} placeholder="Assuntos a tratar, um por linha" onChange={(e) => setAgenda(e.target.value)} />
+        </Field>
+        <MoreOptions open={!!errors.kind || !!errors.team}>
         <div className="grid-2">
           <Field label="Tipo" htmlFor="sec-kind" hint={kind ? KIND_AUDIENCE[kind] : 'O tipo define quem pode ver a reunião e a ata.'}>
             <select id="sec-kind" value={kind} disabled={hasMinutes} aria-invalid={!!errors.kind}
@@ -126,23 +139,10 @@ export function MeetingForm() {
             </Field>
           )}
         </div>
-        <Field label="Título" htmlFor="sec-title">
-          <input id="sec-title" type="text" maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={!!errors.title} />
-          {errors.title && <span className="sec-error">{errors.title}</span>}
+        <Field label="Local" htmlFor="sec-location">
+          <input id="sec-location" type="text" maxLength={300} value={location} onChange={(e) => setLocation(e.target.value)} />
         </Field>
-        <div className="grid-2">
-          <Field label="Data e hora" htmlFor="sec-when">
-            <DateTimeInput timeLabel="Hora da reunião" id="sec-when" value={when} onChange={(e) => setWhen(e.target.value)} aria-invalid={!!errors.when} />
-            {errors.when && <span className="sec-error">{errors.when}</span>}
-          </Field>
-          <Field label="Local (opcional)" htmlFor="sec-location">
-            <input id="sec-location" type="text" maxLength={300} value={location} onChange={(e) => setLocation(e.target.value)} />
-          </Field>
-        </div>
-        <Field label="Assuntos (ordem de trabalhos)" htmlFor="sec-agenda" hint="Um assunto por linha.">
-          <textarea id="sec-agenda" rows={4} maxLength={10000} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
-        </Field>
-        <Field label="Atividade relacionada (opcional)" htmlFor="sec-event">
+        <Field label="Atividade relacionada" htmlFor="sec-event">
           <select id="sec-event" value={event} onChange={(e) => setEvent(e.target.value)}>
             <option value="">Sem ligação</option>
             {eventOptions.map((ev) => <option key={ev.id} value={ev.id}>{formatLisbon(ev.starts_at)} · {ev.title}</option>)}
@@ -165,6 +165,7 @@ export function MeetingForm() {
             </fieldset>
           </>
         )}
+        </MoreOptions>
         <ErrorBox error={action.error} />
         {Object.keys(errors).length > 0 && <Notice kind="error">Revê os campos assinalados.</Notice>}
         <div className="btn-row">

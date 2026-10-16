@@ -138,6 +138,16 @@ export function MoreInfo({ children, label = 'Mais informação' }: { children: 
   );
 }
 
+/** Campos opcionais de um formulário, recolhidos por omissão (abre sozinho quando já há algo preenchido). */
+export function MoreOptions({ children, open, label = 'Mais opções' }: { children: ReactNode; open?: boolean; label?: string }) {
+  return (
+    <details className="more-options" open={open}>
+      <summary><ChevronDown size={16} aria-hidden="true" className="more-chevron" /> {label}</summary>
+      <div className="more-options-body">{children}</div>
+    </details>
+  );
+}
+
 /** Menu «Mais» para ações secundárias. Fecha ao escolher, ao clicar fora e com Escape. */
 export function MoreMenu({ children, label = 'Mais', className = '' }: { children: ReactNode; label?: string; className?: string }) {
   const ref = useRef<HTMLDetailsElement>(null);
