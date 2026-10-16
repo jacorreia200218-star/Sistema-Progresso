@@ -11,17 +11,19 @@ import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitl
 import { listModuleFiles } from '../files';
 import { useModuleCtx } from '../ModuleShell';
 import { LoanCard, LoanForm, ReservationCard, ReservationForm, Section, StateBadges, useFormAction } from './parts';
+import { PurchaseCard, PurchaseForm } from './Comprar';
 import {
-  MOVEMENT_LABEL, PIECE_LABEL, PIECE_TONE, STATE_LABEL, qty, useItem, useOverview, useSectionId, when,
+  CONSERVATION_LABEL, CONSERVATION_TONE, MOVEMENT_LABEL, PIECE_LABEL, PIECE_TONE, STATE_LABEL, placeParts, qty, useItem, useOverview, useSectionId, when,
   type Condition, type ItemDetail, type Piece,
 } from './api';
 
-type Panel = 'emprestar' | 'pedir' | 'reservar' | 'stock' | 'estado' | 'peca' | null;
+type Panel = 'emprestar' | 'pedir' | 'reservar' | 'stock' | 'estado' | 'peca' | 'comprar' | null;
 
 export function Artigo() {
   const { id } = useParams();
   const q = useItem(id);
-  const me = useOverview().data?.me ?? '';
+  const ov = useOverview();
+  const me = ov.data?.me ?? '';
   const [panel, setPanel] = useState<Panel>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const toggle = (p: Panel) => { setFlash(null); setPanel(panel === p ? null : p); };
@@ -35,13 +37,23 @@ export function Artigo() {
   return (
     <div className="inv-page">
       <PageTitle title={it.name} back="/inventario"
-        subtitle={<>{it.category ?? 'Sem categoria'}{it.location && <> · <MapPin size={13} aria-hidden="true" className="inv-pin" />{it.location}</>}</>} />
+        subtitle={<>{it.category ?? 'Sem tipo'}{it.location && <> · <MapPin size={13} aria-hidden="true" className="inv-pin" />{it.location}</>}</>} />
       {archived && <Notice kind="warn">Artigo arquivado em {when(it.archived_at!)}. O histórico mantém-se.</Notice>}
       <div className="inv-head">
         {it.has_photo && <Photo itemId={it.id} name={it.name} />}
         <div className="inv-head-text">
           {it.description && <p className="prose">{it.description}</p>}
-          <div className="row inv-badges"><StateBadges states={s.states} />{it.tracking === 'pecas' && <Badge label="Peças identificadas" tone="neutral" />}</div>
+          <div className="row inv-badges">
+            <StateBadges states={s.states} />
+            {it.condition && <Badge label={`Conservação: ${CONSERVATION_LABEL[it.condition].toLowerCase()}`} tone={CONSERVATION_TONE[it.condition]} />}
+            {it.tracking === 'pecas' && <Badge label="Peças identificadas" tone="neutral" />}
+          </div>
+          {placeParts(it).length > 0 && (
+            <dl className="inv-dl inv-place-dl" aria-label="Onde está guardado">
+              {placeParts(it).map((p) => <div key={p.label}><dt>{p.label}</dt><dd>{p.value}</dd></div>)}
+            </dl>
+          )}
+          {it.notes && <p className="prose inv-notes"><span className="faint">Observações: </span>{it.notes}</p>}
         </div>
       </div>
       <ul className="stats inv-stats" aria-label="Quantidades">
@@ -65,6 +77,7 @@ export function Artigo() {
               ) : (
                 <button type="button" className="btn secondary" aria-expanded={panel === 'peca'} onClick={() => toggle('peca')}>Acrescentar peça</button>
               )}
+              <button type="button" className="btn secondary" aria-expanded={panel === 'comprar'} onClick={() => toggle('comprar')}>Pôr na lista «A comprar»</button>
               <Link to={`/inventario/artigo/${it.id}/editar`} className="btn ghost"><Pencil size={16} aria-hidden="true" /> Editar</Link>
             </>
           ) : (
@@ -79,6 +92,7 @@ export function Artigo() {
       {panel === 'stock' && <StockForm it={it} onDone={done} />}
       {panel === 'estado' && <ConditionForm it={it} onDone={done} />}
       {panel === 'peca' && <PieceForm it={it} onDone={done} />}
+      {panel === 'comprar' && <PurchaseForm item={it} onDone={done} />}
 
       {it.tracking === 'pecas' && (
         <Section title="Peças" count={it.pieces.length}>
@@ -101,6 +115,12 @@ export function Artigo() {
           <ul className="inv-cards">{it.reservations.map((r) => <ReservationCard key={r.id} r={r} canManage={manage} showItem={false} />)}</ul>
         )}
       </Section>
+
+      {it.purchases.length > 0 && (
+        <Section title="Compras" count={it.purchases.filter((p) => p.status === 'por_comprar').length}>
+          <ul className="inv-cards">{it.purchases.map((p) => <PurchaseCard key={p.id} p={p} canManage={manage} finOk={!!ov.data?.fin_ok} />)}</ul>
+        </Section>
+      )}
 
       <Section title="Histórico">
         {it.movements.length === 0 ? <p className="faint">Sem movimentos.</p> : (

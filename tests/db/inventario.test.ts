@@ -322,11 +322,207 @@ describe('alertas, lembretes e arquivo', () => {
   });
 });
 
+describe('v2: local exato, conservação, observações e categorias habituais', () => {
+  it('categorias habituais criadas a pedido, sem duplicar as existentes', async () => {
+    await expectDenied(rpc(w.users.P1, 'inv_category_defaults', S()));
+    // «Campismo» já existe: só se criam as outras quatro; repetir não cria nada.
+    expect(await rpc(w.users.Ana, 'inv_category_defaults', S())).toBe(4);
+    expect(await rpc(w.users.GuiaA, 'inv_category_defaults', S())).toBe(0);
+    const names = (await rpc<any>(w.users.P1, 'inv_overview', S())).categories.map((c: any) => c.name);
+    expect(names).toEqual(['Campismo', 'Construções', 'Cozinha', 'Ferramentas', 'Jogos']);
+    // E continuam a poder criar-se outras categorias configuráveis.
+    await rpc(w.users.Ana, 'inv_category_save', { ...S(), p_id: null, p_name: 'Pioneirismo' });
+  });
+
+  it('local exato estruturado, conservação e observações; o texto v1 continua aceite', async () => {
+    await expectError(newItem('Ana', { p_name: 'X', p_condition: 'otimo' }), 'conservação inválido');
+    const id = await newItem('Ana', { p_name: 'Machado', p_quantity: 2, p_room: 'Sede', p_cabinet: 'Armário 2', p_shelf: 'Prateleira 3',
+      p_box: 'Caixa azul', p_condition: 'bom', p_notes: 'Guardar com proteção' });
+    const it1 = await item('P1', id);
+    expect(it1).toMatchObject({ room: 'Sede', cabinet: 'Armário 2', shelf: 'Prateleira 3', box: 'Caixa azul', condition: 'bom',
+      notes: 'Guardar com proteção', location: 'Sede · Armário 2 · Prateleira 3 · Caixa azul' });
+    // Disponibilidade continua derivada das quantidades, separada da conservação.
+    expect(it1.stock.states).toEqual(['disponivel']);
+    await rpc(w.users.Ana, 'inv_item_save', { ...S(), p_id: id, p_category: null, p_name: 'Machado', p_description: null, p_unit: 'un.',
+      p_tracking: null, p_quantity: null, p_min_quantity: null, p_pieces: null, p_room: 'Sede', p_cabinet: 'Armário 1', p_condition: 'razoavel' });
+    const it2 = await item('Ana', id);
+    expect(it2).toMatchObject({ cabinet: 'Armário 1', shelf: null, box: null, condition: 'razoavel', notes: null, location: 'Sede · Armário 1' });
+    expect(it2.movements[0]).toMatchObject({ kind: 'edicao' });
+    expect(it2.movements[0].note).toContain('conservação: razoável');
+    const ov = await rpc<any>(w.users.P1, 'inv_overview', S());
+    expect(ov.rooms).toEqual(expect.arrayContaining(['Sede', 'Arrecadação', 'Armário 3']));
+    expect(ov.cabinets).toEqual([{ room: 'Sede', cabinet: 'Armário 1' }]);
+    // Só a localização em texto (v1) → sala
+    const v1 = await newItem('Ana', { p_name: 'Balde', p_quantity: 1, p_location: 'Cozinha da sede' });
+    expect(await item('Ana', v1)).toMatchObject({ room: 'Cozinha da sede', location: 'Cozinha da sede' });
+  });
+
+  it('empréstimo mostra quem registou a saída e cada devolução com o estado à chegada', async () => {
+    const id = await newItem('Ana', { p_name: 'Serrote', p_quantity: 3 });
+    const l = await loan('GuiaA', id, 3, 0, 24);
+    await rpc(w.users.Ana, 'inv_loan_return', { ...S(), p_loan: l, p_quantity: 1, p_condition: 'reparacao', p_note: 'Dentes partidos' });
+    let got = (await rpc<any[]>(w.users.P1, 'inv_loans', { ...S(), p_status: 'todos' })).find((x) => x.id === l);
+    expect(got.registered_by).toBe('GuiaA inventario');
+    expect(got.returns).toHaveLength(1);
+    expect(got.returns[0]).toMatchObject({ quantity: 1, condition: 'reparacao', by: 'Ana inventario' });
+    await rpc(w.users.Ana, 'inv_loan_return', { ...S(), p_loan: l });
+    got = (await rpc<any[]>(w.users.P1, 'inv_loans', { ...S(), p_status: 'fechado' })).find((x) => x.id === l);
+    expect(got.returns.map((r: any) => r.condition)).toEqual(['reparacao', 'disponivel']);
+    expect(got.status).toBe('devolvido');
+  });
+});
+
+describe('v2: lista «A comprar» e Tesouraria', () => {
+  let panelas: string; let pA: string; let pB: string; let pNovo: string; let conta: string; let despesa: string;
+  const buy = (who: string, id: string, extra: Record<string, unknown> = {}) =>
+    rpc<any>(w.users[who], 'inv_purchase_buy', { ...S(), p_id: id, ...extra });
+  const purchases = (who: string, status: string | null = null) => rpc<any[]>(w.users[who], 'inv_purchases', { ...S(), p_status: status });
+  const save = (who: string, args: Record<string, unknown>) => rpc<string>(w.users[who], 'inv_purchase_save', {
+    ...S(), p_id: null, p_item: null, p_name: null, p_quantity: 1, p_unit: null, p_reason: null, p_priority: 'media', ...args,
+  });
+
+  beforeAll(async () => {
+    // Tesouraria em teste: Ana e GuiaA testers; só GuiaA é tesoureiro autorizado.
+    await setupModule(w, 'tesouraria', 'teste', ['Ana', 'GuiaA'], [['tesouraria.gerir', 'GuiaA']]);
+    conta = await rpc(w.users.GuiaA, 'fin_save_account', { ...S(), p_id: null, p_name: 'Caixa', p_kind: 'caixa' });
+    despesa = await rpc(w.users.GuiaA, 'fin_create_movement', { ...S(), p_kind: 'despesa', p_on: '2026-10-10', p_description: 'Loja de campismo',
+      p_category: 'Material', p_amount: 4590, p_account: conta, p_state: 'efetivo' });
+    panelas = await newItem('Ana', { p_name: 'Panela 10 L', p_quantity: 2 });
+  });
+
+  it('criar, validar e listar; quem só consulta vê mas não altera nem vê valores', async () => {
+    await expectDenied(save('P1', { p_item: panelas, p_quantity: 1 }));
+    await expectError(save('Ana', {}), 'Indica o material');
+    await expectError(save('Ana', { p_item: panelas, p_quantity: 0 }), 'quantidade');
+    await expectError(save('Ana', { p_item: panelas, p_priority: 'urgente' }), 'prioridade');
+    pA = await save('Ana', { p_item: panelas, p_quantity: 2, p_reason: 'Acampamento de verão', p_priority: 'baixa', p_amount: 3000 });
+    pB = await save('GuiaA', { p_name: 'Corda 10 mm', p_unit: 'm', p_quantity: 50, p_priority: 'alta', p_reason: 'Construções' });
+    pNovo = await save('Ana', { p_name: 'Bússola', p_quantity: 3, p_priority: 'media' });
+    const list = await purchases('P1', 'por_comprar');
+    expect(list.map((p) => p.name)).toEqual(['Corda 10 mm', 'Bússola', 'Panela 10 L']); // por prioridade
+    expect(list.find((p) => p.id === pA)).toMatchObject({ unit: 'un.', new_material: false, amount_cents: null, status: 'por_comprar' });
+    expect((await purchases('Ana')).find((p) => p.id === pA).amount_cents).toBe(3000);
+    await expectDenied(buy('P1', pA));
+    const ov = await rpc<any>(w.users.P1, 'inv_overview', S());
+    expect(ov.summary).toMatchObject({ purchases_pending: 3, purchases_high: 1 });
+  });
+
+  it('estados: cancelar, reabrir; comprada não volta atrás', async () => {
+    const x = await save('Ana', { p_name: 'Fita-cola', p_quantity: 2 });
+    await rpc(w.users.Ana, 'inv_purchase_cancel', { ...S(), p_id: x, p_reason: 'Já há' });
+    await expectError(buy('Ana', x), 'cancelada');
+    expect((await purchases('P1', 'cancelado')).map((p) => p.id)).toEqual([x]);
+    await rpc(w.users.Ana, 'inv_purchase_reopen', { ...S(), p_id: x });
+    await buy('Ana', x);
+    await expectError(buy('Ana', x), 'já está marcada como comprada');
+    await expectError(rpc(w.users.Ana, 'inv_purchase_cancel', { ...S(), p_id: x }), 'ainda por comprar');
+    await expectError(rpc(w.users.Ana, 'inv_purchase_save', { ...S(), p_id: x, p_item: null, p_name: 'Fita', p_quantity: 1 }), 'ainda por comprar');
+    expect((await purchases('P1', 'comprado')).find((p) => p.id === x)).toMatchObject({ status: 'comprado', bought_by: 'Ana inventario', bought_qty: 2 });
+  });
+
+  it('comprado com «acrescentar ao inventário»: soma uma só vez, com histórico', async () => {
+    const r = await buy('Ana', pA, { p_add_stock: true, p_quantity: 3 });
+    expect(r.item_id).toBe(panelas);
+    expect((await item('Ana', panelas)).stock.total).toBe(5);
+    // Repetir não soma de novo (idempotente), nem em chamadas simultâneas.
+    await Promise.all([1, 2, 3].map(() => rpc(w.users.Ana, 'inv_purchase_add_stock', { ...S(), p_id: pA })));
+    const it1 = await item('Ana', panelas);
+    expect(it1.stock.total).toBe(5);
+    expect(it1.movements.filter((m: any) => m.kind === 'entrada' && m.note?.includes('Compra'))).toHaveLength(1);
+    expect(it1.purchases[0]).toMatchObject({ id: pA, status: 'comprado' });
+    expect(it1.purchases[0].stock_added_at).toBeTruthy();
+    // Material novo: cria o artigo (uma vez); outra compra com o mesmo nome soma-lhe em vez de duplicar.
+    await buy('Ana', pNovo);
+    const novoId = await rpc<string>(w.users.Ana, 'inv_purchase_add_stock', { ...S(), p_id: pNovo });
+    expect(await rpc(w.users.Ana, 'inv_purchase_add_stock', { ...S(), p_id: pNovo })).toBe(novoId);
+    expect(await item('Ana', novoId)).toMatchObject({ name: 'Bússola', condition: 'novo', stock: expect.objectContaining({ total: 3 }) });
+    const again = await save('Ana', { p_name: ' bússola ', p_quantity: 2 });
+    const r2 = await buy('Ana', again, { p_add_stock: true });
+    expect(r2.item_id).toBe(novoId);
+    expect((await item('Ana', novoId)).stock.total).toBe(5);
+    const count = await admin(`select count(*)::int n from public.inv_items where section_id = $1 and lower(name) = 'bússola'`, [w.section]);
+    expect(count[0].n).toBe(1);
+    // Comprada sem pedir para acrescentar: o inventário não muda.
+    const notAdded = await purchases('Ana', 'comprado');
+    expect(notAdded.find((p) => p.name === 'Fita-cola').stock_added_at).toBeNull();
+  });
+
+  it('associar uma despesa existente; a mesma despesa nunca entra em duas compras', async () => {
+    // Ana gere o inventário mas não a Tesouraria: não vê nem liga despesas.
+    expect(await rpc(w.users.Ana, 'inv_expense_options', S())).toMatchObject({ allowed: false });
+    await expectDenied(rpc(w.users.Ana, 'inv_purchase_link_expense', { ...S(), p_id: pA, p_movement: despesa }), 'tesouraria.gerir');
+    const opts = await rpc<any>(w.users.GuiaA, 'inv_expense_options', S());
+    expect(opts.allowed).toBe(true);
+    expect(opts.accounts.map((a: any) => a.name)).toEqual(['Caixa']);
+    expect(opts.expenses.map((e: any) => e.id)).toEqual([despesa]);
+    await rpc(w.users.GuiaA, 'inv_purchase_link_expense', { ...S(), p_id: pA, p_movement: despesa });
+    await rpc(w.users.GuiaA, 'inv_purchase_link_expense', { ...S(), p_id: pA, p_movement: despesa }); // repetir: nada muda
+    const other = (await purchases('Ana', 'comprado')).find((p) => p.name === 'Fita-cola').id;
+    await expectError(rpc(w.users.GuiaA, 'inv_purchase_link_expense', { ...S(), p_id: other, p_movement: despesa }), 'já está associada a outra compra');
+    await expectError(admin(`update public.inv_purchases set fin_movement_id = $1 where id = $2`, [despesa, other]), 'duplicate key');
+    expect((await rpc<any>(w.users.GuiaA, 'inv_expense_options', S())).expenses).toEqual([]);
+    const got = (await purchases('GuiaA', 'comprado')).find((p) => p.id === pA);
+    expect(got).toMatchObject({ has_expense: true, expense: { id: despesa, amount_cents: 4590, account: 'Caixa', voided: false } });
+    // Quem não gere a Tesouraria só sabe que há despesa associada.
+    expect((await purchases('P1', 'comprado')).find((p) => p.id === pA)).toMatchObject({ has_expense: true, expense: null, amount_cents: null });
+    // Uma receita não serve.
+    const receita = await rpc<string>(w.users.GuiaA, 'fin_create_movement', { ...S(), p_kind: 'receita', p_on: '2026-10-10', p_description: 'Venda',
+      p_category: 'Outros', p_amount: 100, p_account: conta, p_state: 'efetivo' });
+    await expectError(rpc(w.users.GuiaA, 'inv_purchase_link_expense', { ...S(), p_id: other, p_movement: receita }), 'não uma receita');
+  });
+
+  it('criar a despesa ao marcar como comprado: com e sem «tesouraria.gerir», sem duplicar', async () => {
+    const before = await admin(`select count(*)::int n from public.fin_movements where section_id = $1`, [w.section]);
+    const exp = { account: conta, category: 'Material', state: 'efetivo', amount: 2550, client_key: '6b0c0a64-5a50-4a8e-9a65-8d0b6e2c1a01' };
+    // Sem permissão: tudo é recusado (a compra continua por comprar e nada entra na Tesouraria).
+    await expectDenied(buy('Ana', pB, { p_add_stock: true, p_expense: JSON.stringify(exp) }), 'tesouraria.gerir');
+    expect((await purchases('Ana')).find((p) => p.id === pB).status).toBe('por_comprar');
+    expect((await admin(`select count(*)::int n from public.fin_movements where section_id = $1`, [w.section]))[0].n).toBe(before[0].n);
+    // Com permissão: despesa criada uma vez e ligada à compra.
+    const r = await buy('GuiaA', pB, { p_add_stock: true, p_expense: JSON.stringify(exp) });
+    expect(r.movement_id).toMatch(/[0-9a-f-]{36}/);
+    const m = await admin(`select kind, amount_cents, description, space from public.fin_movements where id = $1`, [r.movement_id]);
+    expect(m[0]).toMatchObject({ kind: 'despesa', amount_cents: '2550', description: 'Compra de material: Corda 10 mm', space: 'teste' });
+    await expectError(rpc(w.users.GuiaA, 'inv_purchase_create_expense', { ...S(), p_id: pB, p_on: null, p_description: null, p_category: 'Material',
+      p_amount: 2550, p_account: conta }), 'já tem uma despesa');
+    expect((await admin(`select count(*)::int n from public.fin_movements where section_id = $1`, [w.section]))[0].n).toBe(before[0].n + 1);
+    // Ligar e criar ao mesmo tempo é recusado.
+    const y = await save('GuiaA', { p_name: 'Sacos', p_quantity: 1 });
+    await expectError(buy('GuiaA', y, { p_movement: despesa, p_expense: JSON.stringify(exp) }), 'só uma forma');
+    // O material novo foi acrescentado (corda, 50 m).
+    const corda = (await rpc<any>(w.users.P1, 'inv_overview', S())).items.find((i: any) => i.name === 'Corda 10 mm');
+    expect(corda).toMatchObject({ unit: 'm', stock: expect.objectContaining({ total: 50 }) });
+  });
+
+  it('Tesouraria noutro espaço: recusa com mensagem clara', async () => {
+    const z = await save('GuiaA', { p_name: 'Estacas', p_quantity: 10 });
+    await setupModule(w, 'tesouraria', 'disponivel');
+    expect(await rpc(w.users.GuiaA, 'inv_expense_options', S())).toMatchObject({ allowed: false });
+    await expectDenied(buy('GuiaA', z, { p_expense: JSON.stringify({ account: conta, category: 'Material', amount: 100 }) }), 'mesmo ambiente');
+    await setupModule(w, 'tesouraria', 'teste');
+    expect((await purchases('GuiaA')).find((p) => p.id === z).status).toBe('por_comprar');
+  });
+
+  it('atividade do calendário: só do mesmo espaço', async () => {
+    const ev = (await rpc<any[]>(w.users.Ana, 'inv_event_options', S()))[0];
+    const realEv = (await admin(`select id from public.cal_events where section_id = $1 and space = 'real' limit 1`, [w.section]))[0].id;
+    await expectError(save('Ana', { p_name: 'Gás', p_event: realEv }), 'Atividade não encontrada');
+    const g = await save('Ana', { p_name: 'Gás', p_event: ev.id });
+    expect((await purchases('P1')).find((p) => p.id === g).event).toBe(ev.title);
+  });
+});
+
 describe('isolamento teste/real', () => {
   it('dados de teste nunca aparecem no espaço real, nem ids de teste são aceites', async () => {
+    const testItems = (await admin(`select count(*)::int n from public.inv_items where section_id = $1 and space = 'teste'`, [w.section]))[0].n;
+    const testPurchase = (await admin(`select id from public.inv_purchases where section_id = $1 and space = 'teste' limit 1`, [w.section]))[0].id;
     await setupModule(w, 'inventario', 'disponivel');
     const ov = await rpc<any>(w.users.P3, 'inv_overview', S());
-    expect(ov).toMatchObject({ items: [], categories: [], pending_requests: 0, overdue: 0 });
+    expect(ov).toMatchObject({ items: [], categories: [], rooms: [], pending_requests: 0, overdue: 0,
+      summary: { lent_units: 0, overdue: 0, repair_units: 0, purchases_pending: 0, purchases_high: 0 } });
+    expect(await rpc(w.users.P3, 'inv_purchases', S())).toEqual([]);
+    await expectError(rpc(w.users.Rui, 'inv_purchase_buy', { ...S(), p_id: testPurchase }), 'Registo não encontrado');
+    await expectError(rpc(w.users.Rui, 'inv_purchase_add_stock', { ...S(), p_id: testPurchase }), 'Registo não encontrado');
     expect(await rpc(w.users.P3, 'inv_loans', { ...S(), p_status: 'todos' })).toEqual([]);
     expect((await rpc<any[]>(w.users.P3, 'inv_event_options', S())).map((e) => e.title)).toEqual(['Atividade real']);
     await expectError(item('Ana', tendas), 'Registo não encontrado');
@@ -343,7 +539,7 @@ describe('isolamento teste/real', () => {
     await setupModule(w, 'inventario', 'teste');
     expect((await rpc<any>(w.users.Ana, 'inv_overview', S())).items.map((x: any) => x.name)).not.toContain('Fogareiro');
     const counts = await admin(`select space, count(*)::int n from public.inv_items where section_id = $1 group by space order by space`, [w.section]);
-    expect(counts).toEqual([{ space: 'real', n: 1 }, { space: 'teste', n: 4 }]);
+    expect(counts).toEqual([{ space: 'real', n: 1 }, { space: 'teste', n: testItems }]);
   });
 });
 
@@ -352,6 +548,8 @@ describe('publicar com passagem dos dados de teste', () => {
     // Módulo em teste; já há uma categoria real com o mesmo nome de uma de teste.
     await admin(`insert into public.inv_categories (section_id, space, name, created_by) values ($1, 'real', 'campismo', $2)`, [w.section, w.users.Ana]);
     const before = await admin(`select count(*)::int n from public.inv_movements where section_id = $1 and space = 'teste'`, [w.section]);
+    const linked = (await admin(`select count(*)::int n from public.inv_purchases where section_id = $1 and fin_movement_id is not null`, [w.section]))[0].n;
+    expect(linked).toBe(2);
     await rpc(w.users.Ana, 'set_module_status', { ...S(), p_module: 'inventario', p_status: 'disponivel', p_move_test_data: true });
     expect(await admin(`select count(*)::int n from public.inv_items where section_id = $1 and space = 'teste'`, [w.section])).toEqual([{ n: 0 }]);
     const after = await admin(`select count(*)::int n from public.inv_movements where section_id = $1 and space = 'real'`, [w.section]);
@@ -359,8 +557,14 @@ describe('publicar com passagem dos dados de teste', () => {
     const ov = await rpc<any>(w.users.P3, 'inv_overview', S());
     const tenda = ov.items.find((x: any) => x.name === 'Tenda 4 pessoas');
     expect(tenda.category).toBe('campismo');
-    expect(ov.categories.filter((c: any) => !c.archived).map((c: any) => c.name)).toEqual(['campismo']);
+    expect(ov.categories.filter((c: any) => !c.archived).map((c: any) => c.name)).toEqual(['campismo', 'Construções', 'Cozinha', 'Ferramentas', 'Jogos', 'Pioneirismo']);
     expect((await item('P3', tenda.id)).movements.length).toBeGreaterThan(5);
+    // Compras passam a reais; as ligações a despesas que continuam de teste são retiradas
+    // (uma despesa de teste nunca conta no real); a lista e o histórico mantêm-se.
+    const ps = await admin(`select space, fin_movement_id, status from public.inv_purchases where section_id = $1`, [w.section]);
+    expect(ps.every((p) => p.space === 'real' && p.fin_movement_id === null)).toBe(true);
+    expect((await rpc<any[]>(w.users.P3, 'inv_purchases', S())).length).toBe(ps.length);
+    expect((await admin(`select count(*)::int n from public.fin_movements where section_id = $1 and space = 'teste'`, [w.section]))[0].n).toBe(3);
     expect(await rpc(w.users.P3, 'module_files_of', { ...S(), p_module: 'inventario', p_entity: 'item', p_entity_id: tenda.id })).toHaveLength(1);
   });
 });

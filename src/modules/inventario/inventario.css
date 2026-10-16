@@ -2,7 +2,7 @@
 .inv-page { min-width: 0; }
 .inv-tabs .tab.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .inv-tabs .tab.active .nav-count { background: var(--on-accent); color: var(--accent); }
-.inv-tabs .nav-count { margin-left: 2px; }
+.inv-tabs .nav-count { position: static; margin-left: 2px; }
 .inv-filters select { flex: 1 1 160px; min-width: 0; width: auto; }
 .inv-filters .search-field { flex: 1 1 100%; }
 @media (min-width: 760px) { .inv-filters .search-field { flex: 2 1 240px; } }
@@ -53,3 +53,17 @@
 .inv-add-row .field { flex: 1 1 200px; margin-bottom: 0; }
 .inv-archive { margin-top: 22px; }
 .field-error { color: var(--danger-ink); font-size: var(--fs-small); margin: -6px 0 10px; }
+/* v2: resumo, local exato, compras */
+.inv-summary { margin-top: 4px; }
+.inv-summary .stat { min-height: 104px; }
+.inv-place { border: 0; padding: 0; margin: 0 0 4px; min-width: 0; }
+.inv-place legend { margin-bottom: 6px; }
+.inv-place-dl { margin: 8px 0 0; }
+.inv-notes { margin: 8px 0 0; }
+.inv-reason { margin: 6px 0 0; }
+.inv-returns { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-small); }
+.inv-loan.inv-high { border-left: 4px solid var(--amber); }
+.inv-expense { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 4px 0 12px; min-width: 0; }
+.inv-expense legend { padding: 0 4px; }
+.inv-expense select, .inv-form select { max-width: 100%; }
+.inv-actions .btn { white-space: normal; }
