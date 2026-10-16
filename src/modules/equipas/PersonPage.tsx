@@ -1,6 +1,8 @@
-// Vista individual: equipa atual, cargos atuais, histórico de cargos e de equipas.
+// Vista individual: equipa atual, cargos atuais e histórico (recolhido) de cargos e de equipas.
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Badge, Empty, ErrorBox, Loading, Notice, PageTitle } from '../../components/ui';
+import { Plus } from 'lucide-react';
+import { Empty, ErrorBox, Loading, MoreMenu, PageTitle } from '../../components/ui';
 import { formatDay } from '../common';
 import { appointmentState, functionName, scoutYear, sortAppointments, useEquipas } from './data';
 import { AppointForm, AppointmentList, BASE, Emblem, MoveForm, teamLabel } from './parts';
@@ -8,6 +10,7 @@ import { AppointForm, AppointmentList, BASE, Emblem, MoveForm, teamLabel } from 
 export default function PersonPage() {
   const { id } = useParams();
   const q = useEquipas();
+  const [panel, setPanel] = useState<'' | 'nomear' | 'mudar'>('');
   if (q.isLoading) return <Loading />;
   if (q.error || !q.data) return <ErrorBox error={q.error} retry={() => q.refetch()} />;
   const o = q.data;
@@ -26,48 +29,74 @@ export default function PersonPage() {
   const byYear = new Map<string, typeof past>();
   for (const a of past) byYear.set(scoutYear(a.starts_on), [...(byYear.get(scoutYear(a.starts_on)) ?? []), a]);
 
+  const canAppoint = o.can_manage && !!team && m.status === 'ativo' && !team.archived_at;
+  const historyCount = past.length + (canSeeMoves ? moves.length : 0);
+
   return (
     <>
-      <PageTitle title={m.full_name || 'Pessoa'} subtitle={m.totem ?? undefined} back={BASE} />
+      <PageTitle
+        title={m.full_name || 'Pessoa'}
+        back={BASE}
+        actions={canAppoint || movable ? (
+          <>
+            {canAppoint && <button type="button" className="btn" onClick={() => setPanel('nomear')}><Plus size={16} aria-hidden="true" /> Nomear</button>}
+            {movable && (
+              <MoreMenu>
+                <button type="button" className="btn" onClick={() => setPanel('mudar')}>Mudar de equipa</button>
+              </MoreMenu>
+            )}
+          </>
+        ) : undefined}
+      />
       <section className="card eq-person-head" style={{ ['--team' as string]: team?.color ?? 'var(--line)' }}>
-        {team ? <Emblem team={team} size={48} /> : null}
+        {team ? <Emblem team={team} size={40} /> : null}
         <div className="grow">
-          <div className="faint">Equipa {o.space === 'teste' ? '(ambiente de teste)' : 'atual'}</div>
           {team ? <Link to={`${BASE}/equipa/${team.id}`}><strong>{teamLabel(team)}</strong></Link> : <strong>Sem equipa</strong>}
-          <div className="faint">{functionName(m.function)}{m.status !== 'ativo' ? ` · ${m.status}` : ''}{m.since ? ` · na secção desde ${formatDay(m.since)}` : ''}</div>
-        </div>
-        <div className="eq-badges">
-          {currentRoles.filter((a) => appointmentState(a, o.today) === 'ativo').map((a) => (
-            <Badge key={a.id} label={o.roles.find((r) => r.id === a.role_id)?.name ?? 'Cargo'} tone="progress" />
-          ))}
+          <div className="faint">
+            {[m.totem, functionName(m.function), m.status !== 'ativo' ? m.status : null, m.since ? `na secção desde ${formatDay(m.since)}` : null].filter(Boolean).join(' · ')}
+          </div>
         </div>
       </section>
 
-      <h2 className="section-title">Cargos atuais</h2>
-      <div className="card">
-        <AppointmentList list={currentRoles} o={o} show="pessoa" empty={<Empty title="Sem cargos atuais." />} />
-      </div>
-      {o.can_manage && team && m.status === 'ativo' && !team.archived_at && (
-        <details className="card eq-panel">
-          <summary>Nomear para um cargo</summary>
-          <AppointForm o={o} team={team} member={m} />
-        </details>
+      {canAppoint && panel === 'nomear' && (
+        <section className="card eq-panel" aria-label="Nomear para um cargo">
+          <div className="eq-panel-head">
+            <h2 className="eq-panel-title">Nomear para um cargo</h2>
+            <button type="button" className="btn ghost" onClick={() => setPanel('')}>Fechar</button>
+          </div>
+          <AppointForm o={o} team={team!} member={m} />
+        </section>
+      )}
+      {movable && panel === 'mudar' && (
+        <section className="card eq-panel" aria-label="Mudar de equipa">
+          <div className="eq-panel-head">
+            <h2 className="eq-panel-title">Mudar de equipa</h2>
+            <button type="button" className="btn ghost" onClick={() => setPanel('')}>Fechar</button>
+          </div>
+          <MoveForm o={o} member={m} />
+        </section>
       )}
 
-      <h2 className="section-title">Histórico de cargos</h2>
+      <h2 className="section-title">Cargos atuais</h2>
       <div className="card">
+        <AppointmentList list={currentRoles} o={o} show="pessoa" empty={<p className="faint eq-none">Sem cargos atuais.</p>} />
+      </div>
+      {o.can_manage && m.function === 'dirigente' && (
+        <p className="faint eq-note">Os dirigentes não pertencem a equipas, por isso não têm cargos de equipa.</p>
+      )}
+
+      <details className="card eq-history">
+        <summary>Histórico <span className="faint">({historyCount})</span></summary>
+        <h3 className="faint-title">Cargos</h3>
         {byYear.size ? [...byYear.entries()].map(([y, list]) => (
           <div key={y} className="eq-year-group">
-            <h3 className="faint-title">{y}</h3>
+            <h4 className="eq-year-label">{y}</h4>
             <AppointmentList list={list} o={o} show="pessoa" empty={null} />
           </div>
-        )) : <Empty title="Ainda sem cargos terminados." />}
-      </div>
-
-      {canSeeMoves && (
-        <>
-          <h2 className="section-title">Histórico de equipas</h2>
-          <div className="card">
+        )) : <p className="faint eq-none">Ainda sem cargos terminados.</p>}
+        {canSeeMoves && (
+          <>
+            <h3 className="faint-title">Equipas</h3>
             {moves.length ? (
               <ul className="list">
                 {moves.map((x) => (
@@ -83,19 +112,10 @@ export default function PersonPage() {
                   </li>
                 ))}
               </ul>
-            ) : <Empty title="Sem mudanças de equipa registadas." />}
-          </div>
-        </>
-      )}
-      {movable && (
-        <details className="card eq-panel">
-          <summary>Mudar de equipa</summary>
-          <MoveForm o={o} member={m} />
-        </details>
-      )}
-      {o.can_manage && m.function === 'dirigente' && (
-        <Notice kind="info"><p className="prose">Os dirigentes não pertencem a equipas, por isso não têm cargos de equipa.</p></Notice>
-      )}
+            ) : <p className="faint eq-none">Sem mudanças de equipa registadas.</p>}
+          </>
+        )}
+      </details>
     </>
   );
 }

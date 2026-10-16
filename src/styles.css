@@ -232,7 +232,7 @@ a.list-item:hover { background: var(--surface-2); }
 .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
 .field label, .label { font-weight: 700; font-size: var(--fs-body); }
 .field .hint { font-size: var(--fs-small); color: var(--ink-soft); }
-input[type='text'], input[type='email'], input[type='password'], input[type='date'], input[type='number'], input[type='datetime-local'], select, textarea {
+input:not([type]), input[type='text'], input[type='search'], input[type='tel'], input[type='url'], input[type='email'], input[type='password'], input[type='date'], input[type='number'], input[type='datetime-local'], select, textarea {
   font: inherit; font-size: var(--fs-body); width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--input-border); background: var(--card); color: var(--ink); min-height: 40px;
   transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
 }
@@ -240,7 +240,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink-faint); }
 textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
 /* Telemóvel: 16px nos campos evita o zoom automático do iOS; alvos de toque maiores. */
 @media (max-width: 760px) {
-  input[type='text'], input[type='email'], input[type='password'], input[type='date'], input[type='number'], input[type='datetime-local'], select, textarea { font-size: 16px; min-height: 44px; }
+  input:not([type]), input[type='text'], input[type='search'], input[type='tel'], input[type='url'], input[type='email'], input[type='password'], input[type='date'], input[type='number'], input[type='datetime-local'], select, textarea { font-size: 16px; min-height: 44px; }
   .btn { min-height: 44px; }
 }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
