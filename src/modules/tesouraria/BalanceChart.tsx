@@ -33,8 +33,8 @@ export function BalanceChart({ points, granularity }: { points: EvolutionPoint[]
   }, []);
 
   if (!points.length) return null;
-  const height = width < 480 ? 180 : 220;
-  const pad = { l: width < 480 ? 58 : 70, r: 14, t: 12, b: 28 };
+  const height = width < 480 ? 150 : 170;
+  const pad = { l: width < 480 ? 54 : 64, r: 12, t: 10, b: 24 };
   const values = points.map((p) => p.saldo);
   let lo = Math.min(...values);
   let hi = Math.max(...values);
@@ -78,12 +78,12 @@ export function BalanceChart({ points, granularity }: { points: EvolutionPoint[]
           <path className="fin-chart-area" d={area} />
           <path className="fin-chart-line" d={line} />
           {points.length <= 40 && points.map((p) => (
-            <circle key={`${p.date}-${p.kind}`} className="fin-chart-dot" cx={x(p.date)} cy={y(p.saldo)} r={3}>
+            <circle key={`${p.date}-${p.kind}`} className="fin-chart-dot" cx={x(p.date)} cy={y(p.saldo)} r={2.5}>
               <title>{`${pointLabel(p)}: ${formatEuros(p.saldo)}`}</title>
             </circle>
           ))}
           {xLabels.map((l, i) => (
-            <text key={`${l.d}-${i}`} className="fin-chart-label" x={x(l.d)} y={height - 8}
+            <text key={`${l.d}-${i}`} className="fin-chart-label" x={x(l.d)} y={height - 6}
               textAnchor={xLabels.length === 2 ? (i === 0 ? 'start' : 'end') : 'middle'}>{l.text}</text>
           ))}
         </svg>

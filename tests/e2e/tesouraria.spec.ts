@@ -9,6 +9,17 @@ import { installMock, leader, pioneer } from './mock-api';
 
 type Row = Record<string, any>;
 
+/** No telemóvel os filtros ficam atrás do botão «Filtros». */
+async function openFilters(page: Page) {
+  const toggle = page.getByRole('button', { name: /^Filtros/ });
+  if (await toggle.isVisible() && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+}
+
+/** Ações secundárias do título (menu «Mais»). */
+async function openMore(page: Page) {
+  await page.locator('main .page-actions').getByRole('button', { name: 'Mais ações' }).click();
+}
+
 async function noHorizontalScroll(page: Page) {
   const width = page.viewportSize()!.width;
   const overflow = await page.evaluate((w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w, width);
@@ -126,7 +137,13 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await expect(page.getByTestId('resultado-periodo')).toHaveText('10,30 €');
   const align = await page.locator('.fin-kpis .stat').first().evaluate((el) => getComputedStyle(el).textAlign);
   expect(align).toBe('center');
-  // Fórmula com os números e saldo inicial identificado; regra dos movimentos anteriores
+  // Só três indicadores principais, com a mesma altura
+  const heights = await page.locator('.fin-kpis .stat').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+  expect(heights).toHaveLength(3);
+  expect(new Set(heights).size).toBe(1);
+  // Fórmula com os números e saldo inicial identificado (em «Mais informação»); regra dos movimentos anteriores
+  await expect(page.getByTestId('formula')).toBeHidden();
+  await page.getByText('Como se calcula o saldo atual').click();
   await expect(page.getByTestId('formula')).toHaveText('Saldo atual = Saldo inicial + Receitas − Despesas');
   await expect(page.getByTestId('formula-valores')).toHaveText('110,30 € = 100,00 € + 15,30 € − 5,00 €');
   await expect(page.getByTestId('saldo-inicial')).toContainText('100,00 € em 01/09/2026');
@@ -146,8 +163,16 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   // Por omissão, o ano escutista atual (setembro a agosto)
   expect(calls.find((c) => c.fn === 'fin_dashboard')!.body).toMatchObject({ p_from: '2026-09-01', p_to: '2027-08-31', p_activity: null });
 
+  // Valores alinhados com algarismos tabulares
+  expect(await latest.locator('.fin-amount').first().evaluate((el) => getComputedStyle(el).fontVariantNumeric)).toContain('tabular-nums');
+  // Quem consulta só tem «Exportar CSV» no menu «Mais»
+  await openMore(page);
+  await expect(page.getByRole('button', { name: /Exportar CSV/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+
   // Filtros por mês e atividade no URL; sobrevivem ao «voltar»
   const filters = page.getByRole('form', { name: 'Filtros' });
+  await openFilters(page);
   await filters.getByLabel('Mês').selectOption('2026-10');
   await expect(page).toHaveURL(/mes=2026-10/);
   await expect(page.getByTestId('despesas-periodo')).toHaveText('0,00 €');
@@ -161,6 +186,7 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await expect(page).toHaveURL(/mes=2026-10/);
   await expect(filters.getByLabel('Mês')).toHaveValue('2026-10');
   // Ano escutista anterior limpa o mês
+  await openFilters(page);
   await filters.getByLabel('Ano escutista').selectOption('2025');
   await expect(page).toHaveURL(/ano=2025/);
   await expect(page).not.toHaveURL(/mes=/);
@@ -191,6 +217,7 @@ test('quem consulta: movimentos partilhados com pesquisa, sem dados pessoais nem
   await expect(list.getByRole('link')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Nova despesa/ })).toHaveCount(0);
   expect(calls.some((c) => c.fn === 'fin_list_movements')).toBe(false);
+  await expect(page.getByRole('link', { name: /Novo movimento/ })).toHaveCount(0);
   // Pesquisa no URL
   await page.getByRole('searchbox', { name: 'Pesquisar' }).fill('rifas');
   await expect(page).toHaveURL(/q=rifas/);
@@ -226,6 +253,9 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await installMock(page, leader());
   const calls = await mockFin(page, true);
   await page.goto('/tesouraria');
+  // Ação principal no título; receita e despesa no menu «Mais»
+  await expect(page.locator('main .page-actions').getByRole('link', { name: 'Novo movimento' })).toBeVisible();
+  await openMore(page);
   await page.getByRole('link', { name: /Nova receita/ }).click();
   await expect(page).toHaveURL(/\/tesouraria\/movimentos\/novo\?tipo=receita$/);
   await expect(page.getByRole('heading', { name: 'Nova receita' })).toBeVisible();
@@ -261,21 +291,32 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await expect(page.getByText('−12,30 €')).toBeVisible();
   expect(calls.filter((c) => c.fn === 'fin_create_movement').at(-1)!.body).toMatchObject({ p_kind: 'despesa', p_amount: 1230, p_activity: 'ev1' });
 
-  // Lista: quem gere vê o membro e abre o detalhe; pesquisa e filtros no URL
+  // Lista: quem gere vê o membro e abre o detalhe; pesquisa e filtros no URL; o formulário não está embutido
   await page.goto('/tesouraria/movimentos');
   const list = page.getByRole('list', { name: 'Lista de movimentos' });
   await expect(list.getByText('Atividades · Pedro Teste')).toBeVisible();
+  await expect(page.getByLabel('Descrição')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Registar movimento' })).toHaveCount(0);
+  await page.locator('main .page-actions').getByRole('link', { name: 'Novo movimento' }).click();
+  await expect(page).toHaveURL(/\/tesouraria\/movimentos\/novo$/);
+  await expect(page.getByRole('heading', { name: 'Novo movimento' })).toBeVisible();
+  await page.goBack();
+  await list.getByText('Venda de rifas (teste)').click();
+  await expect(page.getByRole('heading', { name: 'Venda de rifas (teste)' })).toBeVisible();
+  await page.goBack();
   await page.getByRole('searchbox', { name: 'Pesquisar' }).fill('gás');
   await expect(page).toHaveURL(/q=g%C3%A1s|q=gás/);
   await expect(list.getByRole('listitem')).toHaveCount(2);
   await expect.poll(() => calls.filter((c) => c.fn === 'fin_search_movements').at(-1)!.body.p_search).toBe('gás');
   expect(calls.filter((c) => c.fn === 'fin_search_movements').at(-1)!.body.p_include_voided).toBe(true);
+  await openFilters(page);
   await page.getByLabel('Estado').selectOption('pendente');
   await expect(page).toHaveURL(/estado=pendente/);
   await expect(page.getByText('Sem movimentos')).toBeVisible();
   await page.getByRole('button', { name: 'Limpar filtros' }).click();
   await expect(page.getByRole('searchbox', { name: 'Pesquisar' })).toHaveValue('');
   await expect(list.getByRole('listitem')).toHaveCount(6);
+  await openMore(page);
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Exportar CSV/ }).click()]);
   const csv = readFileSync((await download.path())!, 'utf8');
   expect(csv.charCodeAt(0)).toBe(0xfeff);
@@ -319,12 +360,16 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'tesouraria-movimentos');
       await page.goto('/tesouraria/movimentos/novo');
       await shoot(page, info, theme, 'tesouraria-lancamento');
+      await page.goto('/tesouraria/movimentos/mv3');
+      await shoot(page, info, theme, 'tesouraria-detalhe');
       await page.goto('/tesouraria/atividades');
       await shoot(page, info, theme, 'tesouraria-atividades');
       await page.goto('/tesouraria/minha');
       await shoot(page, info, theme, 'tesouraria-minha');
       await page.goto('/tesouraria/quotas');
       await shoot(page, info, theme, 'tesouraria-quotas');
+      await page.goto('/tesouraria/contas');
+      await shoot(page, info, theme, 'tesouraria-contas');
     });
   }
 });

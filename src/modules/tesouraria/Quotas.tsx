@@ -2,6 +2,7 @@
 // opcional), registar pagamentos (o pagamento é o movimento), isentar e anular.
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
@@ -14,12 +15,8 @@ export function QuotasPage() {
   const [showNew, setShowNew] = useState(false);
   return (
     <div className="stack">
-      <p className="prose faint">
-        Cada pagamento é registado uma única vez, como movimento de receita do membro; a quota apenas o referencia. Pagar acima do que
-        está em falta exige confirmação explícita.
-      </p>
       <div className="row">
-        <button type="button" className="btn" aria-expanded={showNew} onClick={() => setShowNew((x) => !x)}>Nova quota</button>
+        <button type="button" className="btn" aria-expanded={showNew} onClick={() => setShowNew((x) => !x)}><Plus size={18} aria-hidden="true" /> Nova quota</button>
       </div>
       {showNew && <QuotaForm onDone={() => setShowNew(false)} />}
       {q.isLoading ? <Loading rows={2} /> : q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : !q.data?.length ? (
@@ -54,11 +51,11 @@ function QuotaForm({ quota, onDone }: { quota?: Quota; onDone: () => void }) {
     <form className="card stack" onSubmit={submit} noValidate aria-label={quota ? 'Alterar quota' : 'Nova quota'}>
       {err && <Notice kind="error">{err}</Notice>}
       <ErrorBox error={act.error} />
-      <Field label="Nome" htmlFor={`${idp}-name`}><input id={`${idp}-name`} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Quota anual 2026/27" /></Field>
+      <Field label="Nome" htmlFor={`${idp}-name`}><input type="text" id={`${idp}-name`} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="Quota anual 2026/27" /></Field>
       <div className="grid-2">
         <Field label="Início do período" htmlFor={`${idp}-start`}><DateInput id={`${idp}-start`} value={start} onChange={(e) => setStart(e.target.value)} /></Field>
         <Field label="Fim do período" htmlFor={`${idp}-end`}><DateInput id={`${idp}-end`} value={end} onChange={(e) => setEnd(e.target.value)} /></Field>
-        <Field label="Valor por membro (€)" htmlFor={`${idp}-amount`}><input id={`${idp}-amount`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+        <Field label="Valor por membro (€)" htmlFor={`${idp}-amount`}><input type="text" id={`${idp}-amount`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
         <Field label="Data limite" htmlFor={`${idp}-due`}><DateInput id={`${idp}-due`} value={due} onChange={(e) => setDue(e.target.value)} /></Field>
       </div>
       {quota && <p className="faint prose">Alterar o valor não muda o devido por quem já tem a quota aplicada.</p>}
@@ -108,7 +105,7 @@ function QuotaCard({ quota }: { quota: Quota }) {
       {active && (
         <div className="fin-void">
           <Field label="Motivo para anular a quota" htmlFor={`void-q-${quota.id}`}>
-            <input id={`void-q-${quota.id}`} value={voidReason} onChange={(e) => setVoidReason(e.target.value)} maxLength={500} />
+            <input type="text" id={`void-q-${quota.id}`} value={voidReason} onChange={(e) => setVoidReason(e.target.value)} maxLength={500} />
           </Field>
           <ConfirmButton className="btn ghost danger" disabled={voidReason.trim().length < 3} confirmLabel="Anular quota"
             description="A quota deixa de estar em dívida. Os pagamentos já registados mantêm-se como movimentos."
@@ -227,7 +224,7 @@ function ChargeRow({ charge: c, quotaActive }: { charge: Charge; quotaActive: bo
           <ErrorBox error={act.error} />
           <div className="grid-2">
             <Field label="Data" htmlFor={`${id}-on`}><DateInput id={`${id}-on`} value={on} onChange={(e) => setOn(e.target.value)} /></Field>
-            <Field label="Valor (€)" htmlFor={`${id}-amount`}><input id={`${id}-amount`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+            <Field label="Valor (€)" htmlFor={`${id}-amount`}><input type="text" id={`${id}-amount`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
             <Field label="Conta ou caixa" htmlFor={`${id}-acc`}>
               <select id={`${id}-acc`} value={account} onChange={(e) => setAccount(e.target.value)}>
                 <option value="">Escolhe…</option>
@@ -253,7 +250,7 @@ function ChargeRow({ charge: c, quotaActive }: { charge: Charge; quotaActive: bo
       )}
       {open === 'waive' && (
         <div className="card flat stack">
-          <Field label="Motivo da isenção" htmlFor={`${id}-reason`}><input id={`${id}-reason`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} /></Field>
+          <Field label="Motivo da isenção" htmlFor={`${id}-reason`}><input type="text" id={`${id}-reason`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} /></Field>
           <ConfirmButton disabled={reason.trim().length < 3} confirmLabel="Isentar" description="O membro deixa de dever esta quota."
             onConfirm={() => act.run(() => call('fin_waive_charge', { p_section: section, p_charge: c.id, p_reason: reason }), 'Membro isento desta quota.')}>
             Isentar…

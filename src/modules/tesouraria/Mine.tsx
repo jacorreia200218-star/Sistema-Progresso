@@ -1,7 +1,7 @@
 // A minha situação: quotas devidas, pagas e pendentes e os meus pagamentos (com comprovativos).
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Clock, FileText, Receipt, Wallet } from 'lucide-react';
+import { CheckCircle2, FileText, Receipt, Wallet } from 'lucide-react';
 import { Badge, Empty, ErrorBox, Loading } from '../../components/ui';
 import { useAction } from '../../lib/useAction';
 import { formatDay, formatEuros } from '../common';
@@ -15,17 +15,15 @@ export function MinePage() {
   const s = q.data!;
   return (
     <div className="stack">
-      <ul className="stats fin-stats" aria-label="A minha situação">
-        <li><div className="stat stat-azul"><span className="stat-icon"><Receipt size={20} aria-hidden="true" /></span>
+      <ul className="stats fin-stats fin-kpis" aria-label="A minha situação">
+        <li><div className="stat stat-azul"><span className="stat-icon"><Receipt size={18} aria-hidden="true" /></span>
           <span className="stat-value">{formatEuros(s.totals.devido)}</span><span className="stat-label">Devido</span></div></li>
-        <li><div className="stat stat-verde"><span className="stat-icon"><CheckCircle2 size={20} aria-hidden="true" /></span>
-          <span className="stat-value">{formatEuros(s.totals.pago)}</span><span className="stat-label">Pago</span></div></li>
-        <li><div className="stat stat-lilas"><span className="stat-icon"><Clock size={20} aria-hidden="true" /></span>
-          <span className="stat-value">{formatEuros(s.totals.pendente)}</span><span className="stat-label">Pendente</span></div></li>
-        <li><div className="stat stat-ambar"><span className="stat-icon"><Wallet size={20} aria-hidden="true" /></span>
+        <li><div className="stat stat-verde"><span className="stat-icon"><CheckCircle2 size={18} aria-hidden="true" /></span>
+          <span className="stat-value">{formatEuros(s.totals.pago)}</span><span className="stat-label">Pago</span>
+          {s.totals.pendente > 0 && <span className="stat-hint">+ {formatEuros(s.totals.pendente)} pendente</span>}</div></li>
+        <li><div className="stat stat-ambar"><span className="stat-icon"><Wallet size={18} aria-hidden="true" /></span>
           <span className="stat-value" data-testid="em-falta">{formatEuros(s.totals.em_falta)}</span><span className="stat-label">Em falta</span></div></li>
       </ul>
-      <p className="faint prose">Só tu e quem gere a tesouraria veem esta informação. Pendente: pagamento registado, ainda por confirmar.</p>
 
       <section className="card" aria-labelledby="mine-quotas">
         <h2 id="mine-quotas" className="card-title">As minhas quotas</h2>
@@ -55,14 +53,19 @@ export function MinePage() {
       <section className="card" aria-labelledby="mine-pay">
         <h2 id="mine-pay" className="card-title">Os meus pagamentos</h2>
         {!s.payments.length ? <p className="faint">Ainda não há pagamentos teus registados.</p> : (
-          <ul className="list">
+          <ul className="list fin-movs">
             {s.payments.map((p) => (
               <li key={p.id}>
-                <div className="list-item">
-                  <span className="fin-date">{formatDay(p.occurred_on)}</span>
-                  <span className="grow">{p.description}<span className="faint fin-sub">{p.quota_name ? `Quota: ${p.quota_name}` : p.category}</span></span>
-                  <Badge label={STATE_LABEL[p.state]} tone={STATE_TONE[p.state]} />
-                  <span className="fin-amount">{formatEuros(p.amount_cents)}</span>
+                <div className="fin-row">
+                  <span className="fin-row-date">{formatDay(p.occurred_on)}</span>
+                  <span className="fin-row-main">
+                    <span className="fin-desc">{p.description}</span>
+                    <span className="faint fin-sub">{p.quota_name && !p.description.includes(p.quota_name) ? `Quota: ${p.quota_name}` : p.category}</span>
+                  </span>
+                  <span className="fin-row-end">
+                    <span className="fin-amount">{formatEuros(p.amount_cents)}</span>
+                    {p.state !== 'efetivo' && <Badge label={STATE_LABEL[p.state]} tone={STATE_TONE[p.state]} />}
+                  </span>
                 </div>
                 {p.files > 0 && <MyProofs id={p.id} />}
               </li>

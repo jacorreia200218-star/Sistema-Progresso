@@ -1078,3 +1078,5 @@ dl.summary-list .quote { margin-top: 0; }
 /* Menu lateral: a etiqueta do módulo passa para a linha seguinte quando não cabe, sem sair da coluna. */
 .side-nav .nav-link:has(.nav-tag) { white-space: normal; flex-wrap: wrap; row-gap: 0; }
 .side-nav .nav-tag { flex: none; }
+/* Telemóvel: as ações do título alinham à esquerda, por baixo do título. */
+@media (max-width: 640px) { .page-actions { margin-left: 0; } }

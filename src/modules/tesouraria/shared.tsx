@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useModuleCtx } from '../ModuleShell';
 import { todayLisbon } from '../common';
-import { filtersFrom, monthLabel, scoutMonths, scoutYearLabel, scoutYearOf, useActivities, useOptions } from './api';
+import { Filters } from '../../components/ui';
+import { filtersFrom, monthLabel, periodLabel, scoutMonths, scoutYearLabel, scoutYearOf, useActivities, useOptions } from './api';
 
 /** Só mostra/esconde: o servidor exige sempre a permissão «tesouraria.gerir». */
 export function useCanManage() {
@@ -25,7 +26,7 @@ export function useSetParam() {
 
 /**
  * Filtros no URL: ano escutista (setembro–agosto), mês e atividade; na lista de movimentos
- * também categoria, estado e pesquisa.
+ * também categoria, estado e pesquisa. No telemóvel ficam atrás do botão «Filtros».
  */
 export function FiltersBar({ years = [], extended }: { years?: number[]; extended?: boolean }) {
   const [params, setParams] = useSearchParams();
@@ -43,67 +44,53 @@ export function FiltersBar({ years = [], extended }: { years?: number[]; extende
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
-  const any = params.has('ano') || f.mes || f.atividade || (extended && (f.categoria || f.estado || f.q));
+  const active = [params.has('ano'), f.mes, f.atividade, ...(extended ? [f.categoria, f.estado] : [])].filter(Boolean).length;
+  const any = active > 0 || (extended && !!f.q);
 
   return (
-    <form className="card flat fin-filters" aria-label="Filtros" onSubmit={(e) => { e.preventDefault(); set({ q: q.trim() || null }); }}>
-      {extended && (
-        <label className="field fin-search">
-          <span className="label">Pesquisar</span>
-          <span className="fin-search-box">
+    <form className="fin-filters" aria-label="Filtros" onSubmit={(e) => { e.preventDefault(); set({ q: q.trim() || null }); }}>
+      <Filters
+        active={active}
+        search={extended ? (
+          <label className="search-field">
             <Search size={16} aria-hidden="true" />
-            <input type="search" value={q} maxLength={100} placeholder="Descrição, categoria ou atividade" onChange={(e) => setQ(e.target.value)} />
-          </span>
-        </label>
-      )}
-      <div className={`fin-filter-grid${extended ? ' wide' : ''}`}>
-        <label className="field">
-          <span className="label">Ano escutista</span>
-          <select value={String(f.ano)} onChange={(e) => set({ ano: e.target.value === String(current) ? null : e.target.value, mes: null })}>
-            {yearList.map((y) => <option key={y} value={y}>{scoutYearLabel(y)}{y === current ? ' (atual)' : ''}</option>)}
-            <option value="todos">Todo o período</option>
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">Mês</span>
-          <select value={f.mes ?? ''} disabled={f.ano === 'todos'} onChange={(e) => set({ mes: e.target.value || null })}>
-            <option value="">Todos os meses</option>
-            {f.ano !== 'todos' && scoutMonths(f.ano).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">Atividade</span>
-          <select value={f.atividade ?? ''} onChange={(e) => set({ atividade: e.target.value || null })}>
-            <option value="">Todas</option>
-            {(acts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
-          </select>
-        </label>
+            <input type="search" aria-label="Pesquisar" value={q} maxLength={100} placeholder="Pesquisar descrição, categoria ou atividade" onChange={(e) => setQ(e.target.value)} />
+          </label>
+        ) : undefined}
+        extra={!extended ? <span className="fin-period">{periodLabel(f)}</span> : undefined}
+      >
+        <select aria-label="Ano escutista" value={String(f.ano)} onChange={(e) => set({ ano: e.target.value === String(current) ? null : e.target.value, mes: null })}>
+          {yearList.map((y) => <option key={y} value={y}>{scoutYearLabel(y)}{y === current ? ' (atual)' : ''}</option>)}
+          <option value="todos">Todo o período</option>
+        </select>
+        <select aria-label="Mês" value={f.mes ?? ''} disabled={f.ano === 'todos'} onChange={(e) => set({ mes: e.target.value || null })}>
+          <option value="">Todos os meses</option>
+          {f.ano !== 'todos' && scoutMonths(f.ano).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+        </select>
+        <select aria-label="Atividade" value={f.atividade ?? ''} onChange={(e) => set({ atividade: e.target.value || null })}>
+          <option value="">Atividade: todas</option>
+          {(acts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
+        </select>
         {extended && (
           <>
-            <label className="field">
-              <span className="label">Categoria</span>
-              <select value={f.categoria ?? ''} onChange={(e) => set({ categoria: e.target.value || null })}>
-                <option value="">Todas</option>
-                {(opts.data?.categories ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
-            <label className="field">
-              <span className="label">Estado</span>
-              <select value={f.estado ?? ''} onChange={(e) => set({ estado: e.target.value || null })}>
-                <option value="">Todos</option>
-                <option value="efetivo">Efetivo</option>
-                <option value="pendente">Pendente</option>
-                <option value="previsto">Previsto</option>
-              </select>
-            </label>
+            <select aria-label="Categoria" value={f.categoria ?? ''} onChange={(e) => set({ categoria: e.target.value || null })}>
+              <option value="">Categoria: todas</option>
+              {(opts.data?.categories ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select aria-label="Estado" value={f.estado ?? ''} onChange={(e) => set({ estado: e.target.value || null })}>
+              <option value="">Estado: todos</option>
+              <option value="efetivo">Efetivo</option>
+              <option value="pendente">Pendente</option>
+              <option value="previsto">Previsto</option>
+            </select>
           </>
         )}
-      </div>
-      {any && (
-        <button type="button" className="btn ghost" onClick={() => { setQ(''); setParams(new URLSearchParams(), { replace: true }); }}>
-          Limpar filtros
-        </button>
-      )}
+        {any && (
+          <button type="button" className="btn ghost fin-clear" onClick={() => { setQ(''); setParams(new URLSearchParams(), { replace: true }); }}>
+            Limpar filtros
+          </button>
+        )}
+      </Filters>
     </form>
   );
 }
