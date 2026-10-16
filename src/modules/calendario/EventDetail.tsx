@@ -9,7 +9,7 @@ import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
 import { ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { downloadFile, formatEuros, formatLisbon } from '../common';
+import { downloadFile, formatDay, formatEuros, formatLisbon } from '../common';
 import { listModuleFiles, openModuleFile, uploadModuleFile } from '../files';
 import { MISSING_LABEL, RESPONSE_LABEL, reminderLabel, whenLabel, type CalDetail, type CalParticipant, type PendingItem, type Response } from './cal';
 import { buildIcs, icsFileName } from './ics';
@@ -231,7 +231,12 @@ type Links = {
   reservas?: { id: string; item_id: string; item: string; unit: string; quantity: number; status: string }[];
   financas?: { orcamento: Totals; efetivo: Totals; por_confirmar: Totals } | null;
   reunioes?: { id: string; title: string; kind: string; starts_at: string }[];
+  compras?: { id: string; name: string; quantity: number; unit: string; status: string }[];
+  presencas?: { id: string; title: string; status: string; counts: { presente: number; justificada: number; injustificada: number } | null; mine: string | null } | null;
+  tarefas?: { id: string; kind: string; title: string; exec_status: string; due_date: string | null; overdue: boolean; responsible_name: string | null; team_name: string | null }[];
 };
+const TASK_STATUS: Record<string, string> = { por_fazer: 'Por fazer', em_curso: 'Em curso', concluida: 'Concluída', feita: 'Concluída', cancelada: 'Arquivada' };
+const PRES_STATUS: Record<string, string> = { presente: 'Presente', justificada: 'Falta justificada', injustificada: 'Falta injustificada' };
 type Totals = { receitas: number; despesas: number; resultado: number };
 
 // Registos de outros módulos ligados a esta atividade (só os módulos a que a pessoa tem
@@ -247,7 +252,8 @@ function Linked({ e }: { e: CalDetail }) {
   const l = q.data;
   if (!l) return null;
   const hasRes = !!l.reservas?.length, hasMeet = !!l.reunioes?.length, hasFin = !!l.financas;
-  if (!hasRes && !hasMeet && !hasFin) return null;
+  const hasBuy = !!l.compras?.length, hasPres = !!l.presencas, hasTasks = !!l.tarefas?.length;
+  if (!hasRes && !hasMeet && !hasFin && !hasBuy && !hasPres && !hasTasks) return null;
   return (
     <section className="card" aria-labelledby="cal-links-h">
       <h2 id="cal-links-h"><Link2 size={18} aria-hidden="true" /> Ligado a esta atividade</h2>
@@ -261,6 +267,44 @@ function Linked({ e }: { e: CalDetail }) {
               </Link></li>
             ))}
           </ul>
+        </>
+      )}
+      {hasBuy && (
+        <>
+          <h3 className="label"><Package size={16} aria-hidden="true" /> Material a comprar</h3>
+          <ul className="list">
+            {l.compras!.map((c) => (
+              <li key={c.id}><Link className="list-item" to="/inventario/comprar">
+                <span className="grow ellipsis">{c.name}</span><span className="faint">{c.quantity} {c.unit} · {c.status === 'comprado' ? 'comprado' : 'por comprar'}</span>
+              </Link></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasTasks && (
+        <>
+          <h3 className="label"><Check size={16} aria-hidden="true" /> Tarefas e preparativos</h3>
+          <ul className="list">
+            {l.tarefas!.map((t) => (
+              <li key={t.id}><Link className="list-item" to={`/reunioes-e-tarefas/tarefas/${t.id}`}>
+                <span className="grow ellipsis">{t.title}</span>
+                <span className={t.overdue ? 'badge tone-attention' : 'faint'}>
+                  {TASK_STATUS[t.exec_status] ?? t.exec_status}{t.due_date ? ` · ${formatDay(t.due_date)}` : ''}{t.overdue ? ' · em atraso' : ''}
+                </span>
+              </Link></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasPres && (
+        <>
+          <h3 className="label"><Users size={16} aria-hidden="true" /> Presenças</h3>
+          <p className="faint">
+            {l.presencas!.counts
+              ? <>Presentes: {l.presencas!.counts.presente} · Faltas justificadas: {l.presencas!.counts.justificada} · Faltas injustificadas: {l.presencas!.counts.injustificada}</>
+              : <>A tua presença: {l.presencas!.mine ? PRES_STATUS[l.presencas!.mine] : 'por registar'}</>}
+            {' '}<Link to={`/presencas/sessoes/${l.presencas!.id}`}>Ver presenças</Link>
+          </p>
         </>
       )}
       {hasFin && (
