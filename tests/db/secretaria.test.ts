@@ -1,8 +1,10 @@
-// Secretaria: visibilidade por tipo de reunião, permissões (redigir/aprovar), fluxo das
-// atas, versões e aditamentos, tarefas e lembretes, anexos, ligação a pedidos sem
-// efeito no progresso e isolamento entre o espaço de teste e o real.
+// Reuniões e tarefas (antiga Secretaria; chave interna 'secretaria'): visibilidade por tipo de
+// reunião, permissões (redigir/aprovar), fluxo das atas, versões e aditamentos, sumário
+// estruturado (pré-preenchido sem inventar, revisto, publicado, versões), quadro de tarefas com
+// estados e histórico, «O que me diz respeito» sem conteúdo reservado, integração com o
+// Calendário, anexos, migração dos estados v1 e isolamento entre o espaço de teste e o real.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { admin, buildWorld, expectDenied, pool, rpc, setupModule, trailId, type World } from './helpers';
+import { admin, asUser, buildWorld, expectDenied, pool, rpc, setupModule, trailId, type World } from './helpers';
 
 let w: World;
 const S = () => w.section;
@@ -148,10 +150,17 @@ describe('atas: aprovação, versões e aditamentos', () => {
       p_section: S(), p_item: null, p_minute: ata, p_kind: 'decisao', p_text: 'Etapa discutida', p_responsible: null, p_due: null,
       p_reminder_days: 2, p_request: null, p_stage_path: stagePath,
     });
-    await expectDenied(rpc(w.users.GuiaA, 'sec_item_save', {
-      p_section: S(), p_item: null, p_minute: ata, p_kind: 'tarefa', p_text: 'Sem responsável', p_responsible: null, p_due: inDays(5),
+    // Tarefa sem responsável nem prazo na ata: aceite, fica «por definir» (nada é inventado)
+    const undefinedTask = await rpc<string>(w.users.GuiaA, 'sec_item_save', {
+      p_section: S(), p_item: null, p_minute: ata, p_kind: 'tarefa', p_text: 'Sem responsável', p_responsible: null, p_due: null,
       p_reminder_days: 2, p_request: null, p_stage_path: null,
-    }), 'responsável');
+    });
+    expect(await admin(`select responsible_id, due_date, exec_status from public.sec_items where id = $1`, [undefinedTask]))
+      .toEqual([{ responsible_id: null, due_date: null, exec_status: 'por_fazer' }]);
+    expect(await admin(`select count(*)::int as n from public.module_reminders where entity_id = $1`, [undefinedTask])).toEqual([{ n: 0 }]);
+    await expectDenied(rpc(w.users.GuiaA, 'sec_item_save', {
+      p_section: S(), p_item: null, p_minute: ata, p_kind: 'inventado', p_text: 'x', p_responsible: null, p_due: null,
+    }), 'Escolhe se é decisão');
     await expectDenied(rpc(w.users.P1, 'sec_item_save', {
       p_section: S(), p_item: dec, p_minute: null, p_kind: 'decisao', p_text: 'x', p_responsible: null, p_due: null,
       p_reminder_days: 2, p_request: null, p_stage_path: null,
@@ -162,11 +171,12 @@ describe('atas: aprovação, versões e aditamentos', () => {
       p_due: inDays(10), p_reminder_days: 3, p_request: null, p_stage_path: null,
     });
     const n = await admin(`select title, body from public.notifications where profile_id = $1 and kind = 'sec_tarefa'`, [w.users.P1]);
-    expect(n).toEqual([{ title: '[Teste] Nova tarefa', body: 'Tens um novo registo atribuído na Secretaria.' }]);
-    const r = await admin(`select profile_id, due_at, body from public.module_reminders where entity = 'sec_item' and entity_id = $1 and cancelled_at is null`, [task]);
+    expect(n).toEqual([{ title: '[Teste] Nova tarefa', body: 'Tens um novo registo atribuído em Reuniões e tarefas.' }]);
+    const r = await admin(`select profile_id, due_at, body, link from public.module_reminders where entity = 'sec_item' and entity_id = $1 and cancelled_at is null`, [task]);
     expect(r).toHaveLength(1);
     expect(r[0].profile_id).toBe(w.users.P1);
     expect(r[0].body).not.toContain('material');
+    expect(r[0].link).toBe('/reunioes-e-tarefas/o-que-me-diz-respeito');
     const due = new Date(r[0].due_at).getTime();
     expect(Math.abs(due - (Date.parse(inDays(7)) + 8 * 3600e3)) < 2 * 3600e3).toBe(true); // 09:00 em Lisboa, 3 dias antes
 
@@ -238,7 +248,9 @@ describe('atas: aprovação, versões e aditamentos', () => {
     await expectDenied(rpc(w.users.GuiaA, 'module_file_prepare', { p_section: S(), p_module: 'secretaria', p_entity: 'sec_minute', p_entity_id: ata, p_file_name: 'a.pdf', p_mime: 'application/pdf' }), 'permissão');
     await expectDenied(rpc(w.users.GuiaA, 'sec_meeting_cancel', { p_section: S(), p_meeting: mEquipa, p_reason: 'x' }), 'ata aprovada');
     // O estado de execução das tarefas continua a poder ser acompanhado
+    // «feita» (nome v1) continua a ser aceite e passa a «concluida»
     await rpc(w.users.P1, 'sec_item_set_status', { p_section: S(), p_item: task, p_status: 'feita', p_note: 'Comprado' });
+    expect(await admin(`select exec_status from public.sec_items where id = $1`, [task])).toEqual([{ exec_status: 'concluida' }]);
     expect(await admin(`select count(*)::int as n from public.module_reminders where entity_id = $1 and cancelled_at is null and sent_at is null`, [task])).toEqual([{ n: 0 }]);
   });
 
@@ -298,6 +310,288 @@ describe('anexos', () => {
   });
 });
 
+const ev = async (space: string, title: string) => (await admin(`insert into public.cal_events (section_id, space, title, starts_at, ends_at, created_by)
+  values ($1, $2, $3, now() + interval '3 days', now() + interval '3 days 2 hours', $4) returning id`, [S(), space, title, w.users.Ana]))[0].id as string;
+const item = (who: string, minuteId: string, kind: string, text: string, extra: Record<string, unknown> = {}) =>
+  rpc<string>(w.users[who], 'sec_item_save', {
+    p_section: S(), p_item: null, p_minute: minuteId, p_kind: kind, p_text: text, p_responsible: null, p_due: null,
+    p_reminder_days: 2, p_request: null, p_stage_path: null, p_team: null, p_event: null, ...extra,
+  });
+const summary = (who: string, meetingId: string, version?: number) =>
+  rpc<any>(w.users[who], 'sec_summary', { p_section: S(), p_meeting: meetingId, p_version: version ?? null });
+const myTasks = (who: string) => rpc<any[]>(w.users[who], 'sec_my_tasks', { p_section: S() });
+const board = (who: string, f: Record<string, unknown> = {}) =>
+  rpc<any>(w.users[who], 'sec_board', { p_section: S(), p_responsible: null, p_team: null, p_event: null, p_archived: false, ...f });
+
+describe('sumário estruturado: pré-preenchido, revisto, publicado e com versões', () => {
+  let mAn: string, ataAn: string, sum: string, evAn: string;
+  let tTransporte: string, tMapas: string, pTendas: string, dec: string;
+
+  it('a ata regista decisões, tarefas e preparativos; quem não vê a reunião não é avisado', async () => {
+    evAn = await ev('teste', 'Raide de novembro');
+    mAn = await meeting('GuiaA', 'animacao', { p_title: 'Reunião reservada de animação', p_cal_event: evAn });
+    ataAn = await rpc<string>(w.users.GuiaA, 'sec_minute_create', { p_section: S(), p_meeting: mAn, p_kind: 'ata', p_body: 'Texto reservado: orçamento do raide.' });
+    await admin(`delete from public.notifications where section_id = $1`, [S()]);
+    dec = await item('GuiaA', ataAn, 'decisao', 'Decisão reservada sobre o orçamento');
+    tTransporte = await item('GuiaA', ataAn, 'tarefa', 'Reservar autocarro com a empresa X', { p_responsible: w.users.P3, p_due: inDays(7), p_event: evAn });
+    tMapas = await item('GuiaA', ataAn, 'tarefa', 'Comprar mapas');
+    pTendas = await item('GuiaA', ataAn, 'preparar', 'Levar tendas', { p_team: w.teamB });
+    await expectDenied(item('GuiaA', ataAn, 'tarefa', 'x', { p_event: '00000000-0000-0000-0000-000000000001' }), 'Atividade do calendário não encontrada');
+    // GuiaB (equipa B) vê a reunião (aprovador): é avisado do preparativo da equipa; P3 não vê a reunião: não
+    const n = await admin(`select profile_id from public.notifications where section_id = $1`, [S()]);
+    expect(n.map((x) => x.profile_id)).not.toContain(w.users.P3);
+    expect(await admin(`select count(*)::int as n from public.module_reminders where entity_id = $1 and cancelled_at is null`, [tTransporte])).toEqual([{ n: 0 }]);
+    expect((await myTasks('P3')).map((t) => t.id)).not.toContain(tTransporte);
+  });
+
+  it('preparar: só quem redige ou aprova; rascunho com o que consta da ata, o resto por definir', async () => {
+    await expectDenied(rpc(w.users.P1, 'sec_summary_prepare', { p_section: S(), p_meeting: mAn }), NOT_FOUND);
+    await expectDenied(rpc(w.users.P2, 'sec_summary_prepare', { p_section: S(), p_meeting: mAn }));
+    sum = await rpc<string>(w.users.GuiaA, 'sec_summary_prepare', { p_section: S(), p_meeting: mAn });
+    const d = await summary('GuiaA', mAn);
+    expect(d.summary).toMatchObject({ status: 'rascunho', current_version: 1, published_version: null });
+    const e = d.version.content.entries;
+    expect(e.map((x: any) => [x.kind, x.text])).toEqual([
+      ['decisao', 'Decisão reservada sobre o orçamento'], ['tarefa', 'Reservar autocarro com a empresa X'],
+      ['tarefa', 'Comprar mapas'], ['preparar', 'Levar tendas']]);
+    expect(e[1]).toMatchObject({ responsible_id: w.users.P3, due_date: inDays(7), cal_event_id: evAn });
+    expect(e[1].cal_event.title).toBe('Raide de novembro');
+    // Nada inventado: o que não consta fica vazio (por definir)
+    expect(e[2]).toMatchObject({ responsible_id: null, team_id: null, due_date: null, cal_event_id: null, responsible_name: null });
+    expect(e[3]).toMatchObject({ responsible_id: null, team_id: w.teamB, due_date: null, team_name: 'Equipa B' });
+    expect(e[0]).toMatchObject({ responsible_id: null, due_date: null });
+    expect(d).toMatchObject({ can_edit: true, can_publish: false, missing_items: 0 });
+    expect((await summary('GuiaB', mAn)).can_publish).toBe(false); // ata ainda não aprovada
+    await expectDenied(rpc(w.users.GuiaB, 'sec_summary_publish', { p_section: S(), p_summary: sum, p_expected_version: 1 }), 'Aprova a ata');
+    // Um registo novo na ata entra ao «atualizar a partir da ata», sem duplicar
+    const extra = await item('GuiaA', ataAn, 'decisao', 'Segunda decisão');
+    expect((await summary('GuiaA', mAn)).missing_items).toBe(1);
+    await rpc(w.users.GuiaA, 'sec_summary_prepare', { p_section: S(), p_meeting: mAn });
+    await rpc(w.users.GuiaA, 'sec_summary_prepare', { p_section: S(), p_meeting: mAn });
+    const after = (await summary('GuiaA', mAn)).version.content.entries;
+    expect(after.filter((x: any) => x.item_id === extra)).toHaveLength(1);
+    expect(after).toHaveLength(5);
+  });
+
+  it('rever: edita títulos, omite pontos; não aceita pontos inventados', async () => {
+    const entries = (await summary('GuiaA', mAn)).version.content.entries.map((x: any) => ({ ...x }));
+    entries[1].text = 'Tratar do transporte';
+    entries[4].omitted = true;
+    await expectDenied(rpc(w.users.P1, 'sec_summary_save', { p_section: S(), p_summary: sum, p_entries: JSON.stringify(entries), p_expected_version: 1 }), NOT_FOUND);
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_save', { p_section: S(), p_summary: sum, p_entries: JSON.stringify(entries), p_expected_version: 2 }), 'mudou');
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_save', { p_section: S(), p_summary: sum,
+      p_entries: JSON.stringify([...entries, { item_id: '00000000-0000-0000-0000-000000000009', kind: 'decisao', text: 'Inventada' }]), p_expected_version: 1 }), 'constam da ata');
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_save', { p_section: S(), p_summary: sum,
+      p_entries: JSON.stringify([entries[0], entries[0]]), p_expected_version: 1 }), 'repetidos');
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_save', { p_section: S(), p_summary: sum,
+      p_entries: JSON.stringify([{ ...entries[1], text: ' ' }]), p_expected_version: 1 }), 'texto');
+    // Uma decisão não ganha responsável nem prazo no sumário
+    entries[0].responsible_id = w.users.P1;
+    await rpc(w.users.GuiaA, 'sec_summary_save', { p_section: S(), p_summary: sum, p_entries: JSON.stringify(entries), p_expected_version: 1 });
+    const e = (await summary('GuiaA', mAn)).version.content.entries;
+    expect(e[0].responsible_id).toBeNull();
+    expect(e[1].text).toBe('Tratar do transporte');
+    expect(e[4].omitted).toBe(true);
+    // O registo da ata não muda por se rever o sumário
+    expect((await admin(`select text from public.sec_items where id = $1`, [tTransporte]))[0].text).toBe('Reservar autocarro com a empresa X');
+  });
+
+  it('publicar: só quem aprova, com a ata aprovada; avisos genéricos aos destinatários', async () => {
+    await rpc(w.users.GuiaA, 'sec_minute_submit', { p_section: S(), p_minute: ataAn, p_expected_version: 1 });
+    await rpc(w.users.GuiaB, 'sec_minute_approve', { p_section: S(), p_minute: ataAn, p_expected_version: 1 });
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_publish', { p_section: S(), p_summary: sum, p_expected_version: 1 }), 'permissão');
+    await expectDenied(rpc(w.users.P3, 'sec_summary_publish', { p_section: S(), p_summary: sum, p_expected_version: 1 }), NOT_FOUND);
+    await admin(`delete from public.notifications where section_id = $1`, [S()]);
+    await rpc(w.users.GuiaB, 'sec_summary_publish', { p_section: S(), p_summary: sum, p_expected_version: 1 });
+    const d = await summary('Rui', mAn);
+    expect(d.summary).toMatchObject({ status: 'publicado', published_version: 1 });
+    expect(d.version).toMatchObject({ published: true });
+    expect(d.version.published_by_name).toMatch(/GuiaB/);
+    expect(d.version.content.entries[1].responsible_name).toMatch(/P3/);
+    const n = await admin(`select profile_id, kind, title, body, link from public.notifications where section_id = $1 order by kind`, [S()]);
+    // P3: responsável (e da equipa B); GuiaB (equipa B) publica e não é avisado; Ana, Rui e GuiaA veem a reunião
+    expect(n.filter((x) => x.kind === 'sec_tarefa').map((x) => x.profile_id)).toEqual([w.users.P3]);
+    expect(n.filter((x) => x.kind === 'sec_sumario').map((x) => x.profile_id).sort()).toEqual([w.users.Ana, w.users.Rui, w.users.GuiaA].sort());
+    for (const x of n) {
+      expect(JSON.stringify(x)).not.toMatch(/autocarro|orçamento|transporte|tendas|reservada/i);
+      expect(x.title.startsWith('[Teste] ')).toBe(true);
+    }
+    // Agora publicado, o lembrete do prazo é programado para P3
+    expect(await admin(`select profile_id from public.module_reminders where entity_id = $1 and cancelled_at is null`, [tTransporte])).toEqual([{ profile_id: w.users.P3 }]);
+  });
+
+  it('«O que me diz respeito» não revela conteúdo reservado', async () => {
+    const mine = await myTasks('P3');
+    const rows = mine.filter((t) => [tTransporte, tMapas, pTendas, dec].includes(t.id));
+    expect(rows.map((t) => [t.text, t.via])).toEqual([['Tratar do transporte', 'pessoal'], ['Levar tendas', 'equipa']]);
+    expect(rows[0]).toMatchObject({ due_date: inDays(7), exec_status: 'por_fazer', meeting_id: null, meeting_title: null, published: true });
+    expect(rows[0].cal_event.title).toBe('Raide de novembro');
+    expect(rows[1].team_name).toBe('Equipa B');
+    expect(JSON.stringify(mine)).not.toMatch(/autocarro|orçamento|Decisão reservada|Reunião reservada|Texto reservado/);
+    // Ficha limitada, sem histórico; sumário, reunião e quadro continuam inacessíveis
+    const t = await rpc<any>(w.users.P3, 'sec_task', { p_section: S(), p_item: tTransporte });
+    expect(t).toMatchObject({ limited: true, history: [], can_manage: false });
+    expect(t.task.text).toBe('Tratar do transporte');
+    expect(JSON.stringify(t)).not.toMatch(/autocarro|reservada/i);
+    await expectDenied(rpc(w.users.P3, 'sec_task', { p_section: S(), p_item: dec }), NOT_FOUND);
+    await expectDenied(rpc(w.users.P3, 'sec_task', { p_section: S(), p_item: tMapas }), NOT_FOUND);
+    await expectDenied(summary('P3', mAn), NOT_FOUND);
+    expect((await board('P3')).tasks.map((x: any) => x.id)).not.toContain(tTransporte);
+    // P1 (equipa A) não tem nada desta reunião
+    expect((await myTasks('P1')).map((x) => x.id)).not.toContain(pTendas);
+    // O responsável muda o estado; não arquiva
+    await rpc(w.users.P3, 'sec_item_set_status', { p_section: S(), p_item: tTransporte, p_status: 'em_curso', p_note: null });
+    await expectDenied(rpc(w.users.P3, 'sec_item_set_status', { p_section: S(), p_item: tTransporte, p_status: 'cancelada', p_note: null }), 'arquivar');
+    await expectDenied(rpc(w.users.P1, 'sec_item_set_status', { p_section: S(), p_item: tTransporte, p_status: 'concluida', p_note: null }), NOT_FOUND);
+    await expectDenied(rpc(w.users.P3, 'sec_item_set_status', { p_section: S(), p_item: dec, p_status: 'concluida', p_note: null }), NOT_FOUND);
+  });
+
+  it('o sumário publicado nunca muda em silêncio: nova versão com motivo', async () => {
+    await expectDenied(admin(`update public.sec_summary_versions set content = '{"entries": []}' where summary_id = $1 and version_no = 1`, [sum]), 'publicada');
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_save', { p_section: S(), p_summary: sum, p_entries: '[]', p_expected_version: 1 }), 'nova versão');
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_prepare', { p_section: S(), p_meeting: mAn }), 'nova versão');
+    await expectDenied(rpc(w.users.GuiaA, 'sec_summary_revise', { p_section: S(), p_summary: sum, p_reason: ' ' }), 'motivo');
+    expect(await rpc(w.users.GuiaA, 'sec_summary_revise', { p_section: S(), p_summary: sum, p_reason: 'Faltava o responsável dos mapas' })).toBe(2);
+    const d = await summary('GuiaA', mAn);
+    expect(d.summary).toMatchObject({ status: 'rascunho', current_version: 2, published_version: 1 });
+    expect(d.version.note).toBe('Revisão: Faltava o responsável dos mapas');
+    // Enquanto a revisão não é publicada, continua em vigor a versão 1
+    expect((await myTasks('P3')).find((t) => t.id === tTransporte).text).toBe('Tratar do transporte');
+    const entries = d.version.content.entries.map((x: any) => ({ ...x }));
+    entries[2].responsible_id = w.users.GuiaA;
+    entries[2].due_date = inDays(-2);
+    await rpc(w.users.GuiaA, 'sec_summary_save', { p_section: S(), p_summary: sum, p_entries: JSON.stringify(entries), p_expected_version: 2 });
+    await rpc(w.users.Rui, 'sec_summary_publish', { p_section: S(), p_summary: sum, p_expected_version: 2 });
+    const v = await summary('GuiaB', mAn);
+    expect(v.versions.map((x: any) => [x.version_no, !!x.published_at])).toEqual([[2, true], [1, true]]);
+    expect((await summary('GuiaB', mAn, 1)).version.content.entries[2].responsible_id).toBeNull();
+    // A revisão publicada passou para o quadro, com histórico
+    expect(await admin(`select responsible_id, due_date::text as due from public.sec_items where id = $1`, [tMapas]))
+      .toEqual([{ responsible_id: w.users.GuiaA, due: inDays(-2) }]);
+    const t = await rpc<any>(w.users.GuiaA, 'sec_task', { p_section: S(), p_item: tMapas });
+    const h = t.history.filter((x: any) => x.field !== 'criada');
+    expect(h.map((x: any) => [x.field, x.from])).toEqual(expect.arrayContaining([['responsavel', 'Por definir'], ['prazo', 'Por definir']]));
+    expect(h[0].note).toBe('Definido no sumário publicado (versão 2).');
+    expect(t.task.overdue).toBe(true);
+  });
+});
+
+describe('quadro de tarefas: estados, atraso, filtros e histórico', () => {
+  let mB: string, ataB: string, t1: string, t2: string, evB: string;
+
+  it('mostra só tarefas e preparativos de reuniões visíveis, com destaque para atrasos', async () => {
+    evB = await ev('teste', 'Acampamento de equipa');
+    mB = await meeting('GuiaA', 'equipa', { p_team: w.teamA, p_title: 'Reunião da equipa A (quadro)' });
+    ataB = await rpc<string>(w.users.GuiaA, 'sec_minute_create', { p_section: S(), p_meeting: mB, p_kind: 'ata', p_body: 'Texto' });
+    t1 = await item('GuiaA', ataB, 'tarefa', 'Tarefa atrasada', { p_responsible: w.users.P1, p_due: inDays(-1) });
+    t2 = await item('GuiaA', ataB, 'preparar', 'Preparar jogos', { p_team: w.teamA, p_event: evB });
+    await item('GuiaA', ataB, 'decisao', 'Decisão não vai para o quadro');
+    const b = await board('P1');
+    const ids = b.tasks.map((x: any) => x.id);
+    expect(ids).toEqual(expect.arrayContaining([t1, t2]));
+    expect(b.tasks.some((x: any) => x.kind === 'decisao')).toBe(false);
+    expect(b.tasks.find((x: any) => x.id === t1)).toMatchObject({ overdue: true, exec_status: 'por_fazer', minute_id: ataB, meeting_id: mB, can_status: true, can_manage: false });
+    expect(b.tasks.find((x: any) => x.id === t2)).toMatchObject({ overdue: false, team_name: 'Equipa A', responsible_id: null, can_status: true });
+    expect(b.can_manage).toBe(false);
+    expect(b.events.map((e: any) => e.id)).toContain(evB);
+    // O rascunho do sumário (ainda não revisto) não é mostrado a quem só consulta
+    await rpc(w.users.GuiaA, 'sec_summary_prepare', { p_section: S(), p_meeting: mB });
+    const draft = await summary('P1', mB);
+    expect(draft).toMatchObject({ version: null, versions: [], can_edit: false, can_publish: false, can_manage: false });
+    expect(draft.summary.status).toBe('rascunho');
+    await expectDenied(summary('P1', mB, 1), NOT_FOUND);
+    expect((await summary('GuiaA', mB)).version.content.entries).toHaveLength(3);
+    // Quem não vê a reunião não a vê no quadro
+    expect((await board('P3')).tasks.map((x: any) => x.id)).not.toContain(t1);
+    expect((await board('Tecnico')).tasks.map((x: any) => x.id)).not.toContain(t1);
+  });
+
+  it('filtros: responsável, equipa, atividade e arquivo', async () => {
+    expect((await board('GuiaA', { p_responsible: w.users.P1 })).tasks.map((x: any) => x.id)).toContain(t1);
+    expect((await board('GuiaA', { p_responsible: w.users.P1 })).tasks.map((x: any) => x.id)).not.toContain(t2);
+    const teamA = (await board('GuiaA', { p_team: w.teamA })).tasks.map((x: any) => x.id);
+    expect(teamA).toEqual(expect.arrayContaining([t1, t2])); // P1 é da equipa A; t2 é da equipa A
+    expect((await board('GuiaA', { p_team: w.teamB })).tasks.map((x: any) => x.id)).not.toContain(t1);
+    expect((await board('GuiaA', { p_event: evB })).tasks.map((x: any) => x.id)).toEqual([t2]);
+  });
+
+  it('estados Por fazer → Em curso → Concluída, com histórico de conclusão', async () => {
+    await rpc(w.users.P1, 'sec_item_set_status', { p_section: S(), p_item: t1, p_status: 'em_curso', p_note: null });
+    await expectDenied(rpc(w.users.P2, 'sec_item_set_status', { p_section: S(), p_item: t2, p_status: 'em_curso', p_note: null })); // sem acesso em teste
+    await rpc(w.users.P1, 'sec_item_set_status', { p_section: S(), p_item: t2, p_status: 'concluida', p_note: 'Jogos prontos' }); // equipa responsável
+    await rpc(w.users.P1, 'sec_item_set_status', { p_section: S(), p_item: t1, p_status: 'concluida', p_note: 'Feito' });
+    const t = await rpc<any>(w.users.GuiaA, 'sec_task', { p_section: S(), p_item: t1 });
+    expect(t.task).toMatchObject({ exec_status: 'concluida', overdue: false });
+    expect(t.task.completed_at).toBeTruthy();
+    expect(t.history.filter((h: any) => h.field === 'estado').map((h: any) => [h.from, h.to])).toEqual([
+      ['Em curso', 'Concluída'], ['Por fazer', 'Em curso']]);
+    expect(t.history[0].by).toMatch(/P1/);
+    expect(t.history[0].note).toBe('Feito');
+    expect(t.history.at(-1).field).toBe('criada');
+    expect(t).toMatchObject({ limited: false, meeting: { id: mB }, minute: { id: ataB } });
+    // Reabrir limpa a conclusão
+    await rpc(w.users.P1, 'sec_item_set_status', { p_section: S(), p_item: t1, p_status: 'por_fazer', p_note: null });
+    expect(await admin(`select completed_at from public.sec_items where id = $1`, [t1])).toEqual([{ completed_at: null }]);
+  });
+
+  it('gerir no quadro (responsável, prazo, atividade) só quem redige ou aprova; arquivar sai do quadro', async () => {
+    await expectDenied(rpc(w.users.P1, 'sec_task_update', { p_section: S(), p_item: t1, p_responsible: w.users.P1, p_team: null, p_due: inDays(3), p_event: null, p_note: null }), 'permissão');
+    await expectDenied(rpc(w.users.P3, 'sec_task_update', { p_section: S(), p_item: t1, p_responsible: null, p_team: null, p_due: null, p_event: null, p_note: null }), NOT_FOUND);
+    await admin(`delete from public.notifications where section_id = $1`, [S()]);
+    await rpc(w.users.Rui, 'sec_task_update', { p_section: S(), p_item: t1, p_responsible: w.users.P2, p_team: null, p_due: inDays(5), p_event: evB, p_note: 'Troca combinada' });
+    const t = await rpc<any>(w.users.GuiaA, 'sec_task', { p_section: S(), p_item: t1 });
+    expect(t.history.slice(0, 3).map((h: any) => [h.field, h.note])).toEqual(expect.arrayContaining([
+      ['responsavel', 'Troca combinada'], ['prazo', 'Troca combinada'], ['atividade', 'Troca combinada']]));
+    expect(t.history.find((h: any) => h.field === 'atividade')).toMatchObject({ from: 'Por definir', to: 'Acampamento de equipa' });
+    // P2 vê a reunião (equipa A), mas não é tester em teste: não recebe avisos
+    expect(await admin(`select count(*)::int as n from public.notifications where section_id = $1 and profile_id = $2`, [S(), w.users.P2])).toEqual([{ n: 0 }]);
+    // Arquivar (cancelada) tira do quadro e do «O que me diz respeito»; continua consultável no arquivo
+    await rpc(w.users.GuiaA, 'sec_item_set_status', { p_section: S(), p_item: t2, p_status: 'cancelada', p_note: 'Já não é preciso' });
+    expect((await board('GuiaA')).tasks.map((x: any) => x.id)).not.toContain(t2);
+    expect((await board('GuiaA', { p_archived: true })).tasks.map((x: any) => x.id)).toContain(t2);
+    expect((await myTasks('P1')).map((x) => x.id)).not.toContain(t2);
+    await expectDenied(rpc(w.users.GuiaA, 'sec_task_update', { p_section: S(), p_item: t1, p_responsible: null, p_team: null, p_due: null,
+      p_event: '00000000-0000-0000-0000-000000000001', p_note: null }), 'Atividade');
+  });
+
+  it('integração: tarefas ligadas a uma atividade, respeitando a visibilidade', async () => {
+    const forEvent = async (who: string, space: string, e: string) =>
+      (await asUser(w.users[who], `select private.sec_tasks_for_event($1, $2, $3) as r`, [S(), space, e]))[0].r as any[];
+    expect((await forEvent('GuiaA', 'teste', evB)).map((x) => x.id)).toEqual([t1]);
+    expect((await forEvent('GuiaA', 'teste', evB))[0]).toMatchObject({ title: 'Tarefa atrasada', exec_status: 'por_fazer', meeting_id: mB });
+    expect(await forEvent('GuiaA', 'real', evB)).toEqual([]); // outro espaço
+    expect(await forEvent('P2', 'teste', evB)).toEqual([]); // sem acesso ao módulo em teste
+    expect(await forEvent('P3', 'teste', evB)).toEqual([]); // não vê a reunião da equipa A
+    // P3 só vê a sua tarefa publicada da reunião reservada, com o título revisto
+    const evAn = (await admin(`select id from public.cal_events where title = 'Raide de novembro' and section_id = $1`, [S()]))[0].id;
+    const r = await forEvent('P3', 'teste', evAn);
+    expect(r.map((x) => x.title)).toEqual(['Tratar do transporte']);
+    expect(r[0].meeting_id).toBeNull();
+  });
+});
+
+describe('pesquisa e histórico de reuniões', () => {
+  const find = (who: string, f: Record<string, unknown>) =>
+    rpc<any>(w.users[who], 'sec_meetings', { p_section: S(), p_search: null, p_kind: null, p_team: null, p_event: null, p_from: null, p_to: null, ...f })
+      .then((r) => r.meetings.map((m: any) => m.title));
+
+  it('por texto da ata, data, equipa e atividade — só nas reuniões que a pessoa vê', async () => {
+    expect(await find('Rui', { p_search: 'orçamento do raide' })).toEqual(['Reunião reservada de animação']);
+    expect(await find('P3', { p_search: 'orçamento do raide' })).toEqual([]);
+    expect(await find('GuiaA', { p_search: 'Preparar jogos' })).toEqual(['Reunião da equipa A (quadro)']);
+    expect(await find('GuiaA', { p_from: inDays(2) })).toEqual([]);
+    expect(await find('GuiaA', { p_to: inDays(1) })).toContain('Reunião da equipa A (quadro)');
+    expect(await find('GuiaA', { p_team: w.teamB })).toEqual([]);
+    expect(await find('GuiaA', { p_team: w.teamA })).toContain('Reunião da equipa A (quadro)');
+    const evAn = (await admin(`select id from public.cal_events where title = 'Raide de novembro' and section_id = $1`, [S()]))[0].id;
+    expect(await find('GuiaA', { p_event: evAn })).toEqual(['Reunião reservada de animação']);
+    const r = await rpc<any>(w.users.GuiaA, 'sec_meetings', { p_section: S() });
+    expect(r.events.map((e: any) => e.title)).toContain('Raide de novembro');
+    expect(r.meetings.find((m: any) => m.title === 'Reunião reservada de animação').summary).toMatchObject({ status: 'publicado' });
+    expect(r.teams.map((t: any) => t.name)).toEqual(expect.arrayContaining(['Equipa A', 'Equipa B']));
+  });
+});
+
 describe('calendário, anulação e isolamento teste/real', () => {
   let evTest: string, evReal: string;
 
@@ -307,7 +601,8 @@ describe('calendário, anulação e isolamento teste/real', () => {
     evTest = (await ins('teste', 'Atividade de teste'))[0].id;
     evReal = (await ins('real', 'Atividade real'))[0].id;
     const opts = await rpc<any[]>(w.users.GuiaA, 'sec_event_options', { p_section: S() });
-    expect(opts.map((e) => e.id)).toEqual([evTest]);
+    expect(opts.map((e) => e.id)).toContain(evTest);
+    expect(opts.map((e) => e.id)).not.toContain(evReal);
     await expectDenied(meeting('GuiaA', 'animacao', { p_cal_event: evReal }), 'Atividade do calendário não encontrada');
     const m = await meeting('GuiaA', 'animacao', { p_cal_event: evTest });
     expect((await rpc<any>(w.users.Rui, 'sec_meeting', { p_section: S(), p_meeting: m })).meeting.cal_event.title).toBe('Atividade de teste');
@@ -327,6 +622,10 @@ describe('calendário, anulação e isolamento teste/real', () => {
     await expectDenied(rpc(w.users.P1, 'sec_meeting', { p_section: S(), p_meeting: mEquipa }), NOT_FOUND);
     await expectDenied(rpc(w.users.Rui, 'sec_minute', { p_section: S(), p_minute: (await admin(`select id from public.sec_minutes where meeting_id = $1 and kind = 'ata'`, [mEquipa]))[0].id }), NOT_FOUND);
     expect(await rpc<any[]>(w.users.P1, 'sec_my_tasks', { p_section: S() })).toEqual([]);
+    expect(await rpc<any[]>(w.users.P3, 'sec_my_tasks', { p_section: S() })).toEqual([]);
+    expect((await rpc<any>(w.users.GuiaA, 'sec_board', { p_section: S() })).tasks).toEqual([]);
+    expect((await rpc<any>(w.users.GuiaA, 'sec_board', { p_section: S(), p_archived: true })).tasks).toEqual([]);
+    expect((await asUser(w.users.GuiaA, `select private.sec_tasks_for_event($1, 'teste', $2) as r`, [S(), evTest]))[0].r).toEqual([]);
     expect((await rpc<any[]>(w.users.GuiaA, 'sec_event_options', { p_section: S() })).map((e) => e.id)).toEqual([evReal]);
     // Agora no real, P2 (não tester) já tem acesso de consulta à reunião da sua equipa
     const real = await rpc<string>(w.users.GuiaA, 'sec_meeting_save', {
@@ -352,10 +651,22 @@ describe('calendário, anulação e isolamento teste/real', () => {
   it('publicar passando os dados de teste a reais mantém versões fechadas intactas', async () => {
     const ata = (await admin(`select id from public.sec_minutes where meeting_id = $1 and kind = 'ata'`, [mEquipa]))[0].id;
     const before = await admin(`select version_no, body, snapshot, approved_at from public.sec_minute_versions where minute_id = $1 order by version_no`, [ata]);
+    const sumBefore = await admin(`select v.version_no, v.content, v.published_at from public.sec_summary_versions v order by v.summary_id, v.version_no`);
+    const histBefore = await admin(`select count(*)::int as n from public.sec_item_history where section_id = $1`, [S()]);
     await rpc(w.users.Ana, 'set_module_status', { p_section: S(), p_module: 'secretaria', p_status: 'disponivel', p_move_test_data: true });
     expect(await admin(`select count(*)::int as n from public.sec_minute_versions where section_id = $1 and space = 'teste'`, [S()])).toEqual([{ n: 0 }]);
     expect(await admin(`select version_no, body, snapshot, approved_at from public.sec_minute_versions where minute_id = $1 order by version_no`, [ata])).toEqual(before);
     expect(await seen('Rui')).toContain(mEquipa);
+    // Sumários publicados e histórico passam intactos
+    expect(await admin(`select v.version_no, v.content, v.published_at from public.sec_summary_versions v order by v.summary_id, v.version_no`)).toEqual(sumBefore);
+    for (const t of ['sec_summaries', 'sec_summary_versions', 'sec_item_history']) {
+      expect(await admin(`select count(*)::int as n from public.${t} where section_id = $1 and space = 'teste'`, [S()])).toEqual([{ n: 0 }]);
+    }
+    expect(await admin(`select count(*)::int as n from public.sec_item_history where section_id = $1`, [S()])).toEqual(histBefore);
+    // Tarefas reais não ficam ligadas a atividades do Calendário que continuam de teste
+    expect(await admin(`select count(*)::int as n from public.sec_items i join public.cal_events e on e.id = i.cal_event_id
+                         where i.section_id = $1 and e.space = 'teste'`, [S()])).toEqual([{ n: 0 }]);
+    expect((await rpc<any[]>(w.users.P3, 'sec_my_tasks', { p_section: S() })).map((t) => t.text)).toContain('Tratar do transporte');
     expect((await minute('P1', ata, 2)).version.body).toBe('Texto final aprovado');
     await expectDenied(rpc(w.users.GuiaA, 'sec_minute_save', { p_section: S(), p_minute: ata, p_body: 'x', p_expected_version: 3 }), 'aprovada não pode ser alterada');
   });
