@@ -35,17 +35,28 @@ export const MOVEMENT_LABEL: Record<string, string> = {
   arquivo: 'Arquivado', reativacao: 'Reativado',
 };
 
+export type Conservation = 'novo' | 'bom' | 'razoavel' | 'mau';
+export const CONSERVATION_LABEL: Record<Conservation, string> = { novo: 'Novo', bom: 'Bom', razoavel: 'Razoável', mau: 'Mau' };
+export const CONSERVATION_TONE: Record<Conservation, Tone> = { novo: 'ok', bom: 'ok', razoavel: 'neutral', mau: 'attention' };
+/** Categorias habituais (criadas a pedido de quem gere, sem duplicar). */
+export const DEFAULT_CATEGORIES = ['Campismo', 'Cozinha', 'Ferramentas', 'Jogos', 'Construções'];
+
 export type Stock = {
   total: number; damaged: number; repair: number; lent: number; reserved: number; reservations: number; available: number; states: ItemState[];
 };
 export type Item = {
   id: string; name: string; description: string | null; unit: string; location: string | null; tracking: 'quantidade' | 'pecas';
   category_id: string | null; category: string | null; min_quantity: number | null; archived_at: string | null; updated_at: string;
+  room: string | null; cabinet: string | null; shelf: string | null; box: string | null; condition: Conservation | null; notes: string | null;
   has_photo: boolean; stock: Stock;
+};
+export type Summary = {
+  lent_units: number; lent_loans: number; overdue: number; repair_units: number; repair_items: number; purchases_pending: number; purchases_high: number;
 };
 export type Category = { id: string; name: string; archived: boolean; items: number };
 export type Overview = {
-  can_manage: boolean; me: string; categories: Category[]; locations: string[]; items: Item[]; pending_requests: number; overdue: number;
+  can_manage: boolean; fin_ok: boolean; me: string; categories: Category[]; locations: string[]; rooms: string[];
+  cabinets: { room: string | null; cabinet: string }[]; items: Item[]; pending_requests: number; overdue: number; summary: Summary;
 };
 export type LoanPiece = { id: string; code: string; serial: string | null; returned_at: string | null; returned_status: Condition | null };
 export type Loan = {
@@ -53,6 +64,7 @@ export type Loan = {
   quantity: number; returned_qty: number; out_at: string; due_at: string; status: 'pedido' | 'ativo' | 'devolvido' | 'recusado' | 'cancelado';
   overdue: boolean; notes: string | null; remind_hours: number; reservation_id: string | null; requested_by: string; requested_at: string;
   decided_by: string | null; decided_at: string | null; decision_note: string | null; returned_at: string | null; pieces: LoanPiece[];
+  registered_by: string | null; returns: { at: string; quantity: number; condition: Condition; note: string | null; by: string | null }[];
 };
 export type Reservation = {
   id: string; item_id: string; item: string; unit: string; quantity: number; starts_at: string; ends_at: string;
@@ -64,7 +76,32 @@ export type Movement = {
   id: number; kind: string; quantity: number | null; from_state: string | null; to_state: string | null; note: string | null;
   at: string; actor: string | null; piece: string | null; borrower: string | null;
 };
-export type ItemDetail = Item & { can_manage: boolean; pieces: Piece[]; loans: Loan[]; reservations: Reservation[]; movements: Movement[] };
+export type ItemDetail = Item & {
+  can_manage: boolean; pieces: Piece[]; loans: Loan[]; reservations: Reservation[]; movements: Movement[]; purchases: Purchase[];
+};
+
+export type Priority = 'baixa' | 'media' | 'alta';
+export type PurchaseStatus = 'por_comprar' | 'comprado' | 'cancelado';
+export const PRIORITY_LABEL: Record<Priority, { label: string; tone: Tone }> = {
+  alta: { label: 'Prioridade alta', tone: 'attention' }, media: { label: 'Prioridade média', tone: 'neutral' }, baixa: { label: 'Prioridade baixa', tone: 'muted' },
+};
+export const PURCHASE_LABEL: Record<PurchaseStatus, { label: string; tone: Tone }> = {
+  por_comprar: { label: 'Por comprar', tone: 'progress' }, comprado: { label: 'Comprado', tone: 'ok' }, cancelado: { label: 'Cancelado', tone: 'muted' },
+};
+export type Expense = { id: string; description: string; occurred_on: string; amount_cents: number; state: string; category: string; voided: boolean; account: string | null };
+export type Purchase = {
+  id: string; item_id: string | null; new_material: boolean; name: string; item_archived: boolean; tracking: Item['tracking'] | null;
+  category_id: string | null; category: string | null; quantity: number; unit: string; reason: string | null; priority: Priority;
+  status: PurchaseStatus; needed_by: string | null; event_id: string | null; event: string | null; amount_cents: number | null;
+  bought_qty: number | null; bought_on: string | null; bought_at: string | null; bought_by: string | null;
+  stock_added_at: string | null; stock_item_id: string | null; stock_added_by: string | null;
+  has_expense: boolean; expense: Expense | null;
+  cancelled_at: string | null; cancel_reason: string | null; cancelled_by: string | null; created_by: string; created_at: string;
+};
+export type ExpenseOptions =
+  | { allowed: false; reason: string }
+  | { allowed: true; accounts: { id: string; name: string; kind: string }[]; categories: string[];
+      expenses: { id: string; occurred_on: string; description: string; category: string; amount_cents: number; state: string }[] };
 export type Alerts = {
   overdue: Loan[]; due_soon: Loan[]; low_stock: Item[]; repair: Item[]; damaged: Item[]; at_risk: Reservation[]; requests: Loan[];
 };
@@ -98,6 +135,14 @@ export function useAlerts() {
   const s = useSectionId();
   return useQuery({ queryKey: ['inv', 'alerts', s], queryFn: () => call<Alerts>('inv_alerts', { p_section: s }) });
 }
+export function usePurchases(status: string) {
+  const s = useSectionId();
+  return useQuery({ queryKey: ['inv', 'purchases', s, status], queryFn: () => call<Purchase[]>('inv_purchases', { p_section: s, p_status: status || null }) });
+}
+export function useExpenseOptions(enabled = true) {
+  const s = useSectionId();
+  return useQuery({ queryKey: ['inv', 'expense-options', s], queryFn: () => call<ExpenseOptions>('inv_expense_options', { p_section: s }), enabled });
+}
 export function useEventOptions(enabled = true) {
   const s = useSectionId();
   return useQuery({ queryKey: ['inv', 'events', s], queryFn: () => call<EventOption[]>('inv_event_options', { p_section: s }), enabled });
@@ -105,6 +150,15 @@ export function useEventOptions(enabled = true) {
 export function usePeople(enabled = true) {
   const s = useSectionId();
   return useQuery({ queryKey: ['inv', 'people', s], queryFn: () => call<Person[]>('inv_people', { p_section: s }), enabled, staleTime: 60_000 });
+}
+
+/** Local exato em texto, com as etiquetas: «Sala Sede · Armário 2 · …». */
+export function placeParts(i: Pick<Item, 'room' | 'cabinet' | 'shelf' | 'box' | 'location'>): { label: string; value: string }[] {
+  const parts = [
+    { label: 'Sala', value: i.room }, { label: 'Armário', value: i.cabinet }, { label: 'Prateleira', value: i.shelf }, { label: 'Caixa', value: i.box },
+  ].filter((p): p is { label: string; value: string } => !!p.value);
+  if (!parts.length && i.location) return [{ label: 'Local', value: i.location }];
+  return parts;
 }
 
 /** «3 un.» / «1 par» */
