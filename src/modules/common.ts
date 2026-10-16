@@ -91,6 +91,16 @@ export const lisbonDay = (iso: string) => isoToLisbon(iso).slice(0, 10);
 export const lisbonTime = (iso: string) => isoToLisbon(iso).slice(11, 16);
 export const todayLisbon = () => lisbonDay(new Date().toISOString());
 
+/** Reunião habitual da secção: sábado, das 14:30 às 16:00 (valores por omissão nos formulários novos). */
+export const MEETING_DEFAULT = { title: 'Reunião', start: '14:30', end: '16:00' } as const;
+
+/** O próprio dia, se for sábado, ou o sábado seguinte (AAAA-MM-DD). */
+export function nextSaturday(day = todayLisbon()): string {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + ((6 - d.getUTCDay() + 7) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
 /** Data sem hora «AAAA-MM-DD» → «DD/MM/AAAA». Para um instante, usar formatLisbonDay. */
 export function formatDay(day: string) {
   const [y, m, d] = day.slice(0, 10).split('-');

@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
-import { formatDay, todayLisbon } from '../common';
+import { formatDay, MEETING_DEFAULT, nextSaturday, todayLisbon } from '../common';
 import { useSectionId, type Board, type EventOption, type SessionDetail } from './api';
 import { DateInput } from '../../components/DateInput';
 
@@ -27,8 +27,9 @@ export function SessionForm() {
     queryFn: () => call<Board>('pres_board', { p_section: section, p_from: today, p_to: today, p_team: null }),
   });
   const [event, setEvent] = useState('');
-  const [date, setDate] = useState(today);
-  const [title, setTitle] = useState('');
+  // Por omissão, a reunião de sábado.
+  const [date, setDate] = useState(() => nextSaturday(today));
+  const [title, setTitle] = useState<string>(MEETING_DEFAULT.title);
   const [kind, setKind] = useState<'reuniao' | 'atividade'>('reuniao');
   const [team, setTeam] = useState('');
   const [notes, setNotes] = useState('');

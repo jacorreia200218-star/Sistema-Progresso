@@ -250,8 +250,14 @@ test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', as
   // Formulário simples: evento, data e notas; o resto fica em «Mais opções».
   await expect(page.getByLabel('Data', { exact: true })).toHaveValue(fmt(target));
   await expect(page.getByLabel('Hora de início')).toBeHidden();
+  await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
   await page.getByLabel('Evento', { exact: true }).fill('Jogo de cidade (teste)');
   await page.getByText('Mais opções').click();
+  // Por omissão, a reunião de sábado (14:30–16:00); sem horas fica de dia inteiro.
+  await expect(page.getByLabel('Hora de início')).toHaveValue('14:30');
+  await expect(page.getByLabel('Hora de fim')).toHaveValue('16:00');
+  await page.getByLabel('Hora de início').fill('');
+  await page.getByLabel('Hora de fim').fill('');
   const last = lisbonDay(isoIn(11 * D));
   await page.getByLabel('Último dia').fill(last);
   await noHorizontalScroll(page);
@@ -323,6 +329,10 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await page.goto('/calendario');
   await page.locator('main').getByRole('link', { name: 'Nova atividade' }).click();
   await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
+  // Por omissão: «Reunião» no próximo sábado
+  await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(/^\d{2}\/\d{2}\/\d{4}$/);
+  await page.getByLabel('Evento', { exact: true }).fill('');
   await page.getByRole('button', { name: 'Criar atividade' }).click();
   await expect(page.getByText('Indica o nome do evento.')).toBeVisible();
   await page.getByLabel('Evento', { exact: true }).fill('Fogo de conselho (teste)');

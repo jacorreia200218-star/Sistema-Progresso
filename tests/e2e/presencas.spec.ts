@@ -281,6 +281,8 @@ test('nova sessão a partir de uma atividade do Calendário', async ({ page }) =
   const S = await installPres(page);
   await page.goto('/presencas');
   await page.getByRole('link', { name: 'Nova sessão' }).click();
+  await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
+  await page.getByLabel('Evento', { exact: true }).fill('');
   await page.getByRole('button', { name: 'Criar sessão' }).click();
   await expect(page.getByText('Indica o nome do evento.')).toBeVisible();
   // Formulário simples: evento, data e notas; a ligação ao Calendário fica em «Mais opções».
