@@ -17,6 +17,7 @@ export const requestStatusLabel: Record<RequestStatus, { label: string; tone: To
   rascunho: { label: 'Rascunho', tone: 'neutral', icon: 'pencil' },
   submetido: { label: 'Em validação', tone: 'progress', icon: 'send' },
   em_revisao: { label: 'Em validação', tone: 'progress', icon: 'clock' },
+  validado_guias: { label: 'Aguarda dirigentes', tone: 'progress', icon: 'clock' },
   validado_equipa: { label: 'Validado', tone: 'ok', icon: 'check' },
   devolvido: { label: 'A rever', tone: 'attention', icon: 'return' },
   objetivos_validados: { label: 'Histórico por objetivos', tone: 'muted', icon: 'clock' },
@@ -27,9 +28,10 @@ export const requestStatusLabel: Record<RequestStatus, { label: string; tone: To
 
 export const decisionLabel: Record<DecisionKind, string> = {
   em_revisao: 'Colocado em revisão',
-  validado_equipa: 'Validado na reunião de Equipa',
+  validado_guias: 'Validado pelos guias na reunião de Equipa',
+  validado_equipa: 'Validado',
   devolvido_equipa: 'Devolvido para revisão pela reunião de Equipa',
-  devolvido_conselho: 'Devolvido após o Conselho de Guias',
+  devolvido_conselho: 'Devolvido pelos dirigentes',
   revisao_animacao: 'Nota da Equipa de Animação',
   aprovado_historico: 'Progresso anterior reconhecido',
   recusado_historico: 'Progresso anterior não reconhecido',

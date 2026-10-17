@@ -123,7 +123,7 @@ function LeaderHome() {
   const path = useQuery({ queryKey: ['section-path', membership.section_id], queryFn: () => fetchSectionPath(membership.section_id) });
   const teams = useTeams(membership.section_id);
   const ids = (path.data?.members ?? []).map((m) => m.membership_id);
-  const reqs = useQuery({ queryKey: ['section-requests', membership.section_id, 'pendentes'], queryFn: () => fetchSectionRequests(membership.section_id, ['submetido', 'em_revisao']) });
+  const reqs = useQuery({ queryKey: ['section-requests', membership.section_id, 'pendentes'], queryFn: () => fetchSectionRequests(membership.section_id, ['submetido', 'em_revisao', 'validado_guias']) });
   const choices = useQuery({ queryKey: ['choices', ids, 'proposta'], queryFn: () => fetchSectionChoices(ids, 'proposta'), enabled: ids.length > 0 });
   const stages = useQuery({ queryKey: ['stage-requests', ids], queryFn: () => fetchSectionStageRequests(ids), enabled: ids.length > 0 });
   const activity = useQuery({ queryKey: ['activity', membership.section_id, 3], queryFn: () => fetchActivity(membership.section_id, 3) });

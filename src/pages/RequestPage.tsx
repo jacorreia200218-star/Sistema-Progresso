@@ -13,7 +13,7 @@ import { useAction } from '../lib/useAction';
 import { flaggedObjectives } from '../lib/meuprogresso';
 import { decisionLabel, formatDate, formatDateTime, requestKindLabel, requestStatusLabel, stageRequestLabel, todayIso } from '../lib/labels';
 import type { Catalog, MemberProgress, RequestVersion, TrailRequest } from '../lib/types';
-import { Avatar, Badge, ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
+import { Avatar, Badge, ConfirmButton, ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../components/ui';
 import NotFound from './NotFound';
 import { OwnerRequestPanel, VersionContent } from '../components/RequestEditor';
 import { TrailObjectives } from '../components/meu/PedidoTrilho';
@@ -42,8 +42,8 @@ function stageInfo(catalog: Catalog, p: MemberProgress | undefined, request: Tra
 function ProcessSteps({ request, stage }: { request: TrailRequest; stage: ReturnType<typeof stageInfo> }) {
   const trailDone = request.status === 'validado_equipa' || request.status === 'aprovado';
   const steps = [
-    { label: 'Validação do trilho na reunião de Equipa', state: trailDone ? 'feito' : request.status === 'devolvido' ? 'rever' : 'atual' },
-    { label: 'Comunicação ao Conselho de Guias', state: trailDone ? 'feito' : 'por_fazer' },
+    { label: 'Validação pelos guias na reunião de Equipa', state: trailDone || request.status === 'validado_guias' ? 'feito' : request.status === 'devolvido' ? 'rever' : 'atual' },
+    { label: 'Confirmação pelos dirigentes', state: trailDone ? 'feito' : request.status === 'validado_guias' ? 'atual' : 'por_fazer' },
     { label: 'Validação da etapa no Conselho de Guias', state: stage?.sr?.council_decision ? 'feito' : stage?.sr?.status === 'submetido' ? 'atual' : 'por_fazer' },
     { label: 'Opinião final da Equipa de Animação', state: stage?.sr?.final_opinion ? 'feito' : stage?.sr?.status === 'decidido_conselho' ? 'atual' : 'por_fazer' },
     { label: 'Reconhecimento público', state: stage?.path?.recognized_on ? 'feito' : 'por_fazer' },
@@ -255,12 +255,16 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
                 className="btn"
                 confirmLabel={outcome === 'validado' ? 'Validar o trilho' : 'Devolver para revisão'}
                 disabled={action.busy || !meeting || (commentRequired && !comment.trim())}
-                description={outcome === 'validado' ? 'O trilho fica validado e a decisão é comunicada ao pioneiro e ao Conselho de Guias.' : 'O pedido fica «A rever» para o pioneiro corrigir e reenviar; o histórico fica guardado.'}
+                description={outcome === 'validado'
+                  ? onBehalf || s.isDirigente ? 'O trilho fica validado e a decisão é comunicada ao pioneiro e ao Conselho de Guias.' : 'O pedido segue para os dirigentes, que confirmam a validação. O pioneiro é avisado.'
+                  : 'O pedido fica «A rever» para o pioneiro corrigir e reenviar; o histórico fica guardado.'}
                 onConfirm={() =>
                   action.run(() => call('record_team_decision', {
                     p_request: request.id, p_expected_version: current.version_no, p_validated: outcome === 'validado', p_meeting_date: meeting, p_comment: comment,
                     p_objective_codes: outcome === 'devolvido' && codes.length ? codes : null,
-                  }), outcome === 'validado' ? 'Trilho validado. A decisão foi comunicada ao Conselho de Guias.' : 'Pedido devolvido para revisão.')
+                  }), outcome !== 'validado' ? 'Pedido devolvido para revisão.'
+                    : s.isDirigente ? 'Trilho validado. A decisão foi comunicada ao Conselho de Guias.'
+                    : 'Trilho validado pelos guias. Falta a confirmação dos dirigentes.')
                 }
               >
                 Registar decisão
@@ -309,6 +313,8 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
         </section>
       )}
 
+      {s.isDirigente && request.status === 'validado_guias' && <ConfirmValidation requestId={request.id} action={action} />}
+
       {s.isDirigente && request.status === 'validado_equipa' && (
         <details className="card flat more-card">
           <summary>Devolução fundamentada (Conselho de Guias)</summary>
@@ -337,6 +343,30 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
   );
 }
 
+/** Segundo passo da validação: os dirigentes confirmam o que os guias validaram, ou devolvem com fundamentação. */
+function ConfirmValidation({ requestId, action }: { requestId: string; action: ReturnType<typeof useAction> }) {
+  const [comment, setComment] = useState('');
+  if (action.success) return null; // a confirmação aparece no topo do painel
+  return (
+    <section className="card" aria-labelledby="h-confirmar">
+      <h2 id="h-confirmar">Confirmar a validação</h2>
+      <p className="faint">Os guias validaram este trilho na reunião de Equipa.</p>
+      <ErrorBox error={action.error} />
+      <Field label="Comentário (opcional)" htmlFor="confirm-comment">
+        <textarea id="confirm-comment" value={comment} maxLength={4000} onChange={(e) => setComment(e.target.value)} />
+      </Field>
+      <ConfirmButton className="btn" confirmLabel="Confirmar validação" disabled={action.busy}
+        description="O trilho fica validado e a decisão é comunicada ao pioneiro e ao Conselho de Guias."
+        onConfirm={() => action.run(() => call('confirm_trail_validation', { p_request: requestId, p_comment: comment || null }), 'Trilho validado.')}>
+        Confirmar validação
+      </ConfirmButton>
+      <MoreOptions label="Devolver com fundamentação">
+        <CouncilReturn requestId={requestId} />
+      </MoreOptions>
+    </section>
+  );
+}
+
 function CouncilReturn({ requestId }: { requestId: string }) {
   const action = useAction();
   const [date, setDate] = useState(todayIso());
@@ -351,7 +381,7 @@ function CouncilReturn({ requestId }: { requestId: string }) {
       <Field label="Fundamentação (obrigatória)" htmlFor="cgc">
         <textarea id="cgc" value={comment} onChange={(e) => setComment(e.target.value)} />
       </Field>
-      <ConfirmButton confirmLabel="Devolver trilho" disabled={action.busy || !comment.trim()} description="O trilho deixa de contar como validado até nova validação na Equipa."
+      <ConfirmButton confirmLabel="Devolver trilho" disabled={action.busy || !comment.trim()} description="O pedido fica «A rever» para o pioneiro corrigir e reenviar; o histórico fica guardado."
         onConfirm={() => action.run(() => call('record_council_return', { p_request: requestId, p_meeting_date: date, p_comment: comment }), 'Devolução registada.')}>
         Registar devolução
       </ConfirmButton>

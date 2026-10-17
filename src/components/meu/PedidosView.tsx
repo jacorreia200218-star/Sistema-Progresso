@@ -3,12 +3,13 @@ import { MessageSquare, NotebookPen } from 'lucide-react';
 import type { MemberProgress, TrailRequest } from '../../lib/types';
 import { decisionLabel, formatDate, formatDateTime, requestKindLabel, requestStatusLabel } from '../../lib/labels';
 import { flaggedObjectives, validationInfo } from '../../lib/meuprogresso';
+import { isAwaiting } from '../../lib/progress';
 import { Badge, Empty } from '../ui';
 import type { Subject } from './useSubject';
 
 const FILTERS: { key: string; label: string; match: (r: TrailRequest) => boolean }[] = [
   { key: 'todos', label: 'Todos', match: () => true },
-  { key: 'aguarda', label: 'Em validação', match: (r) => r.status === 'submetido' || r.status === 'em_revisao' },
+  { key: 'aguarda', label: 'Em validação', match: (r) => isAwaiting(r) },
   { key: 'revisao', label: 'A rever', match: (r) => r.status === 'devolvido' },
   { key: 'validado', label: 'Validados', match: (r) => r.status === 'validado_equipa' || r.status === 'aprovado' },
   { key: 'rascunho', label: 'Por enviar', match: (r) => r.status === 'rascunho' },

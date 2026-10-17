@@ -12,6 +12,11 @@ export function activeRequest(requests: TrailRequest[], trailKey: string): Trail
   return requests.find((r) => r.trail_key === trailKey && !INACTIVE.includes(r.status));
 }
 
+/** À espera de decisão: da reunião de Equipa ou, depois dos guias, da confirmação dos dirigentes. */
+export function isAwaiting(r: TrailRequest | undefined): boolean {
+  return !!r && (r.status === 'submetido' || r.status === 'em_revisao' || r.status === 'validado_guias');
+}
+
 export function isValidated(r: TrailRequest | undefined): boolean {
   return !!r && (r.status === 'validado_equipa' || r.status === 'aprovado');
 }
@@ -42,7 +47,7 @@ export function trailState(trail: CatalogTrail, p: MemberProgress): { state: Tra
   );
   if (request) {
     if (isValidated(request)) return { state: 'validado', request, choice };
-    if (request.status === 'submetido' || request.status === 'em_revisao') return { state: 'pendente', request, choice };
+    if (isAwaiting(request)) return { state: 'pendente', request, choice };
     if (request.status === 'devolvido') return { state: 'devolvido', request, choice };
     if (request.status === 'rascunho') return { state: 'rascunho', request, choice };
   }
@@ -81,7 +86,7 @@ export function stageSummary(path: StagePath, catalog: Catalog, p: MemberProgres
     const req = confirmed ? activeRequest(p.requests, confirmed.trail_key) : undefined;
     const state: TrailUiState = validated
       ? 'validado'
-      : req?.status === 'submetido' || req?.status === 'em_revisao'
+      : isAwaiting(req)
         ? 'pendente'
         : req?.status === 'devolvido'
           ? 'devolvido'
@@ -189,5 +194,5 @@ export function nextAction(catalog: Catalog, p: MemberProgress, viewer: Viewer =
   const toWork = s.slots.filter((slot) => slot.confirmed && !slot.validated && !activeRequest(p.requests, slot.confirmed.trail_key));
   if (toWork.length === 1 && toWork[0].trail) return { title: `Fechar o trilho «${toWork[0].trail.name}»`, to: trailTo(toWork[0].trail.key), label: 'Abrir trilho' };
   if (toWork.length > 1) return { title: `Fechar os trilhos de ${joinPt(toWork.map((x) => x.area.name))}`, to: progress('areas'), label: 'Ver áreas' };
-  return { title: 'Aguardar a reunião de Equipa', to: progress('pedidos', '&pfiltro=aguarda'), label: 'Ver pedidos' };
+  return { title: 'Aguardar a validação dos trilhos', to: progress('pedidos', '&pfiltro=aguarda'), label: 'Ver pedidos' };
 }

@@ -2,7 +2,7 @@
 // com mensagens concretas e informação de validação de cada trilho.
 // Tudo calculado a partir de registos persistidos; nada aqui valida trilhos.
 import type { Catalog, CatalogArea, CatalogTrail, MemberProgress, RequestObjective, StageChoice, TrailDecision, TrailRequest } from './types';
-import { activeRequest, isValidated, openPath, stageSummary, type StageSummary } from './progress';
+import { activeRequest, isAwaiting, isValidated, openPath, stageSummary, type StageSummary } from './progress';
 
 export type TrailCategory = 'por_fechar' | 'em_validacao' | 'a_rever' | 'validado';
 
@@ -27,7 +27,7 @@ export function trailCategory(trail: CatalogTrail, p: MemberProgress): TrailCate
   const r = activeRequest(p.requests, trail.key);
   if (r) {
     if (isValidated(r)) return 'validado';
-    if (r.status === 'submetido' || r.status === 'em_revisao') return 'em_validacao';
+    if (isAwaiting(r)) return 'em_validacao';
     if (r.status === 'devolvido') return 'a_rever';
   }
   return 'por_fechar';
@@ -58,7 +58,7 @@ const OUTCOME_KINDS = ['validado_equipa', 'aprovado_historico', 'reconhecido_neg
 export function validationInfo(r: TrailRequest | undefined, decisions: TrailDecision[] = []): { date: string; label: string } | null {
   if (!r || !isValidated(r)) return null;
   const d = decisions.find((x) => x.request_id === r.id && OUTCOME_KINDS.includes(x.kind));
-  const label = r.kind === 'negociacao' ? 'Reconhecido na negociação' : r.kind === 'historico' ? 'Progresso anterior reconhecido' : 'Validado na reunião de Equipa';
+  const label = r.kind === 'negociacao' ? 'Reconhecido na negociação' : r.kind === 'historico' ? 'Progresso anterior reconhecido' : 'Validado';
   return { date: d?.meeting_date ?? d?.recorded_at ?? r.updated_at, label };
 }
 
@@ -147,7 +147,7 @@ export function stageChecklist(catalog: Catalog, p: MemberProgress): StageCheckl
     if (validate.length) details.push(`Falta validar o trilho de ${joinPt(validate)}.`);
     if (revise.length) details.push(`O trilho de ${joinPt(revise)} precisa de revisão.`);
     if (negotiation.length) details.push(`A proposta de ${joinPt(negotiation)} aguarda negociação com a Equipa de Animação.`);
-    if (waiting.length) details.push(`O trilho de ${joinPt(waiting)} aguarda a reunião de Equipa.`);
+    if (waiting.length) details.push(`O trilho de ${joinPt(waiting)} aguarda a validação (guias e dirigentes).`);
     headline = details[0] ?? 'Etapa em curso.';
   }
   return { summary: s, rows, stageValidation, recognition, headline, details };
