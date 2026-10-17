@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { admin, asUser, buildWorld, expectError, pool, rpc, today, trailsByArea, type World } from './helpers';
+import { seedHistorical } from './helpers';
 
 let w: World;
 let byArea: Awaited<ReturnType<typeof trailsByArea>>;
@@ -20,7 +21,7 @@ describe('progresso anterior', () => {
   it('está ativo por omissão e segue diretamente para os dirigentes', async () => {
     const s = await asUser(w.users.P2, `select historical_progress_enabled from public.section_settings where section_id = $1`, [w.section]);
     expect(s[0].historical_progress_enabled).toBe(true);
-    pending = await rpc(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.F[0].id, p_kind: 'historico' });
+    pending = await seedHistorical(w, 'P2', byArea.F[0].id);
     await draft(w.users.P2, pending);
     await rpc(w.users.P2, 'submit_trail_request', { p_request: pending });
     // O guia não revê pedidos históricos
@@ -36,12 +37,13 @@ describe('progresso anterior', () => {
   });
 
   it('desligar a opção bloqueia novas submissões, mesmo com o formulário aberto', async () => {
-    openDraft = await rpc(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.A[0].id, p_kind: 'historico' });
+    openDraft = await seedHistorical(w, 'P2', byArea.A[0].id);
     await draft(w.users.P2, openDraft);
     await expectError(rpc(w.users.Rui, 'set_historical_progress', { p_section: w.section, p_enabled: false }), 'administradores');
     await rpc(w.users.Tecnico, 'set_historical_progress', { p_section: w.section, p_enabled: false });
     await expectError(rpc(w.users.P2, 'submit_trail_request', { p_request: openDraft }), 'desativado');
-    await expectError(rpc(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.C[0].id, p_kind: 'historico' }), 'desativado');
+    // Os pioneiros já não criam pedidos de progresso anterior: é registado pelos dirigentes
+    await expectError(rpc(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.C[0].id, p_kind: 'historico' }), 'registado pelos dirigentes');
     // Progresso normal continua disponível
     const normal = await rpc<string>(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.C[0].id, p_kind: 'normal' });
     expect(normal).toBeTruthy();
@@ -78,7 +80,7 @@ describe('progresso anterior', () => {
 
   it('recusa exige comentário e mantém histórico; reativação regista autor e data', async () => {
     await rpc(w.users.Tecnico, 'set_historical_progress', { p_section: w.section, p_enabled: true });
-    const r = await rpc<string>(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.E[0].id, p_kind: 'historico' });
+    const r = await seedHistorical(w, 'P2', byArea.E[0].id);
     await draft(w.users.P2, r);
     await rpc(w.users.P2, 'submit_trail_request', { p_request: r });
     await rpc(w.users.Ana, 'decide_historical_request', { p_request: r, p_expected_version: 1, p_outcome: 'recusado', p_comment: 'Não há evidência suficiente; pode seguir pelo progresso normal.', p_reference_date: null });
@@ -97,7 +99,7 @@ describe('progresso anterior', () => {
     await expectError(rpc(w.users.Ana, 'declare_historical_stage', { p_stage_path: p, p_date: '2025-06-01', p_comment: 'Etapa concluída em 2025' }), 'trilho validado de cada área');
     for (const code of Object.keys(byArea)) {
       const t = byArea[code][0];
-      const req = await rpc<string>(w.users.P3, 'create_trail_request', { p_membership: w.members.P3, p_trail: t.id, p_kind: 'historico' });
+      const req = await seedHistorical(w, 'P3', t.id);
       await draft(w.users.P3, req);
       await rpc(w.users.P3, 'submit_trail_request', { p_request: req });
       await rpc(w.users.Ana, 'decide_historical_request', { p_request: req, p_expected_version: 1, p_outcome: 'aprovado', p_comment: null, p_reference_date: null });

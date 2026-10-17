@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { admin, buildWorld, pool, rpc, today, trailsByArea, type World } from './helpers';
+import { seedHistorical } from './helpers';
 
 let w: World;
 let byArea: Awaited<ReturnType<typeof trailsByArea>>;
@@ -40,13 +41,13 @@ describe('concorrência', () => {
   it('pedidos normal e histórico simultâneos para o mesmo trilho: só um', async () => {
     const results = await Promise.allSettled([
       rpc(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.C[0].id, p_kind: 'normal' }),
-      rpc(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: byArea.C[0].id, p_kind: 'historico' }),
+      seedHistorical(w, 'P2', byArea.C[0].id),
     ]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
   });
 
   it('decisão histórica e retirada em simultâneo não deixam estado incoerente', async () => {
-    const req = await rpc<string>(w.users.P3, 'create_trail_request', { p_membership: w.members.P3, p_trail: byArea.S[0].id, p_kind: 'historico' });
+    const req = await seedHistorical(w, 'P3', byArea.S[0].id);
     await rpc(w.users.P3, 'save_request_draft', { p_request: req, p_reflection: 'r', p_experiences: '', p_period_start: null, p_period_end: null, p_approximate_date: '2024' });
     await rpc(w.users.P3, 'submit_trail_request', { p_request: req });
     const results = await Promise.allSettled([

@@ -184,7 +184,7 @@ export function PedidoTrilho({ trail, progress, membershipId, pedidosTo, histori
   const tooLong = justification.length > MAX;
   return (
     <section className="card pedido" id="pedido" aria-labelledby="h-pedido">
-      <h2 id="h-pedido">Pedido de validação do trilho</h2>
+      <h2 id="h-pedido">Fechar este trilho</h2>
       {r?.status === 'devolvido' && (
         <div className="feedback feedback-review">
           <MessageSquare size={15} aria-hidden="true" />
@@ -229,7 +229,7 @@ export function PedidoTrilho({ trail, progress, membershipId, pedidosTo, histori
         </ConfirmButton>
       </div>
       {!r && historicalEnabled && (
-        <p className="faint prose">Já concluíste este trilho antes de usar a aplicação? Usa o <Link to="/progresso-anterior">progresso anterior</Link>.</p>
+        <p className="faint prose">Já concluíste este trilho antes de usar a aplicação? Fala com a Equipa de Animação: o progresso anterior é registado pelos dirigentes.</p>
       )}
     </section>
   );

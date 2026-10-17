@@ -45,6 +45,8 @@ for (const theme of ['light', 'dark'] as const) {
     // 3. Página do trilho: área e trilho, TODOS os objetivos (sem caixas de seleção), justificação
     await rows.filter({ hasText: 'Autoconhecimento' }).click();
     await expect(page.getByRole('heading', { name: 'Autoconhecimento', level: 1 })).toBeVisible();
+    // Duas ações separadas: trabalhar (propor) ou fechar (pedir validação)
+    await page.getByRole('radiogroup', { name: 'O que queres fazer com este trilho' }).getByText('Fechar este trilho').click();
     await expect(page.locator('.trail-head')).toContainText('Físico');
     const objs = page.getByRole('region', { name: 'Objetivos do trilho Autoconhecimento' });
     await expect(objs.locator('.obj-item')).toHaveCount(2);
@@ -99,21 +101,21 @@ for (const theme of ['light', 'dark'] as const) {
 
 test('Desempenho tem F1; Autoconhecimento tem F2 e F3', async ({ page }) => {
   await installMock(page, pioneer());
-  await page.goto('/meu-progresso/trilho/fisico-desempenho');
+  await page.goto('/meu-progresso/trilho/fisico-desempenho#pedido');
   await expect(page.locator('.obj-item')).toHaveCount(1);
   await expect(page.locator('.obj-item')).toContainText('F1');
-  await page.goto('/meu-progresso/trilho/fisico-bem-estar-fisico');
+  await page.goto('/meu-progresso/trilho/fisico-bem-estar-fisico#pedido');
   await expect(page.getByRole('region', { name: /Objetivos do trilho/ }).locator('.obj-item')).toHaveCount(1);
   await expect(page.getByRole('region', { name: /Objetivos do trilho/ })).toContainText('F4');
 });
 
 test('mudar de trilho não transporta a justificação; voltar recupera-a', async ({ page }) => {
   await installMock(page, pioneer());
-  await page.goto('/meu-progresso/trilho/fisico-autoconhecimento');
+  await page.goto('/meu-progresso/trilho/fisico-autoconhecimento#pedido');
   await page.getByLabel(LABEL).fill('Texto do Autoconhecimento');
-  await page.goto('/meu-progresso/trilho/fisico-bem-estar-fisico');
+  await page.goto('/meu-progresso/trilho/fisico-bem-estar-fisico#pedido');
   await expect(page.getByLabel(LABEL)).toHaveValue('');
-  await page.goto('/meu-progresso/trilho/fisico-autoconhecimento');
+  await page.goto('/meu-progresso/trilho/fisico-autoconhecimento#pedido');
   await expect(page.getByLabel(LABEL)).toHaveValue('Texto do Autoconhecimento');
 });
 
@@ -146,9 +148,10 @@ test('a rever: comentário e objetivos a demonstrar, corrigir e reenviar com his
 
 test('histórico por objetivos preservado sem fechar o trilho', async ({ page }) => {
   await installMock(page, pioneer());
-  await page.goto('/meu-progresso/trilho/intelectual-procura-do-conhecimento');
+  await page.goto('/meu-progresso/trilho/intelectual-procura-do-conhecimento#pedido');
   await expect(page.locator('.trail-head')).toContainText('Por fechar');
-  await expect(page.getByText('Histórico por objetivos (modelo anterior)')).toBeVisible();
+  // O histórico do modelo anterior só aparece aos dirigentes
+  await expect(page.getByText('Histórico por objetivos (modelo anterior)')).toHaveCount(0);
   // O pedido novo abrange o trilho completo
   await expect(page.getByRole('region', { name: /Objetivos do trilho/ }).locator('.obj-item')).toHaveCount(2);
   await expect(page.getByLabel(LABEL)).toBeVisible();

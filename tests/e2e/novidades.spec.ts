@@ -33,14 +33,14 @@ test('administração: muda o nome de quem pediu entrada', async ({ page }) => {
 
 test('escolher primeiro a área e depois o trilho', async ({ page }) => {
   await installMock(page, pioneer());
-  await page.goto('/progresso-anterior');
-  const trilho = page.getByLabel('Trilho', { exact: true });
-  await expect(trilho).toBeDisabled();
-  await page.getByLabel('Área', { exact: true }).selectOption({ label: 'A · Afetivo' });
+  await page.goto('/vivencias');
+  const trilho = page.getByLabel('Trilho relacionado', { exact: true });
+  await page.getByLabel('Área (opcional)', { exact: true }).selectOption({ label: 'A · Afetivo' });
   await expect(trilho).toBeEnabled();
   const options = await trilho.locator('option').allTextContents();
-  // Só os trilhos de Afetivo, sem o que já tem pedido ativo (Autoestima)
-  expect(options).toEqual(['Escolhe o trilho…', 'Relacionamento e sensibilidade', 'Equilíbrio emocional']);
+  // Só os trilhos de Afetivo
+  for (const n of ['Relacionamento e sensibilidade', 'Equilíbrio emocional', 'Autoestima']) expect(options).toContain(n);
+  expect(options.some((o) => o.includes('Desempenho'))).toBe(false);
 });
 
 for (const theme of ['light', 'dark'] as const) {

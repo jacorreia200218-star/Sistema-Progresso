@@ -19,7 +19,6 @@ import Home from './pages/Home';
 const MeuProgresso = lazyPage(() => import('./pages/MeuProgresso'));
 const TrailPage = lazyPage(() => import('./pages/TrailPage'));
 const RequestPage = lazyPage(() => import('./pages/RequestPage'));
-const Historical = lazyPage(() => import('./pages/Historical'));
 const Experiences = lazyPage(() => import('./pages/Experiences'));
 const Profile = lazyPage(() => import('./pages/Profile'));
 const Notifications = lazyPage(() => import('./pages/Notifications'));
@@ -94,7 +93,7 @@ function Authenticated() {
           <Route path="meu-progresso/trilho/:key" element={<TrailPage />} />
           <Route path="progresso" element={<Navigate to="/meu-progresso?vista=areas" replace />} />
           <Route path="progresso/trilho/:key" element={<LegacyTrail />} />
-          <Route path="progresso-anterior" element={<Guard when={s.isMember}><Historical /></Guard>} />
+          <Route path="progresso-anterior" element={<Navigate to="/meu-progresso?vista=pedidos" replace />} />
           <Route path="vivencias" element={<Guard when={s.isMember}><Experiences /></Guard>} />
           <Route path="pedidos" element={<Navigate to="/meu-progresso?vista=pedidos" replace />} />
           <Route path="pedidos/:id" element={<RequestPage />} />

@@ -46,7 +46,7 @@ function TrailRow({ trail, progress, subject }: { trail: CatalogTrail; progress:
           </span>
           {choice && (
             <span className={`choice-line ${choice.status === 'proposta' ? 'is-proposed' : ''}`}>
-              {choice.status === 'proposta' ? 'Proposto para fechar · aguarda a Equipa de Animação' : 'Escolhido para fechar nesta etapa'}
+              {choice.status === 'proposta' ? 'Queres trabalhar neste trilho · aguarda a Equipa de Animação' : 'A trabalhar nesta etapa'}
             </span>
           )}
           {fb?.comment && (

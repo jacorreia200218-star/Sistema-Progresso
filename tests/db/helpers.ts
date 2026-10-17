@@ -175,3 +175,18 @@ export async function expectDenied(p: Promise<unknown>, text: string | RegExp = 
   const msg = (err as Error).message;
   if (typeof text === 'string' ? !msg.includes(text) : !text.test(msg)) throw new Error(`Recusa inesperada: ${msg}`);
 }
+
+/**
+ * Pedido de progresso anterior já existente (criado antes de passar a ser
+ * registado só pelos dirigentes): insere o rascunho diretamente, para testar
+ * que os pedidos antigos continuam a ser submetidos e decididos.
+ */
+export async function seedHistorical(w: World, who: string, trail: string): Promise<string> {
+  const [r] = await admin<{ id: string }>(
+    `insert into public.trail_requests (membership_id, section_id, trail_id, trail_key, kind, created_by)
+     select $1, $2, t.id, t.key, 'historico', $3 from public.catalog_trails t where t.id = $4 returning id`,
+    [w.members[who], w.section, w.users[who], trail],
+  );
+  await admin(`insert into public.trail_request_versions (request_id, version_no) values ($1, 1)`, [r.id]);
+  return r.id;
+}

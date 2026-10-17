@@ -3,14 +3,14 @@
 // A associação à etapa (negociação) e as vivências continuam disponíveis, mas
 // não são passos obrigatórios do pedido.
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, NotebookPen, Trash2 } from 'lucide-react';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, Compass, NotebookPen, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useSubject } from '../components/meu/useSubject';
 import { call } from '../lib/api';
 import { useAction } from '../lib/useAction';
 import { errorMessage } from '../lib/errors';
-import { openPath } from '../lib/progress';
+import { activeRequest, openPath } from '../lib/progress';
 import { activeChoice, CATEGORY_LABEL, legacyObjectiveHistory, trailCategory } from '../lib/meuprogresso';
 import { formatDate, formatDateTime, todayIso } from '../lib/labels';
 import type { CatalogTrail, MemberProgress } from '../lib/types';
@@ -89,12 +89,17 @@ export default function TrailPage() {
         </div>
         <Badge {...CATEGORY_LABEL[cat]} />
       </header>
-      <ChoiceSection subject={subject} trail={trail} progress={p} />
+      {subject.isSelf ? (
+        <TrailActions key={trail.key} subject={subject} trail={trail} progress={p} pedidosTo={pedidosTo} />
+      ) : (
+        <>
+          <ChoiceSection subject={subject} trail={trail} progress={p} />
+          <PedidoTrilho key={trail.key} trail={trail} progress={p} membershipId={subject.subjectId ?? ''} pedidosTo={pedidosTo}
+            historicalEnabled={false} readOnly />
+        </>
+      )}
 
-      <PedidoTrilho key={trail.key} trail={trail} progress={p} membershipId={subject.isSelf ? subject.membership.id : subject.subjectId ?? ''} pedidosTo={pedidosTo}
-        historicalEnabled={!!subject.settings?.historical_progress_enabled} readOnly={!subject.isSelf} />
-
-      {legacy.length > 0 && (
+      {!subject.isSelf && legacy.length > 0 && (
         <details className="card more-card">
           <summary>Histórico por objetivos (modelo anterior)</summary>
           <p className="faint prose">Decisões registadas objetivo a objetivo antes de a validação passar a ser feita por trilho. Ficam como histórico e não fecham o trilho.</p>
@@ -121,6 +126,66 @@ export default function TrailPage() {
 
       {backLinks}
     </div>
+  );
+}
+
+/**
+ * O pioneiro escolhe o que quer fazer com o trilho: trabalhar nele (propor à
+ * Equipa de Animação para a etapa) ou fechá-lo (pedir a validação). Duas ações
+ * diferentes, uma de cada vez, com o estado de cada uma sempre visível.
+ */
+function TrailActions({ subject, trail, progress, pedidosTo }: { subject: Subj; trail: CatalogTrail; progress: MemberProgress; pedidosTo: string }) {
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const cat = trailCategory(trail, progress);
+  const choice = activeChoice(progress, trail.key);
+  const r = activeRequest(progress.requests, trail.key);
+  // A escolha fica no endereço (?acao=…): voltar atrás e avançar mantém-na.
+  const fromUrl = params.get('acao') === 'fechar' || params.get('acao') === 'trabalhar' ? (params.get('acao') as 'trabalhar' | 'fechar') : null;
+  const fromHash = location.hash === '#pedido' ? 'fechar' : location.hash === '#escolha' ? 'trabalhar' : null;
+  const modo = fromUrl ?? fromHash ?? (r || cat === 'validado' || choice?.status === 'confirmada' ? 'fechar' : 'trabalhar');
+  const setModo = (m: 'trabalhar' | 'fechar') => {
+    const next = new URLSearchParams(params);
+    next.set('acao', m);
+    setParams(next, { replace: true });
+  };
+  const workState = cat === 'validado' ? 'Trilho fechado'
+    : choice?.status === 'confirmada' ? 'Combinado para a etapa'
+    : choice?.status === 'proposta' ? 'Proposta enviada · aguarda resposta'
+    : 'Ainda não propuseste';
+  const closeState = cat === 'validado' ? 'Validado' : cat === 'em_validacao' ? 'Pedido enviado · em validação' : cat === 'a_rever' ? 'A rever' : 'Ainda não pediste';
+  return (
+    <>
+      <section className="card trail-actions" aria-labelledby="h-acoes">
+        <h2 id="h-acoes">O que queres fazer com este trilho?</h2>
+        <div className="action-choice" role="radiogroup" aria-label="O que queres fazer com este trilho">
+          <label className={`action-option ${modo === 'trabalhar' ? 'is-on' : ''}`}>
+            <input type="radio" name="acao" checked={modo === 'trabalhar'} onChange={() => setModo('trabalhar')} />
+            <span className="ao-icon" aria-hidden="true"><Compass size={20} /></span>
+            <span className="grow">
+              <strong>Trabalhar neste trilho</strong>
+              <span className="faint">Propões à Equipa de Animação trabalhá-lo na tua etapa.</span>
+              <span className="ao-state">{workState}</span>
+            </span>
+          </label>
+          <label className={`action-option ${modo === 'fechar' ? 'is-on' : ''}`}>
+            <input type="radio" name="acao" checked={modo === 'fechar'} onChange={() => setModo('fechar')} />
+            <span className="ao-icon" aria-hidden="true"><CheckCircle2 size={20} /></span>
+            <span className="grow">
+              <strong>Fechar este trilho</strong>
+              <span className="faint">Já atingiste os objetivos? Pedes a validação à reunião de Equipa.</span>
+              <span className="ao-state">{closeState}</span>
+            </span>
+          </label>
+        </div>
+      </section>
+      {modo === 'trabalhar' ? (
+        <ChoiceSection subject={subject} trail={trail} progress={progress} />
+      ) : (
+        <PedidoTrilho key={trail.key} trail={trail} progress={progress} membershipId={subject.membership.id} pedidosTo={pedidosTo}
+          historicalEnabled={!!subject.settings?.historical_progress_enabled} readOnly={false} />
+      )}
+    </>
   );
 }
 
@@ -159,7 +224,7 @@ function TrailMore({ trail }: { trail: CatalogTrail }) {
 }
 
 /**
- * Proposta de fechar o trilho nesta etapa: o pioneiro diz o que quer fechar e a
+ * Proposta de trabalhar no trilho nesta etapa: o pioneiro diz em que quer trabalhar e a
  * Equipa de Animação recebe a proposta (notificação e Acompanhamento), negocia e
  * confirma. É o que associa o trilho à etapa; a validação continua a ser o pedido.
  */
@@ -180,18 +245,18 @@ function ChoiceSection({ subject, trail, progress }: { subject: Subj; trail: Cat
     .sort((a, b) => (b.decided_at ?? '').localeCompare(a.decided_at ?? ''))[0];
   return (
     <section className={`card propose-card ${choiceHere ? `is-${choiceHere.status}` : ''}`} id="escolha" aria-labelledby="h-escolha">
-      <h2 id="h-escolha">{subject.isSelf ? 'Quero fechar este trilho' : 'Proposta para a etapa'}</h2>
+      <h2 id="h-escolha">{subject.isSelf ? 'Trabalhar neste trilho' : 'Trabalhar no trilho (proposta para a etapa)'}</h2>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
       {choiceHere ? (
         <p className="prose" style={{ margin: '0 0 8px' }}>
           {choiceHere.status === 'confirmada'
-            ? <>Confirmado pela Equipa de Animação para a etapa <strong>{stageOf(choiceHere.stage_path_id)}</strong>.</>
-            : <>{subject.isSelf ? 'Proposta enviada' : 'Proposto pelo pioneiro'} para a etapa <strong>{stageOf(choiceHere.stage_path_id)}</strong> · aguarda a Equipa de Animação.</>}
-          {choiceHere.planned_opportunities && <span className="faint" style={{ display: 'block', whiteSpace: 'pre-line' }}>Como pensa fechar: {choiceHere.planned_opportunities}</span>}
+            ? <>Combinado com a Equipa de Animação: {subject.isSelf ? 'trabalhas' : 'trabalha'} neste trilho na etapa <strong>{stageOf(choiceHere.stage_path_id)}</strong>.{subject.isSelf ? ' Quando atingires os objetivos, escolhe «Fechar este trilho».' : ''}</>
+            : <>{subject.isSelf ? 'Propuseste trabalhar' : 'Propôs trabalhar'} neste trilho na etapa <strong>{stageOf(choiceHere.stage_path_id)}</strong> · aguarda a Equipa de Animação.</>}
+          {choiceHere.planned_opportunities && <span className="faint" style={{ display: 'block', whiteSpace: 'pre-line' }}>Como pensa trabalhá-lo: {choiceHere.planned_opportunities}</span>}
         </p>
       ) : !path ? (
-        <p className="faint prose">{subject.isSelf ? 'Quando a tua etapa estiver aberta, podes propor aqui fechar este trilho.' : 'Sem etapa aberta.'}</p>
+        <p className="faint prose">{subject.isSelf ? 'Quando a tua etapa estiver aberta, podes propor aqui trabalhar neste trilho. Entretanto, se já atingiste os objetivos, podes pedir para o fechar.' : 'Sem etapa aberta.'}</p>
       ) : pathBusy ? (
         <p className="faint prose">A etapa está em validação; não é possível propor trilhos agora.</p>
       ) : areaProposed ? (
@@ -201,18 +266,18 @@ function ChoiceSection({ subject, trail, progress }: { subject: Subj; trail: Cat
       ) : areaConfirmed ? (
         <p className="faint prose">Nesta etapa, a área {area.name} já tem «{catalog.trailById.get(areaConfirmed.trail_id)?.name}».{subject.isSelf ? ' Podes propor trocar por este.' : ''}</p>
       ) : (
-        <p className="faint prose">{subject.isSelf ? `Diz aos dirigentes que queres fechar este trilho na etapa ${stageName(catalog, path.stage_key)}. A Equipa de Animação recebe a proposta e combina contigo.` : 'Ainda sem proposta nesta área.'}</p>
+        <p className="faint prose">{subject.isSelf ? `Diz aos dirigentes que queres trabalhar neste trilho na etapa ${stageName(catalog, path.stage_key)}. A Equipa de Animação recebe a proposta e combina contigo.` : 'Ainda sem proposta nesta área.'}</p>
       )}
       {!choiceHere && lastDecision?.decision_comment && <p className="faint">Última proposta não aceite: «{lastDecision.decision_comment}»</p>}
       {choiceHere?.status === 'proposta' && subject.isSelf && (
         <button type="button" className="btn ghost" disabled={action.busy} onClick={() => action.run(() => call('withdraw_choice', { p_choice: choiceHere.id }), 'Proposta retirada.')}>Retirar proposta</button>
       )}
       {canPropose && (
-        <form onSubmit={(e) => { e.preventDefault(); action.run(() => call('propose_choice', { p_stage_path: path!.id, p_trail: trail.id, p_planned: planned, p_replaces: areaConfirmed?.id ?? null }), 'Proposta enviada. Os dirigentes já sabem que queres fechar este trilho.').then((res) => res.ok && setPlanned('')); }}>
-          <Field label="Como pensas fechá-lo? (opcional)" htmlFor="planned" hint="Atividades ou oportunidades que pensas viver. O manual sugere pelo menos duas por trilho (p. 11).">
+        <form onSubmit={(e) => { e.preventDefault(); action.run(() => call('propose_choice', { p_stage_path: path!.id, p_trail: trail.id, p_planned: planned, p_replaces: areaConfirmed?.id ?? null }), 'Proposta enviada. Os dirigentes já sabem que queres trabalhar neste trilho.').then((res) => res.ok && setPlanned('')); }}>
+          <Field label="Como pensas trabalhá-lo? (opcional)" htmlFor="planned" hint="Atividades ou oportunidades que pensas viver. O manual sugere pelo menos duas por trilho (p. 11).">
             <textarea id="planned" aria-describedby="planned-hint" value={planned} onChange={(e) => setPlanned(e.target.value)} style={{ minHeight: 60 }} />
           </Field>
-          <button className="btn">{areaConfirmed ? 'Propor trocar por este trilho' : 'Propor fechar este trilho'}</button>
+          <button className="btn">{areaConfirmed ? 'Propor trocar por este trilho' : 'Propor trabalhar neste trilho'}</button>
         </form>
       )}
     </section>

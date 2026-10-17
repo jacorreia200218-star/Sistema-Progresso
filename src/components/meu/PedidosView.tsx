@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { History, MessageSquare, NotebookPen } from 'lucide-react';
+import { MessageSquare, NotebookPen } from 'lucide-react';
 import type { MemberProgress, TrailRequest } from '../../lib/types';
 import { decisionLabel, formatDate, formatDateTime, requestKindLabel, requestStatusLabel } from '../../lib/labels';
 import { flaggedObjectives, validationInfo } from '../../lib/meuprogresso';
@@ -16,7 +16,7 @@ const FILTERS: { key: string; label: string; match: (r: TrailRequest) => boolean
 ];
 
 export function PedidosView({ subject, progress }: { subject: Subject; progress: MemberProgress }) {
-  const { catalog, settings } = subject;
+  const { catalog } = subject;
   const [params, setParams] = useSearchParams();
   const key = params.get('pfiltro') ?? 'todos';
   const f = FILTERS.find((x) => x.key === key) ?? FILTERS[0];
@@ -95,9 +95,6 @@ export function PedidosView({ subject, progress }: { subject: Subject; progress:
       {subject.isSelf && (
         <div className="btn-row">
           <Link to="/vivencias" className="btn secondary"><NotebookPen size={16} aria-hidden="true" /> Diário de vivências</Link>
-          {(settings?.historical_progress_enabled || progress.requests.some((r) => r.kind === 'historico')) && (
-            <Link to="/progresso-anterior" className="btn secondary"><History size={16} aria-hidden="true" /> Progresso anterior</Link>
-          )}
         </div>
       )}
     </div>
