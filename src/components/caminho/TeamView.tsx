@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Check, CircleDashed, Clock, Compass, RotateCcw, Send } from 'lucide-react';
 import { fetchSectionChoices, fetchSectionRequests, fetchSectionStagePaths, type PathMember } from '../../lib/api';
 import { milestoneByKey, type MilestoneKey } from '../../lib/caminho';
-import { activeRequest, isValidated } from '../../lib/progress';
+import { activeRequest, isAwaiting, isValidated } from '../../lib/progress';
 import { STATUS_TEXT, type ChecklistStatus } from '../../lib/meuprogresso';
 import type { Catalog, CatalogArea, CatalogTrail, StageChoice, StagePath, TrailRequest } from '../../lib/types';
 import { ErrorBox, Loading } from '../ui';
@@ -26,7 +26,7 @@ function cellFor(area: CatalogArea, path: StagePath | undefined, choices: StageC
   const r = activeRequest(requests, c.trail_key);
   if (isValidated(r)) return { status: 'validado', trail };
   if (r?.status === 'devolvido') return { status: 'revisao', trail };
-  if (r?.status === 'submetido' || r?.status === 'em_revisao') return { status: 'submetido', trail };
+  if (isAwaiting(r)) return { status: 'submetido', trail };
   return { status: 'por_concluir', trail };
 }
 

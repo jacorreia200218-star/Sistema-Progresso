@@ -148,12 +148,14 @@ export async function confirmAllAreas(w: World, who: string, stagePath: string, 
   return chosen;
 }
 
-/** Cria, submete e valida na Equipa um pedido normal. */
+/** Cria, submete e valida um pedido normal (Equipa e, se for o guia a registar, confirmação dos dirigentes). */
 export async function validateTrail(w: World, who: string, trail: string, recorder = 'GuiaA') {
   const req = await rpc<string>(w.users[who], 'create_trail_request', { p_membership: w.members[who], p_trail: trail, p_kind: 'normal' });
   await rpc(w.users[who], 'save_request_draft', { p_request: req, p_reflection: 'Reflexão', p_experiences: 'Vivências', p_period_start: null, p_period_end: null, p_approximate_date: null });
   await rpc(w.users[who], 'submit_trail_request', { p_request: req });
   await rpc(w.users[recorder], 'record_team_decision', { p_request: req, p_expected_version: 1, p_validated: true, p_meeting_date: today(), p_comment: 'Validado em reunião' });
+  // Validado por um guia → falta a confirmação de um dirigente.
+  if (recorder.startsWith('Guia')) await rpc(w.users.Ana, 'confirm_trail_validation', { p_request: req, p_comment: null });
   return req;
 }
 

@@ -6,6 +6,8 @@ export type RequestStatus =
   | 'rascunho'
   | 'submetido'
   | 'em_revisao'
+  /** Validado pelos guias na reunião de Equipa; falta a confirmação dos dirigentes. */
+  | 'validado_guias'
   | 'validado_equipa'
   | 'devolvido'
   | 'aprovado'
@@ -15,6 +17,7 @@ export type RequestStatus =
   | 'objetivos_validados';
 export type DecisionKind =
   | 'em_revisao'
+  | 'validado_guias'
   | 'validado_equipa'
   | 'devolvido_equipa'
   | 'devolvido_conselho'

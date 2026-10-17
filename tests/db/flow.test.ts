@@ -123,9 +123,14 @@ describe('pedido de validação de trilho', () => {
     await rpc(w.users.P1, 'save_request_draft', { p_request: req, p_reflection: 'Treinei todas as semanas.', p_experiences: 'Plano de treino', p_period_start: null, p_period_end: null, p_approximate_date: null });
     await rpc(w.users.P1, 'submit_trail_request', { p_request: req });
     await rpc(w.users.GuiaA, 'record_team_decision', { p_request: req, p_expected_version: 3, p_validated: true, p_meeting_date: today(), p_comment: 'Validado na reunião.' });
+    // Primeiro passo (guias): ainda não conta como validado; segundo passo: um dirigente confirma.
+    expect((await asUser(w.users.P1, `select status::text from public.trail_requests where id = $1`, [req]))[0].status).toBe('validado_guias');
+    await expectError(rpc(w.users.GuiaA, 'confirm_trail_validation', { p_request: req, p_comment: null }), 'dirigentes');
+    await rpc(w.users.Rui, 'confirm_trail_validation', { p_request: req, p_comment: null });
+    await expectError(rpc(w.users.Rui, 'confirm_trail_validation', { p_request: req, p_comment: null }), 'confirmação dos dirigentes');
     const d = await asUser(w.users.P1, `select kind, recorded_as, comment from public.trail_decisions where request_id = $1 order by recorded_at`, [req]);
-    expect(d.map((x) => x.kind)).toEqual(['em_revisao', 'devolvido_equipa', 'validado_equipa']);
-    expect(d.every((x) => x.recorded_as === 'guia')).toBe(true);
+    expect(d.map((x) => x.kind)).toEqual(['em_revisao', 'devolvido_equipa', 'validado_guias', 'validado_equipa']);
+    expect(d.map((x) => x.recorded_as)).toEqual(['guia', 'guia', 'guia', 'dirigente']);
     // Validação na equipa é comunicada ao Conselho de Guias
     expect((await asUser(w.users.Rui, `select 1 from public.notifications where kind = 'comunicacao_conselho'`)).length).toBeGreaterThan(0);
   });
@@ -165,6 +170,7 @@ describe('validação da etapa', () => {
     await rpc(w.users.P1, 'submit_trail_request', { p_request: r });
     const v = (await admin(`select current_version from public.trail_requests where id = $1`, [r]))[0].current_version;
     await rpc(w.users.GuiaA, 'record_team_decision', { p_request: r, p_expected_version: v, p_validated: true, p_meeting_date: today(), p_comment: null });
+    await rpc(w.users.Ana, 'confirm_trail_validation', { p_request: r, p_comment: null });
   });
 
   let sr: string;

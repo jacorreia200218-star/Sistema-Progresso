@@ -189,6 +189,19 @@ test('revisão: validar o trilho completo', async ({ page }) => {
   expect(mock.calls.find((c) => c.fn === 'record_team_decision')!.body).toMatchObject({ p_validated: true, p_objective_codes: null });
 });
 
+test('revisão: os dirigentes confirmam o trilho validado pelos guias', async ({ page }) => {
+  const persona = leader();
+  persona.tables.trail_requests!.find((r) => r.id === 'r-obj')!.status = 'validado_guias';
+  const mock = await installMock(page, persona);
+  await page.goto('/revisoes/pedido/r-obj');
+  await expect(page.getByText('Aguarda dirigentes').first()).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Validar o trilho/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Confirmar validação' }).click();
+  await confirm(page, 'Confirmar validação').click();
+  await expect(page.getByText('Trilho validado.').first()).toBeVisible();
+  expect(mock.calls.find((c) => c.fn === 'confirm_trail_validation')!.body).toMatchObject({ p_request: 'r-obj', p_comment: null });
+});
+
 test('dirigente: grelha de pioneiros, consulta e volta com os filtros', async ({ page }, info) => {
   await installMock(page, leader());
   await page.goto('/meu-progresso');

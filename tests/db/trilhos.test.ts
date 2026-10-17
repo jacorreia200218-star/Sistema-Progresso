@@ -107,10 +107,12 @@ describe('decisão sobre o trilho completo', () => {
     await expectError(send('P1', req, 'Corrigido', 1), 'mudou entretanto');
     await send('P1', req, 'No raid ajudei um colega com uma lesão e falámos do que cada um precisava.', 2);
     await decide('GuiaA', req, true, 'Validado em reunião.', 2);
+    expect(await status(req)).toBe('validado_guias');
+    await rpc(w.users.Rui, 'confirm_trail_validation', { p_request: req, p_comment: null });
     expect(await status(req)).toBe('validado_equipa');
     expect(await validatedKeys('P1')).toEqual(['fisico-autoconhecimento']);
-    const hist = await asUser(w.users.P1, `select v.version_no, d.kind::text from public.trail_decisions d join public.trail_request_versions v on v.id = d.version_id where d.request_id = $1 order by v.version_no`, [req]);
-    expect(hist).toEqual([{ version_no: 1, kind: 'devolvido_equipa' }, { version_no: 2, kind: 'validado_equipa' }]);
+    const hist = await asUser(w.users.P1, `select v.version_no, d.kind::text from public.trail_decisions d join public.trail_request_versions v on v.id = d.version_id where d.request_id = $1 order by v.version_no, d.recorded_at`, [req]);
+    expect(hist).toEqual([{ version_no: 1, kind: 'devolvido_equipa' }, { version_no: 2, kind: 'validado_guias' }, { version_no: 2, kind: 'validado_equipa' }]);
   });
 
   it('duas decisões em simultâneo sobre o mesmo pedido: só uma fica registada', async () => {
@@ -153,6 +155,8 @@ describe('dados por objetivo do modelo anterior', () => {
     const req = await newRequest('P3');
     await send('P3', req, 'Agora falo dos dois objetivos.');
     await decide('GuiaB', req, true);
+    expect(await validatedKeys('P3')).toEqual([]); // falta a confirmação dos dirigentes
+    await rpc(w.users.Ana, 'confirm_trail_validation', { p_request: req, p_comment: null });
     expect(await validatedKeys('P3')).toEqual(['fisico-autoconhecimento']);
     expect(await status(old)).toBe('objetivos_validados');
     const rows = await asUser(w.users.P3, `select objective_code, decision from public.request_objectives where request_id = $1`, [old]);
@@ -188,13 +192,44 @@ describe('dados por objetivo do modelo anterior', () => {
 });
 
 describe('contadores do Acompanhamento', () => {
+  const counts = () => rpc<Record<string, number>>(w.users.Ana, 'my_pending_counts', { p_section: w.section });
   it('cada pendente conta uma vez, no seu tipo, e o total é a soma', async () => {
-    const c = await rpc<Record<string, number>>(w.users.Ana, 'my_pending_counts', { p_section: w.section });
-    const pend = await admin(`select kind::text, count(*)::int n from public.trail_requests where section_id = $1 and status in ('submetido', 'em_revisao') group by kind`, [w.section]);
+    const c = await counts();
+    const pend = await admin(`select r.kind::text, count(*)::int n from public.trail_requests r join public.memberships m on m.id = r.membership_id
+      where r.section_id = $1 and m.status = 'ativo' and m.function in ('pioneiro', 'guia') and r.status::text in ('submetido', 'em_revisao', 'validado_guias') group by r.kind`, [w.section]);
     const normal = pend.find((r) => r.kind === 'normal')?.n ?? 0;
     const hist = pend.find((r) => r.kind === 'historico')?.n ?? 0;
     expect(c.trilhos).toBe(normal);
     expect(c.anterior).toBe(hist);
     expect(c.acompanhamento).toBe(c.negociacao + c.trilhos + c.anterior + c.etapas);
+  });
+
+  it('conta os trilhos à espera dos dirigentes e não conta pedidos que a lista não mostra', async () => {
+    const before = (await counts()).trilhos;
+    const req = await newRequest('P2', await trail('espiritual-descoberta'));
+    await send('P2', req, 'Treinei todas as semanas e registei o progresso.');
+    expect((await counts()).trilhos).toBe(before + 1);
+    await decide('GuiaA', req, true);
+    expect((await counts()).trilhos).toBe(before + 1); // validado pelos guias: falta confirmar
+    // Quem deixa de ser pioneiro ou guia sai da lista do Acompanhamento e do contador.
+    const ofP2 = (await admin(`select count(*)::int n from public.trail_requests where membership_id = $1 and kind = 'normal'
+      and status::text in ('submetido', 'em_revisao', 'validado_guias')`, [w.members.P2]))[0].n as number;
+    await admin(`update public.memberships set function = 'dirigente', team_id = null where id = $1`, [w.members.P2]);
+    expect((await counts()).trilhos).toBe(before + 1 - ofP2);
+    await admin(`update public.memberships set function = 'pioneiro', team_id = $2 where id = $1`, [w.members.P2, w.teamA]);
+    await rpc(w.users.Rui, 'confirm_trail_validation', { p_request: req, p_comment: 'Confirmado.' });
+    expect((await counts()).trilhos).toBe(before);
+    const n = await asUser(w.users.P2, `select title, body from public.notifications where kind = 'decisao_equipa' order by created_at desc limit 1`);
+    expect(n[0]).toEqual({ title: 'Trilho validado', body: expect.stringContaining('confirmado pelos dirigentes') });
+  });
+
+  it('os dirigentes podem devolver um trilho validado pelos guias', async () => {
+    const req = await newRequest('P3', await trail('social-interacao-e-cooperacao'));
+    await send('P3', req, 'Corri a meia maratona da região.');
+    await decide('GuiaB', req, true);
+    expect((await asUser(w.users.Rui, `select 1 from public.notifications where kind = 'validacao_guias' and link = $1`, [`/revisoes/pedido/${req}`])).length).toBe(1);
+    await rpc(w.users.Rui, 'record_council_return', { p_request: req, p_meeting_date: today(), p_comment: 'Falta falar do treino regular.' });
+    expect(await status(req)).toBe('devolvido');
+    await expectError(rpc(w.users.Rui, 'confirm_trail_validation', { p_request: req, p_comment: null }), 'confirmação dos dirigentes');
   });
 });

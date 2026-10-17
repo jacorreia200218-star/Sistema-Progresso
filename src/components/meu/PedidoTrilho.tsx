@@ -12,7 +12,7 @@ import { call, fetchRequest } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { errorMessage } from '../../lib/errors';
 import { prepareAttachment, safeFileName } from '../../lib/image';
-import { activeRequest, isValidated } from '../../lib/progress';
+import { activeRequest, isAwaiting, isValidated } from '../../lib/progress';
 import { flaggedObjectives, lastFeedback, validationInfo } from '../../lib/meuprogresso';
 import { decisionLabel, formatDate, formatDateTime, JUSTIFICATION_HINT, JUSTIFICATION_LABEL } from '../../lib/labels';
 import type { CatalogTrail, MemberProgress } from '../../lib/types';
@@ -155,7 +155,7 @@ export function PedidoTrilho({ trail, progress, membershipId, pedidosTo, histori
   if (!editable || sent) {
     const closed = isValidated(r);
     const v = closed ? validationInfo(r, progress.decisions) : null;
-    const pending = r && (r.status === 'submetido' || r.status === 'em_revisao');
+    const pending = isAwaiting(r);
     return (
       <section className="card pedido" id="pedido" aria-labelledby="h-pedido">
         <h2 id="h-pedido">Objetivos e validação</h2>
@@ -164,9 +164,11 @@ export function PedidoTrilho({ trail, progress, membershipId, pedidosTo, histori
         <TrailObjectives trail={trail} flagged={flagged} />
         {closed ? (
           <p className="faint">{v ? `${v.label} em ${formatDate(v.date)}.` : 'Trilho validado.'}</p>
-        ) : pending ? (
+        ) : pending && r ? (
           <p className="faint prose">
-            {r.kind === 'historico' ? 'O pedido de progresso anterior aguarda a decisão dos dirigentes.' : 'O pedido aguarda a decisão da reunião de Equipa sobre o trilho completo.'}
+            {r.kind === 'historico' ? 'O pedido de progresso anterior aguarda a decisão dos dirigentes.'
+              : r.status === 'validado_guias' ? 'Validado pelos guias. Falta a confirmação dos dirigentes.'
+              : 'O pedido aguarda a decisão da reunião de Equipa sobre o trilho completo.'}
             {current?.submitted_at && ` Enviado em ${formatDateTime(current.submitted_at)}.`}
           </p>
         ) : r?.kind === 'historico' ? (
@@ -223,7 +225,7 @@ export function PedidoTrilho({ trail, progress, membershipId, pedidosTo, histori
       <ErrorBox error={action.error} />
       <div className="btn-row">
         <ConfirmButton className="btn" confirmLabel="Pedir validação do trilho" disabled={!justification.trim() || tooLong || action.busy}
-          description="O pedido segue para a próxima reunião de Equipa, que decide sobre o trilho completo. Enviar não fecha o trilho."
+          description="O pedido segue para a próxima reunião de Equipa, que decide sobre o trilho completo; depois os dirigentes confirmam. Enviar não fecha o trilho."
           onConfirm={send}>
           {action.busy ? 'A enviar…' : 'Pedir validação do trilho'}
         </ConfirmButton>
