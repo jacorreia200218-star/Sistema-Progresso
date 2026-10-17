@@ -9,6 +9,8 @@ export type Deps = {
   config: (keys?: { publicKey: string; privateKey: string }) => Promise<Config>;
   payload: (id: string) => Promise<Payload>;
   drop: (endpoints: string[]) => Promise<void>;
+  /** Regista, por subscrição, o envio aceite ou o erro (diagnóstico no Perfil). */
+  mark?: (sent: string[], failed: { endpoint: string; error: string }[]) => Promise<void>;
   generateKeys: () => { publicKey: string; privateKey: string };
   send: (sub: Subscription, data: string, vapid: { subject: string; publicKey: string; privateKey: string }) => Promise<void>;
 };
@@ -49,16 +51,20 @@ export async function handlePost(request: Request, deps: Deps) {
   const data = JSON.stringify({ title: p.title, body: p.body ?? '', url: p.link || '/notificacoes', tag: id });
   const vapid = { subject: new URL(request.url).origin, publicKey: c.public_key, privateKey: c.private_key };
   const expired: string[] = [];
-  let sent = 0;
+  const ok: string[] = [];
+  const failed: { endpoint: string; error: string }[] = [];
   await Promise.all(p.subscriptions.map(async (s) => {
     try {
       await deps.send(s, data, vapid);
-      sent++;
+      ok.push(s.endpoint);
     } catch (e) {
       const status = (e as { statusCode?: number }).statusCode;
       if (status === 404 || status === 410) expired.push(s.endpoint);
+      else failed.push({ endpoint: s.endpoint, error: `${status ?? 'sem resposta'} ${(e as { body?: string }).body ?? (e instanceof Error ? e.message : '')}`.trim() });
     }
   }));
+  const sent = ok.length;
   if (expired.length) await deps.drop(expired);
+  if (deps.mark && (ok.length || failed.length)) await deps.mark(ok, failed).catch(() => undefined);
   return json({ sent, expired: expired.length });
 }

@@ -61,3 +61,11 @@ export async function disablePush() {
 }
 
 export const sendTestNotification = () => call('send_test_notification');
+
+/** Último envio aceite pelo serviço de push para este dispositivo (e o último erro). */
+export async function pushDeviceStatus(): Promise<{ last_sent_at: string | null; last_error: string | null } | null> {
+  const reg = await navigator.serviceWorker.getRegistration('/');
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return null;
+  return call('my_push_device', { p_endpoint: sub.endpoint });
+}

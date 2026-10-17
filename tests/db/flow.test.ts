@@ -41,6 +41,11 @@ describe('negociação de escolhas', () => {
   it('pioneiro propõe, dirigente confirma; regras de área e de trilho único', async () => {
     const f0 = byArea.F[0];
     const c = await rpc<string>(w.users.P1, 'propose_choice', { p_stage_path: path1, p_trail: f0.id, p_planned: 'Raid; plano de treino', p_replaces: null });
+    // Os dirigentes sabem quem quer fechar que trilho e abrem a proposta diretamente
+    const note = (await admin(`select title, body, link from public.notifications where profile_id = $1 and kind = 'escolha_proposta' order by created_at desc limit 1`, [w.users.Ana]))[0];
+    expect(note.title).toBe('Proposta para fechar um trilho');
+    expect(note.body).toMatch(/quer fechar «.+» \(Físico\) na etapa Conhecimento\./);
+    expect(note.link).toBe(`/acompanhamento/proposta/${c}`);
     // Segunda proposta na mesma área enquanto há uma pendente
     await expectError(rpc(w.users.P1, 'propose_choice', { p_stage_path: path1, p_trail: byArea.F[1].id, p_planned: null, p_replaces: null }), 'proposta pendente');
     // Guia não confirma escolhas

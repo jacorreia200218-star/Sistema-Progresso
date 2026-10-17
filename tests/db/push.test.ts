@@ -96,4 +96,16 @@ describe('notificações push', () => {
     expect(d.r).toBe(1);
     expect(await rpc(w.users.P1, 'has_push_subscription', { p_endpoint: sub('p1').p_endpoint })).toBe(false);
   });
+
+  it('regista o último envio e o último erro por dispositivo; cada um só vê o seu', async () => {
+    await rpc(w.users.P2, 'save_push_subscription', sub('p2'));
+    await expect(rpc(w.users.P2, 'push_mark_results', { p_sent: [sub('p2').p_endpoint] })).rejects.toThrow(/permission denied|Sem permissão/);
+    await asService(`select public.push_mark_results($1, '[]'::jsonb)`, [[sub('p2').p_endpoint]]);
+    const ok = await rpc(w.users.P2, 'my_push_device', { p_endpoint: sub('p2').p_endpoint });
+    expect(ok.last_sent_at).toBeTruthy();
+    expect(ok.last_error).toBeNull();
+    await asService(`select public.push_mark_results('{}', $1::jsonb)`, [JSON.stringify([{ endpoint: sub('p2').p_endpoint, error: '403 BadJwtToken' }])]);
+    expect((await rpc(w.users.P2, 'my_push_device', { p_endpoint: sub('p2').p_endpoint })).last_error).toBe('403 BadJwtToken');
+    expect(await rpc(w.users.P1, 'my_push_device', { p_endpoint: sub('p2').p_endpoint })).toBeNull();
+  });
 });

@@ -51,4 +51,14 @@ describe('envio push', () => {
     expect(await (await handlePost(post('s'.repeat(64), { notification_id: ID }), d)).json()).toEqual({ sent: 0 });
     expect((await handlePost(post('s'.repeat(64), { notification_id: 'x' }), d)).status).toBe(400);
   });
+
+  it('regista os envios aceites e as falhas que não são expiração', async () => {
+    const mark = vi.fn(async () => {});
+    const { d } = fake({ mark, send: vi.fn(async (s) => { if (s.endpoint === 'https://b') throw Object.assign(new Error('x'), { statusCode: 403, body: 'BadJwtToken' }); }) });
+    const c = await (await handleGet(d)).json();
+    void c;
+    const res = await handlePost(post('s'.repeat(64), { notification_id: ID }), d);
+    expect(await res.json()).toEqual({ sent: 1, expired: 0 });
+    expect(mark).toHaveBeenCalledWith(['https://a'], [{ endpoint: 'https://b', error: '403 BadJwtToken' }]);
+  });
 });

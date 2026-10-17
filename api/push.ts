@@ -18,6 +18,7 @@ function deps(): Deps {
     config: (k) => rpc('push_service_config', k ? { p_public_key: k.publicKey, p_private_key: k.privateKey } : {}),
     payload: (id) => rpc('push_notification_payload', { p_id: id }),
     drop: async (endpoints) => { await rpc('push_drop_subscriptions', { p_endpoints: endpoints }); },
+    mark: async (sent, failed) => { await rpc('push_mark_results', { p_sent: sent, p_failed: failed }); },
     generateKeys: () => webpush.generateVAPIDKeys(),
     send: async (s, data, vapid) => {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, data, {

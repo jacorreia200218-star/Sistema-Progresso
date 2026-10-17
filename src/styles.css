@@ -1089,3 +1089,9 @@ dl.summary-list .quote { margin-top: 0; }
 .side-nav .nav-tag { flex: none; }
 /* Telemóvel: as ações do título alinham à esquerda, por baixo do título. */
 @media (max-width: 640px) { .page-actions { margin-left: 0; } }
+
+/* Proposta de fechar um trilho (negociação com a Equipa de Animação) */
+.propose-card.is-proposta { border-color: var(--amber, #b45309); }
+.propose-card h2 { margin-bottom: 6px; }
+.choice-line { display: block; font-size: var(--fs-small); color: var(--accent-ink); margin-top: 2px; }
+.choice-line.is-proposed { color: var(--amber, #b45309); }

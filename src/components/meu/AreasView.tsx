@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, ArrowLeft, ArrowRight, Heart, Lightbulb, MessageSquare, Shield, Sparkles, Users } from 'lucide-react';
 import type { CatalogArea, CatalogTrail, MemberProgress } from '../../lib/types';
 import { activeRequest, openPath } from '../../lib/progress';
-import { CATEGORY_LABEL, flaggedObjectives, lastFeedback, stageChecklist, STATUS_TEXT, trailCategory } from '../../lib/meuprogresso';
+import { activeChoice, CATEGORY_LABEL, flaggedObjectives, lastFeedback, stageChecklist, STATUS_TEXT, trailCategory } from '../../lib/meuprogresso';
 import { Badge } from '../ui';
 import type { Subject } from './useSubject';
 
@@ -34,6 +34,7 @@ function TrailRow({ trail, progress, subject }: { trail: CatalogTrail; progress:
   const fb = cat === 'a_rever' ? lastFeedback(r, progress.decisions) : undefined;
   const flagged = cat === 'a_rever' ? flaggedObjectives(r, progress.decisions) : [];
   const href = `/meu-progresso/trilho/${trail.key}${subject.q ? `?${subject.q}` : ''}`;
+  const choice = cat === 'validado' ? undefined : activeChoice(progress, trail.key);
   return (
     <li>
       <Link to={href} className="trail-row">
@@ -43,6 +44,11 @@ function TrailRow({ trail, progress, subject }: { trail: CatalogTrail; progress:
           <span className="obj-codes" aria-label={`Objetivos ${trail.catalog_objectives.map((o) => o.code).join(', ')}`}>
             {trail.catalog_objectives.map((o) => <span key={o.id} className="code-chip">{o.code}</span>)}
           </span>
+          {choice && (
+            <span className={`choice-line ${choice.status === 'proposta' ? 'is-proposed' : ''}`}>
+              {choice.status === 'proposta' ? 'Proposto para fechar · aguarda a Equipa de Animação' : 'Escolhido para fechar nesta etapa'}
+            </span>
+          )}
           {fb?.comment && (
             <span className="feedback-inline"><MessageSquare size={13} aria-hidden="true" /> «{fb.comment.length > 110 ? `${fb.comment.slice(0, 110)}…` : fb.comment}»{flagged.length ? ` · ${flagged.join(', ')}` : ''}</span>
           )}

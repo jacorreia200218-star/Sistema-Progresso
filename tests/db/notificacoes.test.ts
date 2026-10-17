@@ -98,7 +98,8 @@ describe('ligações', () => {
     const sp = (await admin(`select id from public.stage_paths where membership_id = $1`, [w.members.P3]))[0].id;
     await rpc(w.users.P3, 'propose_choice', { p_stage_path: sp, p_trail: t, p_planned: null, p_replaces: null });
     const neg = await asUser(w.users.Ana, `select link from public.notifications where kind = 'escolha_proposta'`);
-    expect(neg.map((r) => r.link)).toContain('/acompanhamento/pedidos?tipo=negociacao');
+    // A proposta abre diretamente o seu registo
+    expect(neg.some((r) => /^\/acompanhamento\/proposta\/[0-9a-f-]{36}$/.test(r.link))).toBe(true);
 
     const comm = await asUser(w.users.Rui, `select link from public.notifications where kind = 'comunicacao_conselho'`);
     expect(comm.length).toBeGreaterThan(0);
