@@ -44,7 +44,8 @@ export function StatCards({ items, label }: { items: Stat[]; label: string }) {
         <li key={s.label}>
           <Link to={s.to} className={`stat stat-${s.tone}`}>
             <span className="stat-icon"><s.icon size={20} aria-hidden="true" /></span>
-            <span className="stat-value">{s.value}</span>
+            {/* Valores em texto (ex.: nome da etapa) usam letra menor e nunca partem a palavra. */}
+            <span className={`stat-value${typeof s.value === 'string' && Number.isNaN(Number(s.value)) ? ' is-text' : ''}`}>{s.value}</span>
             <span className="stat-label">{s.label}</span>
             {s.hint && <span className="stat-hint">{s.hint}</span>}
           </Link>

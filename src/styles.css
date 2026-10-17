@@ -583,6 +583,7 @@ a.ck-row:hover { background: var(--surface-2); }
 .stat:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .stat-icon { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--tone-ink); background: color-mix(in srgb, var(--tone-ink) 12%, transparent); }
 .stat-value { font-size: var(--fs-stat); font-weight: 700; line-height: 1.15; color: var(--ink); overflow-wrap: anywhere; display: inline-flex; align-items: center; }
+.stat-value.is-text { font-size: var(--fs-strong); overflow-wrap: normal; word-break: normal; hyphens: none; }
 .stat-label { font-size: var(--fs-body); color: var(--ink); line-height: 1.3; }
 .stat-hint { font-size: var(--fs-small); color: var(--tone-ink); }
 .stat-azul { --tone-bg: #EFF6FF; --tone-ink: #1D4ED8; --tone-line: #DBEAFE; }
