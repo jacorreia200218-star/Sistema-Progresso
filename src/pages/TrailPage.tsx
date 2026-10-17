@@ -149,7 +149,9 @@ function TrailActions({ subject, trail, progress, pedidosTo }: { subject: Subj; 
     next.set('acao', m);
     setParams(next, { replace: true });
   };
+  const hasPath = !!openPath(progress.paths);
   const workState = cat === 'validado' ? 'Trilho fechado'
+    : !choice && !hasPath ? 'À espera da abertura da tua etapa'
     : choice?.status === 'confirmada' ? 'Combinado para a etapa'
     : choice?.status === 'proposta' ? 'Proposta enviada · aguarda resposta'
     : 'Ainda não propuseste';
@@ -256,7 +258,13 @@ function ChoiceSection({ subject, trail, progress }: { subject: Subj; trail: Cat
           {choiceHere.planned_opportunities && <span className="faint" style={{ display: 'block', whiteSpace: 'pre-line' }}>Como pensa trabalhá-lo: {choiceHere.planned_opportunities}</span>}
         </p>
       ) : !path ? (
-        <p className="faint prose">{subject.isSelf ? 'Quando a tua etapa estiver aberta, podes propor aqui trabalhar neste trilho. Entretanto, se já atingiste os objetivos, podes pedir para o fechar.' : 'Sem etapa aberta.'}</p>
+        <Notice kind="info">
+          <p className="prose">
+            {subject.isSelf
+              ? <>Ainda não tens uma etapa aberta, por isso ainda não podes propor trabalhar neste trilho. A Equipa de Animação abre a tua etapa e entrega a insígnia; a partir daí aparece aqui o botão «Propor trabalhar neste trilho». Se já atingiste os objetivos, podes pedir já para o <strong>fechar</strong>.</>
+              : 'Sem etapa aberta: a Equipa de Animação abre a etapa no percurso do membro (separador Etapa).'}
+          </p>
+        </Notice>
       ) : pathBusy ? (
         <p className="faint prose">A etapa está em validação; não é possível propor trilhos agora.</p>
       ) : areaProposed ? (
