@@ -159,7 +159,7 @@ test('dirigente: lista com pesquisa, nova ata a partir de um evento, editar e ve
   await main.getByLabel('Evento').selectOption('ev2');
   await expect(main.getByRole('link', { name: 'Abrir a ata' })).toBeVisible();
   await main.getByLabel('Evento').selectOption('ev1');
-  await expect(main.getByLabel('Evento').locator('option:checked')).toContainText('Reunião · 17/10/2026');
+  await expect(main.getByLabel('Evento').locator('option:checked')).toContainText('17/10/2026 · Reunião');
   await main.getByLabel('Ata', { exact: true }).fill('Planeámos o raide.\nFicou tudo combinado.');
   await main.getByRole('button', { name: 'Guardar' }).click();
 
@@ -184,14 +184,19 @@ test('dirigente: lista com pesquisa, nova ata a partir de um evento, editar e ve
   await expect(main.locator('.sec-body')).toHaveText('Planeámos o raide de novembro.');
 });
 
-test('sem evento: «Criar no calendário» e a ata fica associada ao novo evento', async ({ page }) => {
+test('sem evento: «Criar reunião» e a ata fica associada ao novo evento', async ({ page }) => {
   await installMock(page, leader());
   const S = await installAtas(page, { events: [], atas: false });
   await page.goto(`${BASE}/nova`);
   const main = page.locator('main');
-  const group = main.getByRole('group', { name: 'Criar no calendário' });
+  await expect(main.getByText('Ainda não há eventos no calendário para associar a esta ata.')).toBeVisible();
+  await main.getByRole('button', { name: 'Criar reunião' }).click();
+  const group = main.getByRole('group', { name: 'Criar evento no calendário' });
   await expect(group).toBeVisible();
   await expect(group.getByLabel('Nome do evento')).toHaveValue('Reunião');
+  // A data proposta é o dia de hoje (Europe/Lisbon)
+  const today = new Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
+  await expect(group.getByLabel('Data')).toHaveValue(today);
   await group.getByLabel('Nome do evento').fill('Reunião de pais');
   await group.getByRole('button', { name: 'Criar evento' }).click();
   await expect(group).toHaveCount(0);
@@ -204,6 +209,28 @@ test('sem evento: «Criar no calendário» e a ata fica associada ao novo evento
   await expect(main).toContainText('Reservada aos dirigentes');
   expect(S.calls.find((c) => c.fn === 'ata_event_create')!.body).toMatchObject({ p_title: 'Reunião de pais', p_start: '14:30', p_end: '16:00' });
   expect(S.calls.find((c) => c.fn === 'ata_save')!.body).toMatchObject({ p_event: 'ev1', p_scope: 'dirigentes' });
+});
+
+test('muitos eventos com o mesmo nome: «DD/MM/AAAA · Nome», hora quando coincidem no dia, e pesquisa', async ({ page }) => {
+  await installMock(page, leader());
+  const many = Array.from({ length: 14 }, (_, i) => ev(`r${i}`, 'Reunião', `2026-09-${String(i + 1).padStart(2, '0')}`, '13:30'));
+  many.push({ ...ev('r-tarde', 'Reunião', '2026-09-05', '16:00') });
+  const S = await installAtas(page, { events: many, atas: false });
+  await page.goto(`${BASE}/nova`);
+  const main = page.locator('main');
+  const box = main.getByRole('combobox', { name: 'Evento' });
+  await box.click();
+  const list = main.getByRole('listbox', { name: 'Atividades' });
+  await expect(list.getByRole('option').first()).toHaveText(/^14\/09\/2026 · Reunião$/);
+  await box.fill('05/09');
+  await expect(list.getByRole('option')).toHaveCount(2);
+  await expect(list.getByRole('option').nth(0)).toContainText('05/09/2026 · Reunião · 14:30');
+  await expect(list.getByRole('option').nth(1)).toContainText('05/09/2026 · Reunião · 17:00');
+  await list.getByRole('option').nth(1).click();
+  await main.getByLabel('Ata', { exact: true }).fill('Reunião da tarde.');
+  await main.getByRole('button', { name: 'Guardar' }).click();
+  await expect(main.getByRole('heading', { name: 'Reunião', level: 1 })).toBeVisible();
+  expect(S.calls.find((c) => c.fn === 'ata_save')!.body).toMatchObject({ p_event: 'r-tarde' });
 });
 
 test('tarefa: responsável escolhido na lista pesquisável, editar e mudar o estado', async ({ page }) => {
@@ -300,7 +327,7 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'atas-tarefa-nova');
       await page.goto(`${BASE}/nova`);
       await shoot(page, info, theme, 'atas-nova');
-      await page.locator('main').getByRole('button', { name: 'Criar no calendário' }).click();
+      await page.locator('main').getByRole('button', { name: 'Criar evento' }).click();
       await shoot(page, info, theme, 'atas-nova-evento');
       await page.goto(`${BASE}/tarefas`);
       await shoot(page, info, theme, 'atas-tarefas');

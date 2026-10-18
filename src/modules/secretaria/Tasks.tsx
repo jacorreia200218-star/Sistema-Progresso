@@ -129,7 +129,13 @@ export function TaskList() {
       </div>
       {q.isLoading && <Loading />}
       <ErrorBox error={q.error} retry={() => q.refetch()} />
-      {q.data && tasks.length === 0 && <div className="card"><Empty title={f === 'concluidas' ? 'Ainda não há tarefas concluídas.' : 'Não há tarefas por concluir.'} /></div>}
+      {q.data && tasks.length === 0 && (
+        <div className="card">
+          <Empty title={f === 'concluidas' ? 'Ainda não há tarefas concluídas.' : 'Não há tarefas por concluir.'}>
+            <p className="faint sec-center-text">As tarefas criam-se dentro de cada ata. <Link to={BASE}>Ver atas</Link></p>
+          </Empty>
+        </div>
+      )}
       {tasks.length > 0 && (
         <ul className="list card sec-items" aria-label="Tarefas">
           {tasks.map((t) => <TaskRow key={t.id} t={t} canChange={!!q.data?.can_write || t.responsible_id === me} />)}
@@ -152,7 +158,13 @@ export function Mine() {
       <AtaTabs current="minhas" />
       {q.isLoading && <Loading />}
       <ErrorBox error={q.error} retry={() => q.refetch()} />
-      {q.data && all.length === 0 && <div className="card"><Empty title="Não tens tarefas atribuídas." /></div>}
+      {q.data && all.length === 0 && (
+        <div className="card">
+          <Empty title="Não tens tarefas atribuídas.">
+            <p className="faint sec-center-text">Quando uma ata te atribuir uma tarefa, aparece aqui e recebes um aviso.</p>
+          </Empty>
+        </div>
+      )}
       {late > 0 && <Notice kind="warn">{late === 1 ? 'Tens 1 tarefa em atraso.' : `Tens ${late} tarefas em atraso.`}</Notice>}
       {open.length > 0 && (
         <section className="card" aria-labelledby="sec-mine-open">
