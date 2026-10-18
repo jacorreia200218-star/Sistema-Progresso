@@ -26,7 +26,7 @@ export function MemberView({ membershipId, self }: { membershipId: string; self?
   const counts = fn === 'pioneiro' || fn === 'guia';
   return (
     <>
-      {!self && <PageTitle title={d?.member.name ?? 'Presenças'} back="/presencas" subtitle={d ? (d.member.team_name ?? 'Sem equipa') : undefined} />}
+      {!self && <PageTitle title={d?.member.name ?? 'Presenças'} back={`/presencas${periodQuery()}`} subtitle={d ? (d.member.team_name ?? 'Sem equipa') : undefined} />}
       <Filters today={today} />
       {q.isLoading && <Loading />}
       <ErrorBox error={q.error} retry={() => q.refetch()} />

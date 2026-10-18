@@ -3,16 +3,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Ban, CalendarDays, Pencil, RotateCcw } from 'lucide-react';
+import { Ban, CalendarCheck, CalendarDays, Pencil, RotateCcw } from 'lucide-react';
 import { Badge, ErrorBox, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatDay } from '../common';
-import { KIND_LABEL, STATUS_LABEL, useSectionId, type SessionDetail, type SessionMember } from './api';
+import { CAL_RESPONSE_LABEL, KIND_LABEL, STATUS_LABEL, useSectionId, type Abbr, type CalResponse, type PresStatus, type SessionDetail, type SessionMember } from './api';
 import { HistoryList, periodQuery, StatusMark, useParam } from './parts';
 
 type Choice = 'presente' | 'justificada' | 'injustificada' | 'por_registar';
 const CHOICES: Choice[] = ['presente', 'justificada', 'injustificada', 'por_registar'];
+/** Botões de um toque em cada linha: sigla, estado e significado. */
+const QUICK: [Abbr, PresStatus][] = [['P', 'presente'], ['FJ', 'justificada'], ['FI', 'injustificada']];
+const QUICK_LABEL: Record<PresStatus, string> = { presente: 'Presente', justificada: 'Falta justificada', injustificada: 'Falta injustificada' };
+
+/** Resposta dada no Calendário (Vou/Não vou): é intenção, não presença. */
+function CalAnswer({ r }: { r: CalResponse | null | undefined }) {
+  const label = r ? CAL_RESPONSE_LABEL[r] : 'Sem resposta';
+  return (
+    <span className={`pres-cal pres-cal-${r ?? 'none'}`} title="Resposta no Calendário (não é presença)">
+      <CalendarCheck size={13} aria-hidden="true" /> <span className="sr-only">Resposta no </span>Calendário: {label}
+    </span>
+  );
+}
 
 export function SessionPage() {
   const { id = '' } = useParams();
@@ -52,6 +65,9 @@ export function SessionPage() {
             ({formatDay(s.cal_event.start)}{s.cal_event.end !== s.cal_event.start ? ` a ${formatDay(s.cal_event.end)}` : ''})
             {s.cal_event.status === 'cancelado' && ' — cancelada no Calendário'}</p>
         )}
+        {s.cal_event && d.can_register && (
+          <p className="faint pres-small" data-testid="nota-calendario">«Vou/Não vou» é a resposta no Calendário: não é presença nem falta.</p>
+        )}
         {s.status === 'cancelada' && <p className="pres-small">Cancelada{s.cancel_reason ? `: ${s.cancel_reason}` : '.'} Não conta para a assiduidade.</p>}
         {s.notes && <p className="prose pres-small">{s.notes}</p>}
         {s.future && !cancelled && <p className="faint pres-small">A sessão ainda não aconteceu: só é possível registar faltas justificadas antecipadas, que só contam depois da data.</p>}
@@ -73,7 +89,7 @@ function OwnRecord({ d }: { d: SessionDetail }) {
   return (
     <section className="card">
       <h2 className="pres-h2">O teu registo</h2>
-      <p><StatusMark category={me.category} partial={me.partial} /></p>
+      <p className="pres-member-meta"><StatusMark category={me.category} partial={me.partial} />{d.session.cal_event && <CalAnswer r={me.cal_response} />}</p>
       {me.partial_note && <p className="pres-small">Parcial: {me.partial_note}</p>}
       {me.justification && <p className="pres-small pres-just">Justificação: {me.justification}</p>}
     </section>
@@ -127,7 +143,11 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
   const [editing, setEditing] = useState<string | null>(focus || null);
   const cancelled = d.session.effective_status === 'cancelada';
   const future = d.session.future;
+  const quickAction = useAction();
+  const [quickBusy, setQuickBusy] = useState<string | null>(null);
   const pending = useMemo(() => d.members.filter((m) => m.status === null).map((m) => m.membership_id), [d.members]);
+  const saidYes = useMemo(() => d.members.filter((m) => m.status === null && m.cal_response === 'vou').map((m) => m.membership_id), [d.members]);
+  const linked = !!d.session.cal_event;
   const anyRecorded = d.members.some((m) => selected.has(m.membership_id) && m.status !== null);
   const allowed = (c: Choice) => !future || c === 'justificada' || c === 'por_registar';
 
@@ -158,6 +178,16 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
     }), `Registado para ${selected.size} ${selected.size === 1 ? 'pessoa' : 'pessoas'}.`);
     if (r.ok) { setSelected(new Set()); setStatus(''); setPartial(false); setNote(''); setReason(''); onDone(); }
   };
+  const quick = async (m: SessionMember, c: PresStatus) => {
+    if (m.status === c && !m.partial) return;
+    setQuickBusy(m.membership_id);
+    await quickAction.run(() => call<number>('pres_record', {
+      p_section: section, p_session: d.session.id, p_memberships: [m.membership_id], p_status: c,
+      p_partial: false, p_partial_note: null, p_justification: null, p_reason: null,
+    }), `${m.name}: ${STATUS_LABEL[c]}.`);
+    setQuickBusy(null);
+    onDone();
+  };
   const counts = CHOICES.map((c) => [c, d.members.filter((m) => (m.status ?? 'por_registar') === c).length] as const);
 
   return (
@@ -171,9 +201,22 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
           <button type="button" className="btn ghost" onClick={() => setSelected(new Set(pending))} disabled={pending.length === 0}>
             Selecionar os por registar ({pending.length})
           </button>
+          {linked && (
+            <button type="button" className="btn ghost" onClick={() => setSelected(new Set(saidYes))} disabled={saidYes.length === 0}>
+              Selecionar quem disse «Vou» ({saidYes.length})
+            </button>
+          )}
           <button type="button" className="btn ghost" onClick={() => setSelected(new Set())} disabled={selected.size === 0}>Limpar seleção</button>
         </div>
       )}
+      {!cancelled && (
+        <p className="faint pres-small pres-quick-help" data-testid="legenda-botoes">
+          Um toque por pessoa: {QUICK.filter(([, c]) => allowed(c)).map(([k, c]) => <span key={k}><strong>{k}</strong> {QUICK_LABEL[c].toLowerCase()} </span>)}
+          · <Pencil size={12} aria-hidden="true" /> corrigir: parcial, justificação ou desfazer.
+        </p>
+      )}
+      {quickAction.error && <Notice kind="error">{quickAction.error}</Notice>}
+      <p className="sr-only" role="status">{quickAction.success}</p>
       <ul className="list pres-members" aria-label="Pessoas da sessão">
         {d.members.map((m) => (
           <li key={m.membership_id} id={`pres-m-${m.membership_id}`} className={`pres-member${focus === m.membership_id ? ' focus' : ''}`}>
@@ -183,9 +226,27 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
               )}
               <label htmlFor={`sel-${m.membership_id}`} className="grow pres-member-name">
                 <span className="pres-row-title">{m.name}</span>
-                <span className="faint pres-small pres-block">{m.team_name ?? 'Sem equipa'}{m.partial_note ? ` · parcial: ${m.partial_note}` : ''}{m.justification ? ' · com justificação' : ''}</span>
+                <span className="pres-member-meta">
+                  <StatusMark category={m.category === 'cancelada' || m.category === 'futura' ? (m.status ?? 'por_registar') : m.category} partial={m.partial} />
+                  <span className="faint pres-small">{m.team_name ?? 'Sem equipa'}{m.partial_note ? ` · parcial: ${m.partial_note}` : ''}{m.justification ? ' · com justificação' : ''}</span>
+                  {linked && m.cal_response && <CalAnswer r={m.cal_response} />}
+                </span>
               </label>
-              <StatusMark category={m.category === 'cancelada' || m.category === 'futura' ? (m.status ?? 'por_registar') : m.category} partial={m.partial} />
+              {!cancelled && (
+                <span className="pres-quick-btns" role="group" aria-label={`Registar ${m.name}`}>
+                  {QUICK.map(([k, c]) => {
+                    const on = m.status === c;
+                    return (
+                      <button key={k} type="button" className={`pres-qbtn pres-${c}${on ? ' on' : ''}`} aria-pressed={on}
+                        title={`${QUICK_LABEL[c]}${on ? ' (registado)' : ''}`} aria-label={`${m.name}: ${QUICK_LABEL[c]}`}
+                        disabled={!allowed(c) || quickBusy !== null || a.busy} aria-busy={quickBusy === m.membership_id || undefined}
+                        onClick={() => void quick(m, c)}>
+                        {k}
+                      </button>
+                    );
+                  })}
+                </span>
+              )}
               {!cancelled && (
                 <button type="button" className="btn ghost pres-icon-btn" aria-label={`Corrigir ${m.name}`} aria-expanded={editing === m.membership_id}
                   onClick={() => setEditing(editing === m.membership_id ? null : m.membership_id)}>
@@ -203,7 +264,7 @@ function Register({ d, onDone }: { d: SessionDetail; onDone: () => void }) {
         <Notice kind="info">Esta sessão está cancelada: não é possível registar presenças.</Notice>
       ) : (
         <fieldset className="pres-quick">
-          <legend>Registo rápido</legend>
+          <legend>Vários de uma vez</legend>
           <p className="faint pres-small">Marca as pessoas na lista e escolhe o estado. Ninguém é marcado por omissão.</p>
           <div className="pres-choices" role="radiogroup" aria-label="Estado a registar">
             {CHOICES.map((c) => (

@@ -3,8 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Ban, CalendarClock, Check, Clock3, FileText, History, Minus, X } from 'lucide-react';
 import { formatDay, formatLisbon, MONTHS } from '../common';
 import {
-  CATEGORY_LABEL, formatRate, periodFrom, rateSentence, SCOUT_MONTHS, scoutYearLabel, STATUS_LABEL, yearOptions,
-  type Category, type HistoryRow, type Period, type PresStatus, type Stats,
+  ABBR, CATEGORY_LABEL, formatRate, periodFrom, rateSentence, SCOUT_MONTHS, scoutYearLabel, STATUS_LABEL, yearOptions,
+  type Abbr, type Category, type HistoryRow, type Period, type PresStatus, type Stats,
 } from './api';
 import { DateInput } from '../../components/DateInput';
 import { Filters as FilterBar } from '../../components/ui';
@@ -52,6 +52,9 @@ export function StatsTiles({ stats, label }: { stats: Stats; label: string }) {
           <span className="pres-tile-value" data-testid="taxa">{formatRate(stats.taxa)}</span>
           <span className="pres-tile-label">Taxa de assiduidade</span>
           <span className="pres-tile-sub">{stats.contadas ? `${stats.presencas} ÷ ${stats.contadas} × 100` : 'sem registos contados'}</span>
+          {stats.por_registar > 0 && stats.contadas > 0 && (
+            <span className="pres-tile-sub pres-provisional" data-testid="taxa-provisoria">Provisória: {stats.por_registar} por registar</span>
+          )}
         </div>
       </div>
       <p className="sr-only">{rateSentence(stats)}</p>
@@ -87,13 +90,13 @@ export function usePeriod(today: string): Period {
 export function periodQuery(): string {
   const cur = new URLSearchParams(window.location.search);
   const out = new URLSearchParams();
-  for (const k of ['ano', 'mes', 'de', 'ate', 'equipa']) if (cur.get(k)) out.set(k, cur.get(k)!);
+  for (const k of ['ano', 'mes', 'de', 'ate', 'equipa', 'vista']) if (cur.get(k)) out.set(k, cur.get(k)!);
   const s = out.toString();
   return s ? `?${s}` : '';
 }
 
 /** Legenda curta dos símbolos do quadro (uma linha). */
-export function Legend() {
+export function Legend({ abbr }: { abbr?: boolean } = {}) {
   const items: [Category, string, boolean?][] = [
     ['presente', 'Presente'], ['presente', 'Parcial', true], ['justificada', 'Justificada'], ['injustificada', 'Injustificada'],
     ['por_registar', 'Por registar'], ['futura', 'Futura'],
@@ -104,7 +107,30 @@ export function Legend() {
         <span key={t} className="pres-legend-item"><StatusMark category={c} partial={p} compact /><span aria-hidden="true">{t}</span></span>
       ))}
       <span className="pres-legend-item"><span className="pres-na-dot" aria-hidden="true">·</span><span>Não se aplica</span></span>
+      {abbr && <AbbrLegend />}
     </p>
+  );
+}
+
+/** Sigla com o significado acessível (title para o rato, texto escondido para leitores de ecrã). */
+export function AbbrText({ k }: { k: Abbr }) {
+  return <abbr className="pres-abbr" title={ABBR[k]}><span aria-hidden="true">{k}</span><span className="sr-only">{ABBR[k]}</span></abbr>;
+}
+
+/** Cabeçalho de coluna com sigla (P, FJ, FI, PR). */
+export function AbbrHead({ k, className = 'pres-num' }: { k: Abbr; className?: string }) {
+  return <th scope="col" className={className} title={ABBR[k]} aria-label={ABBR[k]}><abbr className="pres-abbr" title={ABBR[k]}>{k}</abbr></th>;
+}
+
+/** Significado das siglas e fórmula da taxa (numa linha). */
+export function AbbrLegend() {
+  return (
+    <span className="pres-legend-abbr" data-testid="legenda-siglas">
+      {(Object.keys(ABBR) as Abbr[]).map((k) => (
+        <span key={k} className="pres-legend-item"><strong>{k}</strong> {ABBR[k].toLowerCase()}</span>
+      ))}
+      <span className="pres-legend-item">Taxa = P ÷ (P + FJ + FI)</span>
+    </span>
   );
 }
 
