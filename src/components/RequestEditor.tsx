@@ -135,7 +135,7 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
     ? 'Ao submeter, o pedido segue diretamente para os dirigentes (progresso anterior).'
     : ownGuia
       ? 'Ao submeter, segue para a reunião de Equipa; como és o guia, a decisão é registada pela Equipa de Animação. Depois é comunicada ao Conselho de Guias.'
-      : 'Ao submeter, segue para a próxima reunião de Equipa: o guia regista a decisão tomada em conjunto, que é comunicada ao Conselho de Guias.';
+      : 'Ao submeter, segue para a próxima reunião de Equipa: o guia regista a decisão tomada em conjunto e, se o trilho for validado, os dirigentes confirmam.';
   const historicBlocked = historic && !s.settings?.historical_progress_enabled;
 
   useEffect(() => {
@@ -336,7 +336,8 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
           </div>
         </>
       )}
-      {request.status === 'validado_equipa' && <p className="prose">Trilho validado na reunião de Equipa. A decisão foi comunicada ao Conselho de Guias.</p>}
+      {request.status === 'validado_guias' && <p className="prose">Trilho validado pelos guias. Falta a confirmação dos dirigentes.</p>}
+      {request.status === 'validado_equipa' && <p className="prose">Trilho validado. A decisão foi comunicada ao Conselho de Guias.</p>}
       {request.status === 'objetivos_validados' && (
         <p className="prose">Pedido do modelo anterior, por objetivos. As decisões ficam como histórico e não fecham o trilho: <Link to={trailTo}>pede a validação do trilho completo</Link>.</p>
       )}

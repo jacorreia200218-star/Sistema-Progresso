@@ -47,7 +47,7 @@ describe('categorias dos filtros', () => {
 
   it('informação de validação com a data da reunião', () => {
     const d: TrailDecision = { id: 'd', request_id: 'r-F1', version_id: 'v', kind: 'validado_equipa', meeting_date: '2026-03-05', comment: null, reference_date: null, recorded_by: 'g', recorded_as: 'guia', recorded_at: '2026-03-06T10:00:00Z' };
-    expect(validationInfo(req('F1', 'validado_equipa'), [d])).toEqual({ date: '2026-03-05', label: 'Validado na reunião de Equipa' });
+    expect(validationInfo(req('F1', 'validado_equipa'), [d])).toEqual({ date: '2026-03-05', label: 'Validado' });
     expect(validationInfo(req('F1', 'submetido'), [d])).toBeNull();
   });
 });

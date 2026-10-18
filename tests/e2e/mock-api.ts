@@ -342,9 +342,17 @@ export async function installMock(page: Page, persona: Persona): Promise<MockCon
         if (!['submetido', 'em_revisao'].includes(r.status)) return fail('Já foi registada uma decisão para este pedido. Atualiza a página.');
         const v = versionOf(r)!;
         const ok = !!body.p_validated;
-        r.status = ok ? 'validado_equipa' : 'devolvido';
-        T.trail_decisions = [{ id: `d-${Date.now()}`, request_id: r.id, version_id: v.id, kind: ok ? 'validado_equipa' : 'devolvido_equipa', meeting_date: body.p_meeting_date, comment: body.p_comment || null, objective_codes: body.p_objective_codes ?? null, reference_date: null, recorded_by: persona.userId, recorded_as: 'dirigente', recorded_at: now }, ...(T.trail_decisions ?? [])];
+        // Validado por um guia → falta a confirmação dos dirigentes.
+        const asGuia = (T.memberships ?? []).find((m) => m.profile_id === persona.userId)?.function === 'guia';
+        r.status = !ok ? 'devolvido' : asGuia ? 'validado_guias' : 'validado_equipa';
+        T.trail_decisions = [{ id: `d-${Date.now()}`, request_id: r.id, version_id: v.id, kind: !ok ? 'devolvido_equipa' : asGuia ? 'validado_guias' : 'validado_equipa', meeting_date: body.p_meeting_date, comment: body.p_comment || null, objective_codes: body.p_objective_codes ?? null, reference_date: null, recorded_by: persona.userId, recorded_as: asGuia ? 'guia' : 'dirigente', recorded_at: now }, ...(T.trail_decisions ?? [])];
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(r.status) });
+      }
+      if (fn === 'confirm_trail_validation') {
+        const r = (T.trail_requests ?? []).find((x) => x.id === body.p_request)!;
+        if (r.status !== 'validado_guias') return fail('Este pedido não está à espera da confirmação dos dirigentes.');
+        r.status = 'validado_equipa';
+        T.trail_decisions = [{ id: `d-${Date.now()}`, request_id: r.id, version_id: versionOf(r)!.id, kind: 'validado_equipa', meeting_date: now.slice(0, 10), comment: body.p_comment || null, objective_codes: null, reference_date: null, recorded_by: persona.userId, recorded_as: 'dirigente', recorded_at: now }, ...(T.trail_decisions ?? [])];
       }
       if (fn === 'remove_notifications') {
         const visible = (T.notifications ?? []).filter((n) => !n.deleted_at);

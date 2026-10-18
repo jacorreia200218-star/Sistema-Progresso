@@ -4,6 +4,7 @@ import { useActiveSection } from '../lib/session';
 import { useMembers, useTeams } from '../lib/hooks';
 import { fetchSectionRequests, fetchSectionStagePaths } from '../lib/api';
 import { functionLabel } from '../lib/labels';
+import { isAwaiting } from '../lib/progress';
 import { Avatar, Empty, ErrorBox, Loading, Notice, PageTitle } from '../components/ui';
 import { RequestList } from '../components/RequestList';
 import { stageName } from '../components/StagePanel';
@@ -25,8 +26,8 @@ export default function Team() {
   const names = Object.fromEntries((members.data ?? []).map((m) => [m.id, m.profiles?.full_name ?? '']));
   const all = (reqs.data ?? []).filter((r) => ids.includes(r.membership_id) && r.kind === 'normal');
   const queue = all.filter((r) => (r.status === 'submetido' || r.status === 'em_revisao') && r.membership_id !== membership.id);
-  const mineWaiting = all.filter((r) => (r.status === 'submetido' || r.status === 'em_revisao') && r.membership_id === membership.id);
-  const recent = all.filter((r) => r.status === 'validado_equipa' || r.status === 'devolvido').slice(0, 10);
+  const mineWaiting = all.filter((r) => isAwaiting(r) && r.membership_id === membership.id);
+  const recent = all.filter((r) => r.status === 'validado_guias' || r.status === 'validado_equipa' || r.status === 'devolvido').slice(0, 10);
 
   return (
     <>

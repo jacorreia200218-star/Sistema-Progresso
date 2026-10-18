@@ -19,6 +19,7 @@ import { useAction } from '../lib/useAction';
 import { MILESTONES, milestoneByKey, STATE_LABEL, type MilestoneKey, type PositionState } from '../lib/caminho';
 import { formatDate, functionLabel, requestStatusLabel, stageRequestLabel, todayIso, type Tone } from '../lib/labels';
 import type { StageChoice, StageRequest, TrailRequest } from '../lib/types';
+import { isAwaiting } from '../lib/progress';
 import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
 import { RequestList } from '../components/RequestList';
 import { stageName } from '../components/StagePanel';
@@ -266,7 +267,7 @@ function Inbox({ members }: { members: MemberRow[] }) {
   for (const r of reqs.data ?? []) {
     if (!byId.has(r.membership_id) || r.status === 'rascunho' || r.status === 'cancelado') continue;
     const type: InboxType = r.kind === 'historico' ? 'anterior' : r.kind === 'negociacao' ? 'negociacao' : 'trilhos';
-    items.set(`${type}:${r.id}`, { key: `${type}:${r.id}`, type, memberId: r.membership_id, pending: r.status === 'submetido' || r.status === 'em_revisao', at: r.updated_at, request: r });
+    items.set(`${type}:${r.id}`, { key: `${type}:${r.id}`, type, memberId: r.membership_id, pending: isAwaiting(r), at: r.updated_at, request: r });
   }
   const all = [...items.values()].filter((i) => !team || byId.get(i.memberId)?.team_id === team);
   const byState = all.filter((i) => (estado === 'todos' ? true : estado === 'decididos' ? !i.pending : i.pending));
@@ -393,7 +394,7 @@ function Stages({ members }: { members: MemberRow[] }) {
   if (stageReqs.isLoading || reqs.isLoading) return <Loading />;
   const open = (stageReqs.data ?? []).filter((s) => s.status === 'submetido' || s.status === 'decidido_conselho');
   const toRecognize = (paths.data ?? []).filter((p) => p.status === 'concluida' && !p.recognized_on);
-  const recent = (reqs.data ?? []).filter((r) => r.kind === 'normal' && (r.status === 'validado_equipa' || r.status === 'devolvido')).slice(0, 20);
+  const recent = (reqs.data ?? []).filter((r) => r.kind === 'normal' && (r.status === 'validado_guias' || r.status === 'validado_equipa' || r.status === 'devolvido')).slice(0, 20);
   const stageOf = (pathId: string) => stageName(catalog, paths.data?.find((p) => p.id === pathId)?.stage_key ?? '');
   return (
     <>

@@ -57,10 +57,11 @@ describe('remover notificações', () => {
     const req = await rpc<string>(w.users.P1, 'create_trail_request', { p_membership: w.members.P1, p_trail: t, p_kind: 'normal' });
     await rpc(w.users.P1, 'submit_trail_validation', { p_request: req, p_expected_version: 1, p_justification: 'Treinei com regularidade.' });
     await rpc(w.users.GuiaA, 'record_team_decision', { p_request: req, p_expected_version: 1, p_validated: true, p_meeting_date: new Date().toISOString().slice(0, 10), p_comment: null });
+    await rpc(w.users.Ana, 'confirm_trail_validation', { p_request: req, p_comment: null });
     await rpc(w.users.P1, 'remove_notifications', { p_scope: 'todas' });
     await rpc(w.users.GuiaA, 'remove_notifications', { p_scope: 'todas' });
     expect(await admin(`select status::text from public.trail_requests where id = $1`, [req])).toEqual([{ status: 'validado_equipa' }]);
-    expect(await admin(`select count(*)::int n from public.trail_decisions where request_id = $1`, [req])).toEqual([{ n: 1 }]);
+    expect(await admin(`select count(*)::int n from public.trail_decisions where request_id = $1`, [req])).toEqual([{ n: 2 }]);
     expect((await admin(`select evidence from public.trail_request_versions where request_id = $1`, [req]))[0].evidence).toContain('Treinei');
   });
 });

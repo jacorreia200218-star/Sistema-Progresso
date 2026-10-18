@@ -40,7 +40,7 @@ const STAGE_COMMON = {
     'Trilhos já alcançados podem ser reconhecidos na negociação, quando devidamente fundamentados (p. 10).',
   ],
   validation:
-    'Cada trilho é validado na reunião de Equipa, a pedido do pioneiro, e a decisão é comunicada ao Conselho de Guias. Com um trilho validado em cada área, a etapa é validada no Conselho de Guias e o processo termina com a opinião da Equipa de Animação, fundamentada quando contrária (pp. 11–12).',
+    'Cada trilho é validado primeiro pelos guias, na reunião de Equipa, a pedido do pioneiro, e depois confirmado pelos dirigentes. Com um trilho validado em cada área, a etapa é validada no Conselho de Guias e o processo termina com a opinião da Equipa de Animação, fundamentada quando contrária (pp. 11–12).',
   advance:
     'A etapa só fica concluída depois da opinião final da Equipa de Animação. Segue-se o reconhecimento público, na celebração (p. 12). A insígnia da etapa seguinte é entregue no início dessa etapa (p. 9).',
 };
