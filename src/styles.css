@@ -1109,3 +1109,15 @@ dl.summary-list .quote { margin-top: 0; }
 .action-option .grow { display: flex; flex-direction: column; gap: 2px; }
 .ao-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--accent-ink); }
 .ao-state { font-size: var(--fs-small); font-weight: 700; color: var(--accent-ink); margin-top: 2px; }
+
+/* Lista pesquisável (SearchSelect): pessoas, atividades */
+.search-select { position: relative; }
+.search-select-input { position: relative; }
+.search-select-input input { width: 100%; padding-right: 32px; }
+.search-select-input svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); pointer-events: none; }
+.search-select-list { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); max-height: 240px; overflow-y: auto;
+  list-style: none; margin: 0; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.search-select-list li { display: flex; flex-direction: column; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.search-select-list li .faint { font-size: var(--fs-small); }
+.search-select-list li.is-active, .search-select-list li[aria-selected='true'] { background: var(--surface-2); }
+.search-select-list li.search-select-none { cursor: default; }
