@@ -1,6 +1,7 @@
 // Calendário escutista: tipos, etiquetas e contas de datas (dias em Europe/Lisbon).
 // Datas de dia inteiro são «AAAA-MM-DD» (fim inclusivo); horas são instantes ISO.
 import { formatDay, isoToLisbon, lisbonDay, lisbonTime } from '../common';
+import type { CalSource } from './source';
 
 export type Response = 'vou' | 'nao_vou' | 'por_confirmar';
 export type Missing = 'resposta' | 'autorizacao' | 'pagamento' | 'inscricao' | 'material';
@@ -35,6 +36,8 @@ export interface CalEvent {
   cancelled_at: string | null;
   updated_at: string;
   created_at: string;
+  /** Atividade importada (iCloud); null nas criadas na app. */
+  source?: CalSource | null;
 }
 
 export interface CalListItem extends CalEvent {
