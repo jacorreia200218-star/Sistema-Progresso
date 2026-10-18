@@ -1,11 +1,53 @@
 // Notificações push neste dispositivo: suporte, ativar, desativar e teste.
 import { call } from './api';
 
-export type PushState = 'indisponivel' | 'instalar' | 'bloqueadas' | 'desativadas' | 'ativas';
+/** Estado das notificações neste dispositivo, como é mostrado no Perfil. */
+export type PushState = 'indisponivel' | 'por_autorizar' | 'bloqueado' | 'ativo';
+/** Tipo de dispositivo, para dar as instruções certas. */
+export type PushDevice = 'iphone' | 'android' | 'computador';
 
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export interface PushInfo {
+  device: PushDevice;
+  state: PushState;
+  /** App aberta a partir do ecrã principal (modo autónomo). */
+  standalone: boolean;
+  /** Porque está indisponível: no iPhone, falta pôr a app no ecrã principal. */
+  reason?: 'instalar' | 'navegador';
+  /** O navegador já autorizou (por autorizar só na app: foi desativado aqui). */
+  granted?: boolean;
+}
+
+export interface PushEnv {
+  userAgent: string;
+  platform?: string;
+  maxTouchPoints?: number;
+  standalone: boolean;
+  supported: boolean;
+  permission: NotificationPermission | null;
+  subscribed: boolean;
+}
+
+export function detectDevice(userAgent: string, platform = '', maxTouchPoints = 0): PushDevice {
+  // O iPad com iPadOS identifica-se como Mac, mas tem ecrã tátil.
+  if (/iPad|iPhone|iPod/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1)) return 'iphone';
+  if (/Android/i.test(userAgent)) return 'android';
+  return 'computador';
+}
+
+/** Classificação pura (testável) a partir do que o navegador indica. */
+export function classifyPush(env: PushEnv): PushInfo {
+  const device = detectDevice(env.userAgent, env.platform, env.maxTouchPoints);
+  const base = { device, standalone: env.standalone };
+  // No iPhone, os avisos só existem com a app adicionada ao ecrã principal.
+  if (device === 'iphone' && !env.standalone) return { ...base, state: 'indisponivel', reason: 'instalar' };
+  if (!env.supported || !env.permission) return { ...base, state: 'indisponivel', reason: 'navegador' };
+  if (env.permission === 'denied') return { ...base, state: 'bloqueado' };
+  if (env.permission === 'granted' && env.subscribed) return { ...base, state: 'ativo' };
+  return { ...base, state: 'por_autorizar', granted: env.permission === 'granted' };
+}
+
 const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  !!window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
 /** Regista o service worker (sem pedir nada à pessoa). */
@@ -20,15 +62,19 @@ async function registration() {
   return reg;
 }
 
-export async function pushState(): Promise<PushState> {
-  // No iPhone, as notificações só existem com a app adicionada ao ecrã principal.
-  if (isIOS() && !isStandalone()) return 'instalar';
-  if (!supported()) return 'indisponivel';
-  if (Notification.permission === 'denied') return 'bloqueadas';
+export async function pushState(): Promise<PushInfo> {
+  const ok = supported();
+  const env: PushEnv = {
+    userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
+    standalone: isStandalone(), supported: ok, permission: ok ? Notification.permission : null, subscribed: false,
+  };
+  const first = classifyPush(env);
+  if (first.state !== 'por_autorizar' || env.permission !== 'granted') return first;
   const reg = await navigator.serviceWorker.getRegistration('/');
   const sub = await reg?.pushManager.getSubscription();
-  if (!sub) return 'desativadas';
-  return (await call<boolean>('has_push_subscription', { p_endpoint: sub.endpoint })) ? 'ativas' : 'desativadas';
+  // Só conta como ativo se o servidor tiver este dispositivo registado.
+  const subscribed = !!sub && (await call<boolean>('has_push_subscription', { p_endpoint: sub.endpoint }));
+  return classifyPush({ ...env, subscribed });
 }
 
 function keyBytes(base64url: string) {
