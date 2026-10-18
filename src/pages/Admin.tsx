@@ -353,8 +353,8 @@ function Settings() {
       <div className="card">
         <h2>Progresso anterior</h2>
         <p className="prose">
-          O progresso anterior é registado pelos dirigentes, no percurso de cada membro («Reconhecer na negociação um trilho já
-          alcançado»). Os pioneiros já não criam estes pedidos. Esta opção só afeta pedidos antigos ainda em rascunho ou devolvidos.
+          O progresso anterior é registado pelos dirigentes: «Registar progresso anterior» no percurso de cada membro ou em
+          Acompanhamento › Pedidos. Os pioneiros já não criam estes pedidos. Esta opção só afeta pedidos antigos ainda em rascunho ou devolvidos.
         </p>
         <p>Estado atual: <Badge label={enabled ? 'Ativo' : 'Desativado'} tone={enabled ? 'ok' : 'muted'} icon={enabled ? 'check' : 'x'} /></p>
         <p className="faint prose">

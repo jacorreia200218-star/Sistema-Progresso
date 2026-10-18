@@ -1,7 +1,7 @@
 // Registo de progresso anterior, só pelos dirigentes: pioneiro, área e trilho (com todos os
 // objetivos do trilho), fundamentação e data relevante. Conta como trilho validado; o servidor
 // recusa duplicados (um trilho só conta uma vez) e regista quem registou.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { call, type MemberRow } from '../lib/api';
 import { useActiveSection } from '../lib/session';
 import { useAction } from '../lib/useAction';
@@ -10,19 +10,30 @@ import { ConfirmButton, ErrorBox, Field, Notice } from './ui';
 import { TrailPicker } from './TrailPicker';
 import { DateInput } from './DateInput';
 
-export function RegisterPrevious({ member, members, taken, open }: {
+export function RegisterPrevious({ member, members, taken, open, initialTrail }: {
   /** Pioneiro já escolhido (página do pioneiro). */
   member?: MemberRow;
   /** Pioneiros por onde escolher (caixa de pedidos). */
   members?: MemberRow[];
   /** Chaves dos trilhos já validados ou com pedido ativo do pioneiro (não aparecem na lista). */
   taken?: (memberId: string) => Set<string>;
+  /** Abre o formulário (e leva-o à vista), por exemplo a partir da ação no topo do percurso. */
   open?: boolean;
+  /** Trilho já escolhido ao abrir. */
+  initialTrail?: string;
 }) {
   const s = useActiveSection();
   const action = useAction();
   const [who, setWho] = useState(member?.id ?? '');
-  const [trail, setTrail] = useState('');
+  const [trail, setTrail] = useState(initialTrail ?? '');
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    ref.current.open = true;
+    ref.current.scrollIntoView({ block: 'start' });
+    ref.current.querySelector<HTMLElement>('select, textarea')?.focus({ preventScroll: true });
+  }, [open]);
+  useEffect(() => { if (initialTrail) setTrail(initialTrail); }, [initialTrail]);
   const [comment, setComment] = useState('');
   const [day, setDay] = useState('');
   const t = trail ? s.catalog.trailById.get(trail) : undefined;
@@ -30,8 +41,9 @@ export function RegisterPrevious({ member, members, taken, open }: {
   const name = (member ?? members?.find((m) => m.id === who))?.profiles?.full_name ?? '';
 
   return (
-    <details className="card flat" open={open}>
+    <details ref={ref} className="card flat register-previous" open={open} id="registar-anterior">
       <summary>Registar progresso anterior</summary>
+      <p className="faint prose">Trilho vivido antes da aplicação. Fica validado como trilho completo, com todos os objetivos.</p>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
       {!member && (
