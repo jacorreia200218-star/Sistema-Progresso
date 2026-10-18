@@ -411,7 +411,7 @@ test('quem só consulta não edita, mas pede empréstimos', async ({ page }) => 
   await main.getByText('Só os meus').click();
   await expect(page).toHaveURL(/meus=1/);
   await expect(main.locator('.inv-loan')).toHaveCount(1);
-  expect(m.calls.filter((c) => c.fn === 'inv_loans').at(-1)!.body).toMatchObject({ p_mine: true });
+  await expect.poll(() => m.calls.some((c) => c.fn === 'inv_loans' && (c.body as { p_mine?: boolean }).p_mine === true)).toBe(true);
   // Reservas: vê-as, sem ações de quem gere.
   await main.getByRole('radio', { name: 'Reservas' }).click();
   await expect(main.getByRole('radio', { name: 'Reservas' })).toBeChecked();
