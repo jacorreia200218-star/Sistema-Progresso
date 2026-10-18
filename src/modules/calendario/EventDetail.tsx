@@ -16,6 +16,7 @@ import { eventDays, MISSING_LABEL, RESPONSE_LABEL, reminderLabel, type CalDetail
 import { buildIcs, icsFileName } from './ics';
 import { MissingList, ResponseBadge, useParam } from './shared';
 import { AtaPanel, EventTabs, FinancasPanel, MaterialPanel, PresencasPanel, TabPanel, eventTabs, useEventLinks, type TabKey } from './EventLinks';
+import { isReadonly, SourceNotice } from './source';
 
 const FILTERS: [string, string][] = [['', 'Todos'], ['vou', 'Vou'], ['nao_vou', 'Não vou'], ['por_confirmar', 'Por confirmar'], ['sem', 'Sem resposta'], ['falta', 'Com pendências']];
 
@@ -51,13 +52,14 @@ export function EventDetail() {
           <Link to={`/calendario/evento/${e.id}/editar`} className="btn secondary"><Pencil size={16} aria-hidden="true" /> Alterar</Link>
           <MoreMenu>
             <button type="button" className="btn" onClick={exportIcs}><Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)</button>
-            <button type="button" className="btn danger" onClick={() => setCancelling(true)}><Ban size={16} aria-hidden="true" /> Cancelar atividade…</button>
+            {!isReadonly(e) && <button type="button" className="btn danger" onClick={() => setCancelling(true)}><Ban size={16} aria-hidden="true" /> Cancelar atividade…</button>}
           </MoreMenu>
         </>
       ) : (
         <button type="button" className="btn secondary" onClick={exportIcs}><Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)</button>
       )} />
       {flash && <Notice kind="success">{flash}</Notice>}
+      <SourceNotice e={e} />
       {cancelled && (
         <Notice kind="warn">
           <strong>Atividade cancelada</strong>{e.cancelled_at && <> a {formatLisbon(e.cancelled_at)}</>}.{e.cancel_reason && <> Motivo: {e.cancel_reason}</>}

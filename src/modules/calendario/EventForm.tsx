@@ -10,6 +10,7 @@ import { useModuleCtx } from '../ModuleShell';
 import { isoToLisbon, lisbonToIso, MEETING_DEFAULT, nextSaturday } from '../common';
 import { period, REMINDER_OPTIONS, yearOf, type CalDetail } from './cal';
 import { useCalConfig } from './Overview';
+import { isReadonly, SourceNotice } from './source';
 import { DateInput, DateTimeInput, TimeInput } from '../../components/DateInput';
 import { parseTimeText } from '../../lib/dates';
 
@@ -106,6 +107,8 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
   const preset = params.get('dia');
   const [f, setF] = useState<FormState>(() => (event ? fromEvent(event) : empty(preset && /^\d{4}-\d{2}-\d{2}$/.test(preset) ? preset : undefined)));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Atividade do iCloud: título, datas, local e descrição só mudam no iCloud.
+  const ro = !!event && isReadonly(event);
   // Nova atividade: por omissão repete todas as semanas até ao fim do ano escutista (a reunião de sábado).
   const cfg = useCalConfig();
   const startMonth = cfg.data?.year_start_month ?? 9;
@@ -170,12 +173,13 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
       <PageTitle title={title} back="/calendario" />
             <form className="card cal-form" onSubmit={submit} noValidate>
         {Object.keys(errors).length > 0 && <Notice kind="error">Revê os campos assinalados.</Notice>}
+        {event && <SourceNotice e={event} />}
         <Field label="Evento" htmlFor="cal-title">
-          <input id="cal-title" maxLength={200} value={f.title} onChange={(e) => set('title', e.target.value)} aria-invalid={!!errors.title} aria-describedby={errId('title')} />
+          <input id="cal-title" maxLength={200} readOnly={ro} value={f.title} onChange={(e) => set('title', e.target.value)} aria-invalid={!!errors.title} aria-describedby={errId('title')} />
         </Field>
         <Err k="title" />
         <Field label="Data" htmlFor="cal-sd">
-          <DateInput id="cal-sd" value={f.startDay} onChange={(e) => set('startDay', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} />
+          <DateInput id="cal-sd" disabled={ro} value={f.startDay} onChange={(e) => set('startDay', e.target.value)} aria-invalid={!!errors.start} aria-describedby={errId('start')} />
         </Field>
         <Err k="start" />
         {!event && (
@@ -187,22 +191,22 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
         )}
         <Err k="until" />
         <Field label="Notas (opcional)" htmlFor="cal-desc">
-          <textarea id="cal-desc" rows={3} maxLength={5000} value={f.description} onChange={(e) => set('description', e.target.value)} />
+          <textarea id="cal-desc" rows={3} maxLength={5000} readOnly={ro} value={f.description} onChange={(e) => set('description', e.target.value)} />
         </Field>
 
         <MoreOptions open={moreOpen}>
           <fieldset>
             <legend className="label">Horário e duração</legend>
             <div className="cal-time-row">
-              <Field label="Hora de início" htmlFor="cal-st"><TimeInput id="cal-st" className="time-field" value={f.startTime} onChange={(e) => set('startTime', e.target.value)} aria-invalid={!!errors.time} aria-describedby={errId('time')} /></Field>
-              <Field label="Hora de fim" htmlFor="cal-et"><TimeInput id="cal-et" className="time-field" value={f.endTime} onChange={(e) => set('endTime', e.target.value)} aria-invalid={!!errors.time} aria-describedby={errId('time')} /></Field>
-              <Field label="Último dia" htmlFor="cal-ed"><DateInput id="cal-ed" value={f.endDay} min={f.startDay} onChange={(e) => set('endDay', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
+              <Field label="Hora de início" htmlFor="cal-st"><TimeInput id="cal-st" className="time-field" disabled={ro} value={f.startTime} onChange={(e) => set('startTime', e.target.value)} aria-invalid={!!errors.time} aria-describedby={errId('time')} /></Field>
+              <Field label="Hora de fim" htmlFor="cal-et"><TimeInput id="cal-et" className="time-field" disabled={ro} value={f.endTime} onChange={(e) => set('endTime', e.target.value)} aria-invalid={!!errors.time} aria-describedby={errId('time')} /></Field>
+              <Field label="Último dia" htmlFor="cal-ed"><DateInput id="cal-ed" disabled={ro} value={f.endDay} min={f.startDay} onChange={(e) => set('endDay', e.target.value)} aria-invalid={!!errors.end} aria-describedby={errId('end')} /></Field>
             </div>
             <Err k="time" /><Err k="end" />
             <p className="faint">Sem hora, conta como dia inteiro. Último dia só se durar vários dias.</p>
           </fieldset>
           <Field label="Local" htmlFor="cal-loc">
-            <input id="cal-loc" maxLength={300} value={f.location} onChange={(e) => set('location', e.target.value)} />
+            <input id="cal-loc" maxLength={300} readOnly={ro} value={f.location} onChange={(e) => set('location', e.target.value)} />
           </Field>
 
         <fieldset className="cal-fieldset">

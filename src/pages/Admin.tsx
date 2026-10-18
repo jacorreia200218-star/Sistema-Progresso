@@ -11,6 +11,7 @@ import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, 
 import { InviteShare } from '../components/InviteShare';
 import { PersonalInvites } from '../components/PersonalInvites';
 import { AdminModules } from '../modules/AdminModules';
+import { AdminIcloud } from '../modules/calendario/AdminIcloud';
 
 const TABS = [
   ['membros', 'Membros'],
@@ -18,6 +19,7 @@ const TABS = [
   ['convites', 'Convites'],
   ['configuracoes', 'Configurações'],
   ['modulos', 'Módulos'],
+  ['icloud', 'Calendário iCloud'],
   ['registo', 'Histórico'],
 ] as const;
 
@@ -36,6 +38,7 @@ export default function Admin() {
       {tab === 'convites' && <Invites />}
       {tab === 'configuracoes' && <Settings />}
       {tab === 'modulos' && <AdminModules />}
+      {tab === 'icloud' && <AdminIcloud />}
       {tab === 'registo' && <Log />}
     </>
   );
