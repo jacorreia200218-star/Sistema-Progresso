@@ -1,7 +1,9 @@
-// Contas e caixas e saldo inicial (só para quem gere). Arquivar/anular em vez de apagar.
-import { useState, type FormEvent } from 'react';
+// Configuração da tesouraria (só para quem gere): saldo inicial, contas e caixas, categorias em
+// uso. Arquivar/anular em vez de apagar. «?configurar=1» (vindo do painel) abre logo o que falta.
+import { useEffect, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { ConfirmButton, Empty, ErrorBox, Field, Loading, Notice } from '../../components/ui';
+import { ConfirmButton, ErrorBox, Field, Loading, Notice } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { eurosInput, formatDay, formatEuros, formatLisbon, parseEuros, todayLisbon } from '../common';
@@ -11,10 +13,16 @@ import { DateInput } from '../../components/DateInput';
 
 export function AccountsPage() {
   const opts = useOptions();
+  const [params] = useSearchParams();
+  const setup = params.get('configurar') === '1';
   const [adding, setAdding] = useState(false);
+  // Vindo de «Configurar saldo inicial» com o saldo já definido mas sem contas: abre a nova conta.
+  const needsAccount = setup && !!opts.data && !opts.data.accounts.length && opts.data.opening.length > 0;
+  useEffect(() => { if (needsAccount) setAdding(true); }, [needsAccount]);
+  const categories = opts.data?.categories ?? [];
   return (
     <div className="stack">
-      <OpeningSection />
+      <OpeningSection autoOpen={setup} />
       <section className="card stack" aria-labelledby="fin-acc-t">
         <div className="row between fin-card-head">
           <h2 id="fin-acc-t" className="card-title">Contas e caixas</h2>
@@ -22,12 +30,21 @@ export function AccountsPage() {
         </div>
         {adding && <AccountForm onClose={() => setAdding(false)} />}
         {opts.isLoading ? <Loading rows={1} /> : opts.error ? <ErrorBox error={opts.error} retry={opts.refetch} /> : !opts.data?.accounts.length ? (
-          <Empty title="Ainda não há contas nem caixas"><p>Cria, por exemplo, «Caixa» (numerário) e «Conta bancária».</p></Empty>
+          <p className="faint">Ainda não há contas nem caixas. Cria, por exemplo, «Caixa» e «Conta bancária».</p>
         ) : (
           <ul className="list">
             {opts.data.accounts.map((a) => <AccountRow key={a.id} a={a} />)}
           </ul>
         )}
+      </section>
+      <section className="card stack" aria-labelledby="fin-cat-t">
+        <h2 id="fin-cat-t" className="card-title">Categorias</h2>
+        {categories.length ? (
+          <ul className="fin-chips" aria-label="Categorias em uso">
+            {categories.map((c) => <li key={c} className="fin-chip">{c}</li>)}
+          </ul>
+        ) : !opts.isLoading && <p className="faint">Ainda não há categorias.</p>}
+        <p className="faint fin-note">Para criar uma nova, escreve-a ao registar o movimento.</p>
       </section>
     </div>
   );
@@ -86,19 +103,22 @@ function AccountRow({ a }: { a: Account }) {
 }
 
 /** Saldo inicial: global ou por conta/caixa, com data de referência; alterações auditadas, anulação com motivo. */
-function OpeningSection() {
+function OpeningSection({ autoOpen }: { autoOpen?: boolean }) {
   const q = useOpeningBalances();
   const [editing, setEditing] = useState<Opening | 'novo' | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const active = (q.data ?? []).filter((o) => !o.voided_at);
   const voided = (q.data ?? []).filter((o) => o.voided_at);
+  const none = !!q.data && active.length === 0;
+  useEffect(() => { if (autoOpen && none) setEditing('novo'); }, [autoOpen, none]);
+  const perAccount = active.length > 0 && active.every((o) => o.account_id);
   return (
     <section className="card stack" aria-labelledby="fin-open-t">
       <h2 id="fin-open-t" className="card-title">Saldo inicial</h2>
       {q.isLoading ? <Loading rows={1} /> : q.error ? <ErrorBox error={q.error} retry={q.refetch} /> : (
         <>
           {done && <Notice kind="success">{done}</Notice>}
-          {!active.length ? <p className="faint">Ainda não foi definido um saldo inicial: o saldo parte de 0,00 €.</p> : (
+          {!active.length ? <p className="faint" data-testid="saldo-inicial-vazio">Ainda não configurado: o saldo atual não está confirmado.</p> : (
             <ul className="list">
               {active.map((o) => <OpeningRow key={o.id} o={o} onEdit={() => { setDone(null); setEditing(o); }} />)}
             </ul>
@@ -107,7 +127,11 @@ function OpeningSection() {
             <OpeningForm key={editing === 'novo' ? 'novo' : editing.id} initial={editing === 'novo' ? null : editing}
               hasGlobal={active.some((o) => !o.account_id)} hasAccounts={active.some((o) => o.account_id)} onDone={(m) => { setEditing(null); setDone(m ?? null); }} />
           ) : (
-            <div className="row"><button type="button" className="btn secondary" onClick={() => { setDone(null); setEditing('novo'); }}>Definir saldo inicial</button></div>
+            !active.length ? (
+              <div className="row"><button type="button" className="btn" onClick={() => { setDone(null); setEditing('novo'); }}>Configurar saldo inicial</button></div>
+            ) : perAccount && (
+              <div className="row"><button type="button" className="btn secondary" onClick={() => { setDone(null); setEditing('novo'); }}>Juntar saldo de outra conta</button></div>
+            )
           )}
           {voided.length > 0 && (
             <details>

@@ -10,12 +10,13 @@ import { useAction } from '../../lib/useAction';
 import { downloadFile, eurosInput, formatDay, formatEuros, formatLisbon, parseEuros, todayLisbon, toCsv } from '../common';
 import { listModuleFiles, openModuleFile, removeModuleFile, uploadModuleFile } from '../files';
 import {
-  KIND_LABEL, STATE_LABEL, STATE_TONE, csvEuros, filtersFrom, newClientKey, periodLabel, useActivities, useAllMovements, useHistory,
+  KIND_LABEL, STATE_LABEL, STATE_TONE, activityChoices, csvEuros, filtersFrom, newClientKey, periodLabel, useActivities, useAllMovements, useHistory,
   useMembersFin, useOptions, useSearchMovements, useSectionId, type Kind, type MovState, type Movement,
 } from './api';
 import { MovementList, TitleActions } from './Dashboard';
 import { FiltersBar, useCanManage } from './shared';
 import { DateInput } from '../../components/DateInput';
+import { EventSelect } from '../EventSelect';
 
 /** Ações do título na lista: «Novo movimento» e, em «Mais», receita/despesa e CSV da lista filtrada. */
 export function MovementsActions() {
@@ -179,10 +180,8 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
         </Field>
       </div>
       <Field label="Atividade (opcional)" htmlFor={id('activity')}>
-        <select id={id('activity')} value={v.activity} onChange={(e) => set('activity', e.target.value)}>
-          <option value="">Nenhuma</option>
-          {(acts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}{a.day ? ` · ${formatDay(a.day)}` : ''}{a.status === 'cancelado' ? ' (cancelada)' : ''}</option>)}
-        </select>
+        <EventSelect id={id('activity')} value={v.activity} onChange={(val) => set('activity', val)} events={activityChoices(acts.data)}
+          empty="Nenhuma" loading={acts.isLoading} />
       </Field>
       <details className="fin-more" open={mode !== 'novo' || undefined}>
         <summary>Estado ({STATE_LABEL[v.state].toLowerCase()}) e pagamento individual</summary>

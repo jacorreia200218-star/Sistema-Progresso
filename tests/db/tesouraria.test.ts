@@ -600,3 +600,31 @@ describe('v2 — painel, saldo inicial e movimentos partilhados', () => {
     expect(await admin(`select count(*)::int n from public.fin_opening_balances where section_id = $1 and space = 'teste'`, [S2])).toEqual([{ n: 0 }]);
   });
 });
+
+describe('seletor de atividades (fin_activity_options)', () => {
+  it('devolve a hora em Lisboa e a equipa para distinguir atividades com o mesmo nome no mesmo dia', async () => {
+    const w3 = await buildWorld('tesouraria-simples');
+    const S3 = w3.section;
+    await setupModule(w3, 'tesouraria', 'teste', ['Ana', 'GuiaA', 'P1'], [['tesouraria.gerir', 'GuiaA']]);
+    const timed = async (space: string, title: string, from: string, to: string, team: string | null) => (await admin(
+      `insert into public.cal_events (section_id, space, title, all_day, starts_at, ends_at, audience, team_id, created_by)
+       values ($1, $2, $3, false, $4, $5, $6, $7, $8) returning id`,
+      [S3, space, title, from, to, team ? 'equipa' : 'seccao', team, w3.users.Ana]))[0].id as string;
+    const manha = await timed('teste', 'Reunião', '2026-10-17T09:30:00Z', '2026-10-17T11:00:00Z', w3.teamA);
+    const tarde = await timed('teste', 'Reunião', '2026-10-17T14:00:00Z', '2026-10-17T15:00:00Z', null);
+    await timed('real', 'Reunião', '2026-10-17T14:00:00Z', '2026-10-17T15:00:00Z', null);
+    const dia = (await admin(
+      `insert into public.cal_events (section_id, space, title, all_day, start_date, end_date, created_by)
+       values ($1, 'teste', 'Acampamento', true, '2026-10-10', '2026-10-11', $2) returning id`, [S3, w3.users.Ana]))[0].id as string;
+    // Quem só consulta também recebe os campos novos; os antigos mantêm-se; só o espaço do módulo.
+    const opts = await rpc<any[]>(w3.users.P1, 'fin_activity_options', { p_section: S3 });
+    expect(opts).toHaveLength(3);
+    const byId = (id: string) => opts.find((o) => o.id === id);
+    expect(byId(manha)).toEqual({ id: manha, title: 'Reunião', status: 'ativo', day: '2026-10-17', time: '10:30', team_name: 'Equipa A' });
+    expect(byId(tarde)).toMatchObject({ day: '2026-10-17', time: '15:00', team_name: null });
+    expect(byId(dia)).toMatchObject({ day: '2026-10-10', time: null, team_name: null });
+    expect(opts.map((o) => o.day)).toEqual(['2026-10-17', '2026-10-17', '2026-10-10']);
+    // Sem acesso ao módulo: recusado
+    await expectDenied(rpc(w3.users.P3, 'fin_activity_options', { p_section: S3 }), 'não está disponível');
+  });
+});
