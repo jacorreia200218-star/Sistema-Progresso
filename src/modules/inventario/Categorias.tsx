@@ -4,7 +4,6 @@ import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { Plus } from 'lucide-react';
 import { Empty, ErrorBox, Field, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
-import { InvTabs } from './parts';
 import { DEFAULT_CATEGORIES, useOverview, useSectionId, type Category } from './api';
 
 export function Categorias() {
@@ -27,7 +26,7 @@ export function Categorias() {
   const manage = !!ov.data?.can_manage;
   return (
     <div className="inv-page">
-      <PageTitle title="Tipos de material"
+      <PageTitle title="Tipos de material" back="/inventario"
         actions={manage ? (
           <>
             <button type="button" className="btn" aria-expanded={adding} onClick={() => { action.clear(); setErr(null); setAdding(!adding); }}>
@@ -44,7 +43,6 @@ export function Categorias() {
           </>
         ) : undefined}
         info={<p>Os tipos organizam o material na lista e nos filtros. Tipos habituais: {DEFAULT_CATEGORIES.join(', ')}; «Criar categorias habituais» (no menu «Mais») só cria os que ainda não existem. Um tipo nunca se apaga: arquiva-se.</p>} />
-      <InvTabs />
       {ov.isLoading ? <Loading /> : ov.error ? <ErrorBox error={ov.error} /> : !manage ? (
         <Notice kind="info">Só os dirigentes e os responsáveis pelo material gerem as categorias.</Notice>
       ) : (
