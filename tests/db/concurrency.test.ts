@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { admin, buildWorld, pool, rpc, today, trailsByArea, type World } from './helpers';
-import { seedHistorical } from './helpers';
+import { markSubmitted, seedHistorical } from './helpers';
 
 let w: World;
 let byArea: Awaited<ReturnType<typeof trailsByArea>>;
@@ -49,7 +49,7 @@ describe('concorrência', () => {
   it('decisão histórica e retirada em simultâneo não deixam estado incoerente', async () => {
     const req = await seedHistorical(w, 'P3', byArea.S[0].id);
     await rpc(w.users.P3, 'save_request_draft', { p_request: req, p_reflection: 'r', p_experiences: '', p_period_start: null, p_period_end: null, p_approximate_date: '2024' });
-    await rpc(w.users.P3, 'submit_trail_request', { p_request: req });
+    await markSubmitted(req);
     const results = await Promise.allSettled([
       rpc(w.users.P3, 'withdraw_trail_request', { p_request: req }),
       rpc(w.users.Ana, 'decide_historical_request', { p_request: req, p_expected_version: 1, p_outcome: 'aprovado', p_comment: null, p_reference_date: null }),

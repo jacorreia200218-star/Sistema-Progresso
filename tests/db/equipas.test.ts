@@ -135,10 +135,9 @@ describe('nomeações e histórico de cargos', () => {
     await expectDenied(rpc(w.users.P2, 'set_module_grant', { ...S(), p_permission: 'tesouraria.gerir', p_profile: w.users.P2, p_on: true }), 'Reservado');
   });
 
-  it('quem não gere vê a própria equipa e quem tem cargos, não as restantes pessoas', async () => {
+  it('quem não gere vê todas as equipas e pessoas, mas não as mudanças dos outros', async () => {
     const names = (await ov('GuiaA')).members.map((m: any) => m.membership_id);
-    expect(names).toEqual(expect.arrayContaining([w.members.GuiaA, w.members.P1, w.members.P2]));
-    expect(names).not.toContain(w.members.Rui);
+    expect(names).toEqual(expect.arrayContaining([w.members.GuiaA, w.members.P1, w.members.P2, w.members.P3, w.members.Rui]));
     expect((await ov('GuiaA')).moves.every((x: any) => x.membership_id === w.members.GuiaA)).toBe(true);
     expect((await ov('Ana')).members.length).toBeGreaterThanOrEqual(8);
   });

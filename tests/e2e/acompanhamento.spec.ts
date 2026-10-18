@@ -206,3 +206,26 @@ test('notificações: lista vazia só com uma mensagem curta', async ({ page }) 
   await expect(page.locator('main .card')).toHaveCount(0);
   await expect(page.getByRole('button')).not.toContainText(['Limpar todas']);
 });
+
+test('progresso anterior: só os dirigentes registam, com o trilho completo e a fundamentação', async ({ page }) => {
+  const mock = await installMock(page, leader());
+  await page.goto('/acompanhamento/pedidos?tipo=anterior');
+  const form = page.locator('details', { hasText: 'Registar progresso anterior' });
+  await form.locator('summary').click();
+  const register = form.getByRole('button', { name: 'Registar' });
+  await expect(register).toBeDisabled();
+  await form.getByLabel('Pioneiro').selectOption({ label: 'Pedro Teste' });
+  await form.getByLabel('Área').selectOption({ index: 1 });
+  await form.getByLabel('Trilho', { exact: true }).selectOption({ index: 1 });
+  // Mostra todos os objetivos do trilho escolhido
+  await expect(form.getByRole('list', { name: 'Objetivos do trilho' }).getByRole('listitem').first()).toBeVisible();
+  await form.getByLabel('Fundamentação').fill('Concluiu este trilho no agrupamento anterior.');
+  await expect(register).toBeDisabled(); // a data relevante é obrigatória
+  await form.getByLabel('Data relevante').fill('15/06/2025');
+  await register.click();
+  await page.getByRole('group', { name: 'Confirmação' }).getByRole('button', { name: 'Registar' }).click();
+  await expect(form.getByText('Progresso anterior registado.')).toBeVisible();
+  expect(mock.calls.find((c) => c.fn === 'recognize_in_negotiation')?.body).toMatchObject({
+    p_membership: 'm-p1', p_comment: 'Concluiu este trilho no agrupamento anterior.', p_reference_date: '2025-06-15',
+  });
+});

@@ -17,6 +17,7 @@ import { StagePanel, stageName } from '../components/StagePanel';
 import { RequestList } from '../components/RequestList';
 import { ChoiceDecision } from './Leaders';
 import NotFound from './NotFound';
+import { RegisterPrevious } from '../components/RegisterPrevious';
 import { TrailPicker } from '../components/TrailPicker';
 import { DateInput } from '../components/DateInput';
 
@@ -157,7 +158,9 @@ function StageTab({ member, progress: p }: { member: MemberRow; progress: Member
         </>
       )}
       {s.isDirigente && open && <ProposeForMember pathId={open.id} progress={p} />}
-      {s.isDirigente && member.status === 'ativo' && p.adhesion?.commitment_on && <RecognizeInNegotiation member={member} progress={p} />}
+      {s.isDirigente && member.status === 'ativo' && (
+        <RegisterPrevious member={member} taken={() => new Set(p.requests.filter((r) => r.status !== 'recusado' && r.status !== 'cancelado').map((r) => r.trail_key))} />
+      )}
     </>
   );
 }
@@ -285,38 +288,6 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
         </>
       )}
     </section>
-  );
-}
-
-/** Reconhecimento, na negociação, de trilhos já alcançados (p. 10). */
-function RecognizeInNegotiation({ member, progress }: { member: MemberRow; progress: MemberProgress }) {
-  const s = useActiveSection();
-  const action = useAction();
-  const [trail, setTrail] = useState('');
-  const [comment, setComment] = useState('');
-  const [ref, setRef] = useState('');
-  const active = new Set(progress.requests.filter((r) => r.status !== 'recusado' && r.status !== 'cancelado').map((r) => r.trail_key));
-  return (
-    <details className="card flat">
-      <summary>Reconhecer na negociação um trilho já alcançado</summary>
-      <p className="faint prose" style={{ marginTop: 8 }}>
-        «A Equipa de Animação deverá validar os trilhos que o elemento demonstre já ter atingido, desde que devidamente fundamentados»,
-        informando a Equipa (Manual, p. 10). Fica registado com a fundamentação e conta como trilho validado.
-      </p>
-      <ErrorBox error={action.error} />
-      {action.success && <Notice kind="success">{action.success}</Notice>}
-      <TrailPicker catalog={s.catalog} id="rn-t" value={trail} onChange={setTrail} available={(t) => !active.has(t.key)} />
-      <Field label="Fundamentação (obrigatória)" htmlFor="rn-c"><textarea id="rn-c" value={comment} onChange={(e) => setComment(e.target.value)} style={{ minHeight: 70 }} /></Field>
-      <Field label="Referência temporal (opcional)" htmlFor="rn-d"><DateInput id="rn-d" max={todayIso()} value={ref} onChange={(e) => setRef(e.target.value)} /></Field>
-      <ConfirmButton className="btn" confirmLabel="Reconhecer" disabled={action.busy || !trail || !comment.trim()}
-        description="O pioneiro e o guia da equipa são informados."
-        onConfirm={async () => {
-          const r = await action.run(() => call('recognize_in_negotiation', { p_membership: member.id, p_trail: trail, p_comment: comment, p_reference_date: ref || null }), 'Trilho reconhecido na negociação.');
-          if (r.ok) { setTrail(''); setComment(''); setRef(''); }
-        }}>
-        Reconhecer trilho
-      </ConfirmButton>
-    </details>
   );
 }
 

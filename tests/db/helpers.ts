@@ -183,6 +183,12 @@ export async function expectDenied(p: Promise<unknown>, text: string | RegExp = 
  * registado só pelos dirigentes): insere o rascunho diretamente, para testar
  * que os pedidos antigos continuam a ser submetidos e decididos.
  */
+/** Simula um pedido de progresso anterior já submetido (de antes de só os dirigentes registarem). */
+export async function markSubmitted(req: string) {
+  await admin(`update public.trail_request_versions set submitted_at = now(), reflection = case when reflection = '' then 'Registo antigo' else reflection end where request_id = $1`, [req]);
+  await admin(`update public.trail_requests set status = 'submetido', updated_at = now() where id = $1`, [req]);
+}
+
 export async function seedHistorical(w: World, who: string, trail: string): Promise<string> {
   const [r] = await admin<{ id: string }>(
     `insert into public.trail_requests (membership_id, section_id, trail_id, trail_key, kind, created_by)

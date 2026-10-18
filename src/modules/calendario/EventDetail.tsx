@@ -264,7 +264,8 @@ function ParticipantRow({ e, p }: { e: CalDetail; p: CalParticipant }) {
 type Links = {
   reservas?: { id: string; item_id: string; item: string; unit: string; quantity: number; status: string }[];
   financas?: { orcamento: Totals; efetivo: Totals; por_confirmar: Totals } | null;
-  reunioes?: { id: string; title: string; kind: string; starts_at: string }[];
+  reunioes?: { id: string; title: string; kind: string; starts_at: string; ata_id: string | null }[];
+  ata_writer?: boolean;
   compras?: { id: string; name: string; quantity: number; unit: string; status: string }[];
   presencas?: { id: string; title: string; status: string; counts: { presente: number; justificada: number; injustificada: number } | null; mine: string | null } | null;
   tarefas?: { id: string; kind: string; title: string; exec_status: string; due_date: string | null; overdue: boolean; responsible_name: string | null; team_name: string | null }[];
@@ -285,9 +286,11 @@ function Linked({ e }: { e: CalDetail }) {
   });
   const l = q.data;
   if (!l) return null;
-  const hasRes = !!l.reservas?.length, hasMeet = !!l.reunioes?.length, hasFin = !!l.financas;
+  const hasRes = !!l.reservas?.length, hasFin = !!l.financas;
   const hasBuy = !!l.compras?.length, hasPres = !!l.presencas, hasTasks = !!l.tarefas?.length;
-  if (!hasRes && !hasMeet && !hasFin && !hasBuy && !hasPres && !hasTasks) return null;
+  const atas = (l.reunioes ?? []).filter((m) => m.ata_id);
+  const canWriteAta = !!l.ata_writer && atas.length === 0;
+  if (!hasRes && !atas.length && !hasFin && !hasBuy && !hasPres && !hasTasks && !canWriteAta) return null;
   return (
     <section className="card" aria-labelledby="cal-links-h">
       <h2 id="cal-links-h"><Link2 size={18} aria-hidden="true" /> Ligado a esta atividade</h2>
@@ -317,10 +320,10 @@ function Linked({ e }: { e: CalDetail }) {
       )}
       {hasTasks && (
         <>
-          <h3 className="label"><Check size={16} aria-hidden="true" /> Tarefas e preparativos</h3>
+          <h3 className="label"><Check size={16} aria-hidden="true" /> Tarefas</h3>
           <ul className="list">
             {l.tarefas!.map((t) => (
-              <li key={t.id}><Link className="list-item" to={`/reunioes-e-tarefas/tarefas/${t.id}`}>
+              <li key={t.id}><Link className="list-item" to="/atas-e-tarefas/tarefas">
                 <span className="grow ellipsis">{t.title}</span>
                 <span className={t.overdue ? 'badge tone-attention' : 'faint'}>
                   {TASK_STATUS[t.exec_status] ?? t.exec_status}{t.due_date ? ` · ${formatDay(t.due_date)}` : ''}{t.overdue ? ' · em atraso' : ''}
@@ -351,16 +354,13 @@ function Linked({ e }: { e: CalDetail }) {
           </p>
         </>
       )}
-      {hasMeet && (
+      {(atas.length > 0 || canWriteAta) && (
         <>
-          <h3 className="label"><FileText size={16} aria-hidden="true" /> Reuniões</h3>
-          <ul className="list">
-            {l.reunioes!.map((m) => (
-              <li key={m.id}><Link className="list-item" to={`/reunioes-e-tarefas/reunioes/${m.id}`}>
-                <span className="grow ellipsis">{m.title}</span><span className="faint">{formatLisbon(m.starts_at)}</span>
-              </Link></li>
-            ))}
-          </ul>
+          <h3 className="label"><FileText size={16} aria-hidden="true" /> Ata</h3>
+          {atas.map((m) => (
+            <p key={m.id} className="faint"><Link to={`/atas-e-tarefas/atas/${m.ata_id}`}>Ver ata</Link></p>
+          ))}
+          {canWriteAta && <p className="faint"><Link to={`/atas-e-tarefas/nova?evento=${e.id}`}>Escrever ata</Link></p>}
         </>
       )}
     </section>

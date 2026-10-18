@@ -32,7 +32,7 @@ export default function Home() {
           <>
             <p>Quem está em cada equipa e que cargos tem, por ano escutista (de setembro a agosto). O ano atual é {o.year}.</p>
             <p>Os cargos são responsabilidades dentro da equipa. Um cargo não dá permissões na aplicação (administração, tesouraria ou documentos): essas são atribuídas à parte, pela administração.</p>
-            {!o.can_manage && <p>Vês os membros da tua equipa e quem tem cargos em cada equipa. A gestão é feita pelos dirigentes e por quem tem essa permissão.</p>}
+            {!o.can_manage && <p>Só os dirigentes e quem tem essa permissão alteram equipas e cargos.</p>}
           </>
         )}
       />
