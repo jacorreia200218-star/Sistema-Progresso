@@ -1,6 +1,7 @@
 // Módulo Tesouraria: painel financeiro e movimentos partilhados (sem dados pessoais), resultado
 // das atividades e situação de cada membro; para quem tem a permissão «tesouraria.gerir» (dada pela
-// administração): registar receitas e despesas, quotas, orçamento, contas e saldo inicial.
+// administração): registar receitas e despesas, quotas, orçamento e, num acesso secundário
+// (menu «Mais»), a configuração: saldo inicial, contas e caixas, categorias.
 import type { ReactNode } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { ModuleShell } from '../ModuleShell';
@@ -25,7 +26,7 @@ export default function Module() {
         <Route path="movimentos/novo" element={<Manage><NewMovement /></Manage>} />
         <Route path="movimentos/:id" element={<Manage><MovementDetail /></Manage>} />
         <Route path="quotas" element={<Page tab="quotas" manage info={INFO.quotas}><QuotasPage /></Page>} />
-        <Route path="contas" element={<Page tab="contas" manage info={INFO.contas}><AccountsPage /></Page>} />
+        <Route path="contas" element={<Manage><SettingsPage /></Manage>} />
         <Route path="*" element={<Page tab="painel" actions={<DashboardActions />}><Dashboard /></Page>} />
       </Routes>
     </ModuleShell>
@@ -65,8 +66,17 @@ const TABS: { key: string; to: string; label: string; manage?: boolean; keepFilt
   { key: 'atividades', to: '/tesouraria/atividades', label: 'Atividades' },
   { key: 'minha', to: '/tesouraria/minha', label: 'A minha situação' },
   { key: 'quotas', to: '/tesouraria/quotas', label: 'Quotas', manage: true },
-  { key: 'contas', to: '/tesouraria/contas', label: 'Contas e saldo inicial', manage: true },
 ];
+
+/** Configuração (acesso secundário, pelo menu «Mais» do painel): saldo inicial, contas e caixas, categorias. */
+function SettingsPage() {
+  return (
+    <div className="fin-page">
+      <PageTitle title="Configuração da tesouraria" back="/tesouraria" info={INFO.contas} />
+      <AccountsPage />
+    </div>
+  );
+}
 
 function NoPermission() {
   return (
