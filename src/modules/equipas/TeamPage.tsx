@@ -92,7 +92,7 @@ export default function TeamPage() {
               </li>
             ))}
           </ul>
-        ) : <p className="faint eq-none">{o.can_manage ? 'Sem membros.' : 'Sem membros visíveis.'}</p>}
+        ) : <p className="faint eq-none">Sem membros.</p>}
       </div>
 
       {(closed.length > 0 || moves.length > 0) && (

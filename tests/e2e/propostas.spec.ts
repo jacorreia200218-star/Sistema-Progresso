@@ -39,4 +39,8 @@ test('pioneiros já não têm o progresso anterior', async ({ page }) => {
   await page.goto('/progresso-anterior');
   await expect(page).toHaveURL(/vista=pedidos/);
   await expect(page.getByRole('link', { name: 'Progresso anterior' })).toHaveCount(0);
+  // Um pedido antigo fica guardado e à espera dos dirigentes, sem botões para o retirar ou reenviar
+  await page.goto('/pedidos/r-hist');
+  await expect(page.getByText('O pedido aguarda decisão dos dirigentes.')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Retirar para editar|Submeter|Preparar nova versão/ })).toHaveCount(0);
 });

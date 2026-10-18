@@ -20,8 +20,8 @@ export const MODULE_PERMISSIONS: Record<ModuleKey, { key: string; label: string;
   tesouraria: [{ key: 'tesouraria.gerir', label: 'Tesoureiro autorizado', hint: 'Criar, corrigir e anular movimentos, quotas e pagamentos. Nem os dirigentes têm este acesso sem autorização.' }],
   equipas: [{ key: 'equipas.gerir', label: 'Gerir cargos', hint: 'Nomear e terminar cargos e configurar as equipas. Os dirigentes já podem.' }],
   secretaria: [
-    { key: 'secretaria.redigir', label: 'Redigir atas e tarefas', hint: 'Preparar atas, sumários e tarefas das reuniões que pode ver.' },
-    { key: 'secretaria.aprovar', label: 'Aprovar atas', hint: 'Aprovar atas e publicar sumários.' },
+    { key: 'secretaria.redigir', label: 'Escrever atas e gerir tarefas', hint: 'Escrever atas e criar, atribuir e editar tarefas. Os dirigentes já podem.' },
+    { key: 'secretaria.aprovar', label: 'Ver atas reservadas', hint: 'Ver as atas reservadas aos dirigentes.' },
   ],
   presencas: [{ key: 'presencas.registar', label: 'Registar presenças', hint: 'Registar e corrigir presenças e ver justificações. Os dirigentes já podem.' }],
 };

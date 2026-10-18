@@ -131,12 +131,9 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
   const historic = request.kind === 'historico';
   const trail = s.catalog.trailById.get(request.trail_id);
   const ownGuia = s.isGuia && request.membership_id === s.membership.id;
-  const destination = historic
-    ? 'Ao submeter, o pedido segue diretamente para os dirigentes (progresso anterior).'
-    : ownGuia
+  const destination = ownGuia
       ? 'Ao submeter, segue para a reunião de Equipa; como és o guia, a decisão é registada pela Equipa de Animação. Depois é comunicada ao Conselho de Guias.'
       : 'Ao submeter, segue para a próxima reunião de Equipa: o guia regista a decisão tomada em conjunto e, se o trilho for validado, os dirigentes confirmam.';
-  const historicBlocked = historic && !s.settings?.historical_progress_enabled;
 
   useEffect(() => {
     setForm({
@@ -209,18 +206,29 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
     );
   }
 
+  // Progresso anterior: só os dirigentes registam. Pedidos antigos ficam guardados; um rascunho
+  // ou um pedido devolvido já não pode ser (re)enviado pelo pioneiro (o servidor também recusa).
+  if (historic && (request.status === 'rascunho' || request.status === 'devolvido')) {
+    return (
+      <section className="card flat">
+        <p className="prose">O progresso anterior é registado pelos dirigentes. Fala com a Equipa de Animação.</p>
+        <div className="btn-row">
+          <Link to={trailTo} className="btn secondary">Ver o trilho</Link>
+          <ConfirmButton className="btn ghost" confirmLabel="Cancelar pedido" description="O pedido fica no histórico como cancelado." disabled={action.busy}
+            onConfirm={() => action.run(() => call('cancel_trail_request', { p_request: request.id }), 'Pedido cancelado.')}>
+            Cancelar pedido
+          </ConfirmButton>
+        </div>
+        <ErrorBox error={action.error} />
+        {action.success && <Notice kind="success">{action.success}</Notice>}
+      </section>
+    );
+  }
+
   if (request.status === 'rascunho') {
     return (
       <section className="card">
-        <h2>{historic ? 'Descreve o que já concluíste' : 'Reflexão e vivências'}</h2>
-        {historicBlocked && (
-          <Notice kind="warn">
-            <p className="prose">
-              O registo de progresso anterior está desativado nesta secção. Podes cancelar este pedido e usar o progresso normal para o
-              mesmo trilho, ou aguardar que seja reativado.
-            </p>
-          </Notice>
-        )}
+        <h2>Reflexão e vivências</h2>
         <ErrorBox error={action.error} />
         {action.success && <Notice kind="success">{action.success}</Notice>}
         <Field label="O que fiz" htmlFor="experiences" hint="Atividades, momentos e oportunidades educativas que viveste — no escutismo, em casa, na escola.">
@@ -248,11 +256,6 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
             <DateInput id="pe" value={form.period_end} max={todayIso()} onChange={set('period_end')} />
           </Field>
         </div>
-        {historic && (
-          <Field label="Quando concluíste? (aproximado, opcional)" htmlFor="approx" hint="Ex.: «primavera de 2025». A data real da decisão fica registada à parte.">
-            <input id="approx" type="text" aria-describedby="approx-hint" value={form.approximate_date} onChange={set('approximate_date')} maxLength={100} />
-          </Field>
-        )}
 
         <p className="label">Anexos (opcional)</p>
         <p className="faint prose">JPG, PNG, WebP ou PDF, até 10 MB. As fotografias são comprimidas. Um anexo é um apoio, não uma prova que valide o trilho.</p>
@@ -281,8 +284,8 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
           <ConfirmButton
             className="btn"
             confirmLabel="Submeter"
-            disabled={action.busy || historicBlocked || !form.reflection.trim()}
-            description={historic ? 'O pedido segue para os dirigentes. Depois de submetido só o podes alterar retirando-o.' : 'O pedido segue para a próxima reunião de Equipa. Depois de submetido só o podes alterar retirando-o.'}
+            disabled={action.busy || !form.reflection.trim()}
+            description="O pedido segue para a próxima reunião de Equipa. Depois de submetido só o podes alterar retirando-o."
             onConfirm={() =>
               action.run(async () => {
                 await save();
@@ -310,26 +313,20 @@ export function OwnerRequestPanel({ detail, current }: { detail: RequestDetail; 
       {(request.status === 'submetido' || request.status === 'em_revisao') && (
         <>
           <p className="prose">{historic ? 'O pedido aguarda decisão dos dirigentes.' : 'O pedido aguarda a decisão da reunião de Equipa. Se precisares de o alterar, retira-o: a versão enviada fica no histórico.'}</p>
-          <ConfirmButton confirmLabel="Retirar para editar" description="A versão submetida fica no histórico e é criada uma nova versão em rascunho." disabled={action.busy}
-            onConfirm={() => action.run(() => call('withdraw_trail_request', { p_request: request.id }), 'Pedido retirado. Podes editar a nova versão.')}>
-            Retirar para editar
-          </ConfirmButton>
+          {!historic && (
+            <ConfirmButton confirmLabel="Retirar para editar" description="A versão submetida fica no histórico e é criada uma nova versão em rascunho." disabled={action.busy}
+              onConfirm={() => action.run(() => call('withdraw_trail_request', { p_request: request.id }), 'Pedido retirado. Podes editar a nova versão.')}>
+              Retirar para editar
+            </ConfirmButton>
+          )}
         </>
       )}
       {request.status === 'devolvido' && (
         <>
           <p className="prose">O pedido está «A rever». Lê os comentários, corrige e volta a enviar; o histórico fica guardado.</p>
           <div className="btn-row">
-            {historic ? (
-              <button type="button" className="btn" disabled={action.busy}
-                onClick={() => action.run(() => call('start_new_version', { p_request: request.id }), 'Nova versão criada.')}>
-                Preparar nova versão
-              </button>
-            ) : (
-              <Link to={trailTo} className="btn">Corrigir e reenviar</Link>
-            )}
+            <Link to={trailTo} className="btn">Corrigir e reenviar</Link>
             <ConfirmButton className="btn ghost" confirmLabel="Cancelar pedido" disabled={action.busy}
-              description={historic ? 'Depois de cancelar podes pedir a validação deste trilho pelo progresso normal.' : undefined}
               onConfirm={() => action.run(() => call('cancel_trail_request', { p_request: request.id }), 'Pedido cancelado.')}>
               Cancelar pedido
             </ConfirmButton>

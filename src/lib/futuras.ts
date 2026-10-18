@@ -70,14 +70,14 @@ export const FUTURE_AREAS: FutureArea[] = [
     access: ['Um cargo de equipa não dá, por si só, permissões de administração da aplicação.'],
   },
   {
-    key: 'secretaria', to: '/reunioes-e-tarefas', name: 'Reuniões e tarefas', short: 'Reuniões', icon: FileText,
-    description: 'Todas as atas num só sítio, com o sumário do que ficou decidido e um quadro das tarefas a fazer.',
+    key: 'secretaria', to: '/atas-e-tarefas', name: 'Atas e tarefas', short: 'Atas', icon: FileText,
+    description: 'As atas das reuniões e atividades do calendário, com as tarefas que ficaram combinadas.',
     features: [
-      'Atas com participantes, assuntos, decisões e anexos.',
-      'Sumário revisto antes de ser publicado.',
-      'Quadro de tarefas com responsáveis e prazos.',
+      'Ata ligada a um evento do calendário, com histórico de alterações.',
+      'Tarefas com responsável, prazo e estado.',
+      '«As minhas tarefas» para cada pessoa.',
     ],
-    access: ['O acesso a cada ata depende do tipo de reunião; o resumo partilhado não mostra conteúdo reservado.'],
+    access: ['Cada ata é vista por quem pode ver o evento; as atas reservadas ficam só para os dirigentes.'],
   },
 ];
 

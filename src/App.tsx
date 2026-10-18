@@ -39,10 +39,10 @@ const Equipas = lazyPage(() => import('./modules/equipas'));
 const Secretaria = lazyPage(() => import('./modules/secretaria'));
 const Presencas = lazyPage(() => import('./modules/presencas'));
 
-// «Secretaria» passou a «Reuniões e tarefas»: endereços antigos continuam a funcionar.
+// «Secretaria» e «Reuniões e tarefas» passaram a «Atas e tarefas»: endereços antigos continuam a funcionar.
 function LegacySecretaria() {
   const { '*': rest = '' } = useParams();
-  return <Navigate to={`/reunioes-e-tarefas${rest ? `/${rest}` : ''}${window.location.search}`} replace />;
+  return <Navigate to={`/atas-e-tarefas${rest ? `/${rest}` : ''}${window.location.search}`} replace />;
 }
 
 function LegacyTrail() {
@@ -116,7 +116,8 @@ function Authenticated() {
           <Route path="inventario/*" element={<Inventario />} />
           <Route path="tesouraria/*" element={<Tesouraria />} />
           <Route path="equipas-e-cargos/*" element={<Equipas />} />
-          <Route path="reunioes-e-tarefas/*" element={<Secretaria />} />
+          <Route path="atas-e-tarefas/*" element={<Secretaria />} />
+          <Route path="reunioes-e-tarefas/*" element={<LegacySecretaria />} />
           <Route path="secretaria/*" element={<LegacySecretaria />} />
           <Route path="presencas/*" element={<Presencas />} />
           <Route path="*" element={<NotFound />} />

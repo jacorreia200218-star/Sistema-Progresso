@@ -25,6 +25,7 @@ import { RequestList } from '../components/RequestList';
 import { stageName } from '../components/StagePanel';
 import { proposalRef } from '../lib/labels';
 import { DateInput } from '../components/DateInput';
+import { RegisterPrevious } from '../components/RegisterPrevious';
 
 const TABS = [
   ['seccao', 'Secção'],
@@ -244,7 +245,7 @@ export const CHOICE_STATUS: Record<StageChoice['status'], { label: string; tone:
 };
 
 function Inbox({ members }: { members: MemberRow[] }) {
-  const { membership, catalog } = useActiveSection();
+  const { membership, catalog, isDirigente } = useActiveSection();
   const teams = useTeams(membership.section_id);
   const ids = members.map((m) => m.id);
   const choices = useQuery({ queryKey: ['choices', ids, 'todas'], queryFn: () => fetchSectionChoices(ids), enabled: ids.length > 0 });
@@ -275,6 +276,8 @@ function Inbox({ members }: { members: MemberRow[] }) {
     .sort((a, b) => Number(b.pending) - Number(a.pending) || b.at.localeCompare(a.at));
   const pendingOf = (t: string) => all.filter((i) => i.pending && (t === 'todos' || i.type === t)).length;
 
+  const taken = (id: string) => new Set((reqs.data ?? []).filter((r) => r.membership_id === id && r.status !== 'recusado' && r.status !== 'cancelado').map((r) => r.trail_key));
+
   return (
     <>
       <div className="filter-chips" role="radiogroup" aria-label="Tipo de pedido">
@@ -298,6 +301,7 @@ function Inbox({ members }: { members: MemberRow[] }) {
         <span className="faint grid-count" aria-live="polite">{list.length} {list.length === 1 ? 'pedido' : 'pedidos'}</span>
       </div>
 
+      {tipo === 'anterior' && isDirigente && <RegisterPrevious members={members.filter((m) => m.status === 'ativo')} taken={taken} />}
       <div className="card">
         {list.length === 0 ? <Empty title={estado === 'pendentes' ? 'Sem pedidos pendentes.' : 'Sem pedidos com estes filtros.'} /> : (
           <ul className="list inbox">
