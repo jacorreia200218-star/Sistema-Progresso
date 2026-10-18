@@ -38,6 +38,9 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
   const calls: { fn: string; body: Row }[] = [];
   const manage = who === 'ana';
   const config = { year_start_month: 9, special_days: [] as Row[] };
+  // Ligações do evento a outros módulos (cal_event_links); vazio = só «Detalhes».
+  const links: Row = {};
+  let sessions = 0;
   const view = (e: Row): Row => {
     const mine = e.people.find((p: Row) => p.profile_id === me) ?? { response: null, resolved: [] };
     const { people, ...rest } = e;
@@ -129,6 +132,14 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
         return ok(null);
       case 'module_files_of':
         return ok([]);
+      case 'cal_event_links':
+        return ok(links);
+      case 'pres_session_for_event': {
+        if (!links.pres_can_register) return fail('Não tens permissão para esta ação neste módulo.');
+        const created = !links.presencas;
+        if (created) { sessions++; links.presencas = { id: 'ses1', title: find()!.title, status: 'ativa', counts: { presente: 0, justificada: 0, injustificada: 0 }, mine: null }; }
+        return ok({ id: links.presencas.id, created });
+      }
       case 'cal_config':
         return ok({ ...config, can_manage: manage });
       case 'cal_set_year_start':
@@ -148,7 +159,7 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
         return route.fallback();
     }
   });
-  return { calls, events, config };
+  return { calls, events, config, links, sessions: () => sessions };
 }
 
 async function noHorizontalScroll(page: Page) {
@@ -445,6 +456,111 @@ test('nova atividade semanal: a reunião de sábado repete-se até ao fim do ano
   expect(cal.calls.some((c) => c.fn === 'cal_create_event')).toBe(false);
 });
 
+const LONG_TASK = 'Confirmar com a junta de freguesia o transporte das tendas e do material de cozinha até ao local do acampamento';
+const leaderLinks = (): Row => ({
+  pres_can_register: true, presencas: null,
+  ata_writer: true, reunioes: [],
+  tarefas: [
+    { id: 't1', kind: 'tarefa', title: LONG_TASK, exec_status: 'por_fazer', due_date: '2026-10-10', overdue: true, responsible_name: 'Pedro Teste', team_name: null, ata_id: 'ata1' },
+    { id: 't2', kind: 'tarefa', title: 'Levar mapas', exec_status: 'em_curso', due_date: null, overdue: false, responsible_name: 'Guia Teste', team_name: null, ata_id: null },
+  ],
+  reservas: [{ id: 'r1', item_id: 'i1', item: 'Tenda (teste)', unit: 'un.', quantity: 2, status: 'ativa' }], compras: [], inv_can_manage: true,
+  financas: { orcamento: { receitas: 5000, despesas: 3000, resultado: 2000 }, efetivo: { receitas: 0, despesas: 1250, resultado: -1250 },
+    por_confirmar: { receitas: 0, despesas: 0, resultado: 0 }, tem_dados: true }, fin_can_manage: true,
+});
+
+test('evento como ponto de ligação: separadores, teclado e «Registar presenças» sem duplicar', async ({ page }) => {
+  await installMock(page, leader());
+  const cal = await installCalendar(page, 'ana');
+  Object.assign(cal.links, leaderLinks());
+  await page.goto('/calendario/evento/ev1');
+  const main = page.locator('main');
+  const tabs = main.getByRole('tablist', { name: 'Secções da atividade' });
+  await expect(tabs.getByRole('tab')).toHaveText(['Detalhes', 'Presenças', /^Ata e tarefas2/, /^Material1/, 'Finanças']);
+  await expect(tabs.getByRole('tab', { name: 'Ata e tarefas (2 tarefas por fazer)' })).toBeVisible();
+  await expect(tabs.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true');
+  await expect(main.getByRole('heading', { name: 'Participantes' })).toBeVisible();
+
+  // Teclado: setas mudam de separador e o endereço guarda-o
+  await tabs.getByRole('tab', { name: 'Detalhes' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'Presenças' })).toBeFocused();
+  await expect(page).toHaveURL(/sec=presencas/);
+  await expect(main.getByRole('tabpanel')).toContainText('Ainda não há presenças registadas.');
+  await page.keyboard.press('End');
+  await expect(tabs.getByRole('tab', { name: 'Finanças' })).toHaveAttribute('aria-selected', 'true');
+  await expect(main.getByRole('tabpanel')).toContainText('12,50 €');
+  await expect(main.getByRole('link', { name: /Ver na Tesouraria/ })).toHaveAttribute('href', '/tesouraria/atividades#a-ev1');
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).not.toHaveURL(/sec=/);
+
+  // Ata e tarefas: escrever ata com o evento escolhido; tarefas com responsável e prazo
+  await tabs.getByRole('tab', { name: /Ata e tarefas/ }).click();
+  await expect(main.getByRole('link', { name: 'Escrever ata' })).toHaveAttribute('href', '/atas-e-tarefas/nova?evento=ev1');
+  const t1 = main.locator('.ev-task', { hasText: 'junta de freguesia' });
+  await expect(t1).toContainText('Pedro Teste · até 10/10/2026');
+  await expect(t1).toContainText('Em atraso');
+  await expect(t1).toHaveAttribute('href', '/atas-e-tarefas/atas/ata1');
+  await expect(main.locator('.ev-task', { hasText: 'Levar mapas' })).toContainText('Guia Teste · sem prazo');
+  await noHorizontalScroll(page);
+
+  // Material
+  await tabs.getByRole('tab', { name: /Material/ }).click();
+  await expect(main.getByRole('link', { name: /Tenda \(teste\)/ })).toHaveAttribute('href', '/inventario/artigo/i1');
+
+  // Registar presenças: abre (cria) a sessão ligada; voltar regressa ao separador
+  await tabs.getByRole('tab', { name: 'Presenças' }).click();
+  await main.getByRole('button', { name: 'Registar presenças' }).click();
+  await expect(page).toHaveURL(/\/presencas\/sessoes\/ses1$/);
+  expect(cal.calls.filter((c) => c.fn === 'pres_session_for_event').map((c) => c.body)).toEqual([{ p_section: expect.any(String), p_event: 'ev1' }]);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/calendario\/evento\/ev1\?sec=presencas$/);
+  await expect(main.getByRole('tab', { name: 'Presenças' })).toHaveAttribute('aria-selected', 'true');
+  await expect(main.getByRole('tabpanel')).toContainText('Presentes');
+  await main.getByRole('button', { name: 'Registar presenças' }).click();
+  await expect(page).toHaveURL(/\/presencas\/sessoes\/ses1$/);
+  expect(cal.sessions()).toBe(1);
+});
+
+test('evento ligado: o pioneiro vê só o que lhe diz respeito, sem blocos vazios', async ({ page }) => {
+  await installMock(page, pioneer());
+  const cal = await installCalendar(page, 'p1');
+  Object.assign(cal.links, {
+    pres_can_register: false, presencas: { id: 'ses9', title: 'Raid', status: 'ativa', counts: null, mine: 'justificada' },
+    ata_writer: false, reunioes: [], tarefas: [], reservas: [], compras: [], inv_can_manage: false,
+    financas: { orcamento: { receitas: 0, despesas: 0, resultado: 0 }, efetivo: { receitas: 0, despesas: 0, resultado: 0 },
+      por_confirmar: { receitas: 0, despesas: 0, resultado: 0 }, tem_dados: false }, fin_can_manage: false,
+  });
+  await page.goto('/calendario/evento/ev1?sec=financas');
+  const main = page.locator('main');
+  // Separador sem acesso cai para «Detalhes»
+  const tabs = main.getByRole('tablist', { name: 'Secções da atividade' });
+  await expect(tabs.getByRole('tab')).toHaveText(['Detalhes', 'Presenças']);
+  await expect(main.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true');
+  await main.getByRole('tab', { name: 'Presenças' }).click();
+  await expect(main.getByRole('tabpanel')).toContainText('A tua presença: Falta justificada');
+  await expect(main.getByRole('button', { name: 'Registar presenças' })).toHaveCount(0);
+  await expect(main.getByRole('link', { name: /Ver presenças/ })).toHaveAttribute('href', '/presencas/sessoes/ses9');
+  await noHorizontalScroll(page);
+});
+
+test('evento sem ligações: só os detalhes; com ata: «Abrir ata» em vez de «Escrever ata»', async ({ page }) => {
+  await installMock(page, leader());
+  const cal = await installCalendar(page, 'ana');
+  await page.goto('/calendario/evento/ev1');
+  const main = page.locator('main');
+  await expect(main.getByRole('heading', { name: 'Participantes' })).toBeVisible();
+  await expect(main.getByRole('tablist', { name: 'Secções da atividade' })).toHaveCount(0);
+
+  Object.assign(cal.links, { ata_writer: true, tarefas: [], reunioes: [{ id: 'm1', title: 'Raid', kind: 'seccao', starts_at: events0(cal), ata_id: 'ata7' }] });
+  await page.goto('/calendario/evento/ev1?sec=ata');
+  await expect(main.getByRole('tablist', { name: 'Secções da atividade' }).getByRole('tab')).toHaveText(['Detalhes', 'Ata e tarefas']);
+  await expect(main.getByRole('link', { name: 'Abrir ata' })).toHaveAttribute('href', '/atas-e-tarefas/atas/ata7');
+  await expect(main.getByRole('link', { name: 'Escrever ata' })).toHaveCount(0);
+});
+const events0 = (cal: { events: Row[] }) => cal.events[0].starts_at as string;
+
 test.describe('capturas', () => {
   test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
   for (const theme of THEMES) {
@@ -452,7 +568,7 @@ test.describe('capturas', () => {
       test.setTimeout(90_000);
       await page.emulateMedia({ colorScheme: theme });
       await installMock(page, leader());
-      const { events } = await installCalendar(page, 'ana');
+      const { events, links } = await installCalendar(page, 'ana');
       const day = lisbonDay(events[0].starts_at);
       events.push({ ...events[0], id: 'ev2', title: 'Reunião de guias com um título bastante longo para testar o corte', starts_at: isoIn(3 * D + 4 * H), ends_at: isoIn(3 * D + 5 * H), location: null });
       events.push({ ...events[0], id: 'ev3', title: 'Atividade de serviço', starts_at: isoIn(3 * D + 6 * H), ends_at: isoIn(3 * D + 7 * H) });
@@ -473,6 +589,14 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'calendario-feriado', { full: false });
       await page.goto('/calendario/evento/ev1');
       await shoot(page, info, theme, 'calendario-detalhe');
+      Object.assign(links, leaderLinks());
+      await page.goto('/calendario/evento/ev1');
+      await shoot(page, info, theme, 'evento-ligacoes-detalhes');
+      for (const sec of ['presencas', 'ata', 'material', 'financas']) {
+        await page.goto(`/calendario/evento/ev1?sec=${sec}`);
+        await shoot(page, info, theme, `evento-ligacoes-${sec}`);
+      }
+      for (const k of Object.keys(links)) delete links[k];
       await page.goto('/calendario?vista=lista');
       await shoot(page, info, theme, 'calendario-lista');
       await page.goto('/calendario/nova');
