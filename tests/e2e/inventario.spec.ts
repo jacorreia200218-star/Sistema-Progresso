@@ -1,7 +1,9 @@
-// Inventário (interface): resumo, lista com pesquisa e filtros no endereço (tipo, local,
-// estado), criar artigo com local exato, emprestar e devolver, pedido de empréstimo por
-// quem só consulta, lista «A comprar» e marcar como comprado. RPC do módulo
-// simuladas em memória (dados FICTÍCIOS, apenas para teste).
+// Inventário (interface): três entradas (Material, Empréstimos com as reservas, A comprar),
+// indicadores que abrem os alertas, pesquisa e filtros no endereço («Mais filtros» para local,
+// conservação e arquivados), «Novo artigo» com o essencial primeiro, emprestar e devolver,
+// reservas e compras ligadas a atividades pelo seletor comum, pedido de empréstimo por quem
+// só consulta e marcar como comprado. RPC do módulo simuladas em memória (dados FICTÍCIOS,
+// apenas para teste); os testes verificam as chamadas e os argumentos enviados.
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
@@ -21,12 +23,19 @@ async function openFilters(page: Page) {
   if (await toggle.isVisible() && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
 }
 
-async function mockInventario(page: Page, manage: boolean, finOk = false) {
+/** Local, armário, conservação e arquivados ficam em «Mais filtros». */
+async function openMoreFilters(page: Page) {
+  await openFilters(page);
+  const more = page.locator('main details.more-options').filter({ hasText: 'Mais filtros' });
+  if (!(await more.evaluate((d) => (d as HTMLDetailsElement).open))) await more.locator('summary').click();
+}
+
+async function mockInventario(page: Page, manage: boolean, finOk = false, opts: { delay?: number } = {}) {
   const cats = [{ id: 'c1', name: 'Campismo', archived: false }, { id: 'c2', name: 'Cozinha', archived: false }];
   const items: Row[] = [
     { id: 'i1', name: 'Tenda canadiana', description: 'Tenda para 4 pessoas', unit: 'un.', room: 'Arrecadação', cabinet: 'Armário 1', shelf: 'Prateleira 2', box: null, condition: 'bom', notes: 'Secar antes de guardar', tracking: 'quantidade', category_id: 'c1', total: 6, damaged: 0, repair: 1, min_quantity: 2 },
     { id: 'i2', name: 'Panela grande', description: null, unit: 'un.', room: 'Cozinha da sede', cabinet: null, shelf: null, box: null, condition: 'razoavel', notes: null, tracking: 'quantidade', category_id: 'c2', total: 3, damaged: 1, repair: 0, min_quantity: null },
-    { id: 'i3', name: 'Lanterna frontal', description: null, unit: 'un.', room: 'Arrecadação', cabinet: 'Armário 2', shelf: null, box: 'Caixa azul', condition: null, notes: null, tracking: 'quantidade', category_id: null, total: 4, damaged: 0, repair: 0, min_quantity: null },
+    { id: 'i3', name: 'Lanterna frontal', description: null, unit: 'un.', room: 'Arrecadação', cabinet: 'Armário 2', shelf: null, box: 'Caixa azul', condition: null, notes: null, tracking: 'quantidade', category_id: null, total: 4, damaged: 0, repair: 0, min_quantity: 5 },
   ];
   const purchases: Row[] = [
     { id: 'p1', item_id: 'i1', new_material: false, name: 'Tenda canadiana', category_id: 'c1', quantity: 2, unit: 'un.', reason: 'Duas tendas rasgadas', priority: 'alta', status: 'por_comprar', needed_by: null, event_id: null, event: null, amount_cents: 12000 },
@@ -40,6 +49,20 @@ async function mockInventario(page: Page, manage: boolean, finOk = false) {
     has_expense: false, expense: null, cancelled_at: null, cancel_reason: null, cancelled_by: null, created_by: 'Ana Dirigente', created_at: isoIn(-24), ...p,
   });
   const loans: Row[] = [];
+  // Duas atividades com o mesmo nome no mesmo dia (o seletor junta a hora) e uma de dia inteiro.
+  const events = [
+    { id: 'e1', title: 'Acampamento', all_day: false, starts_at: '2026-11-14T09:00:00Z', ends_at: '2026-11-14T18:00:00Z' },
+    { id: 'e2', title: 'Acampamento', all_day: false, starts_at: '2026-11-14T15:00:00Z', ends_at: '2026-11-15T12:00:00Z' },
+    { id: 'e3', title: 'Dia do Patrono', all_day: true, starts_at: '2026-11-20T00:00:00Z', ends_at: '2026-11-21T00:00:00Z' },
+  ];
+  const reservations: Row[] = [
+    { id: 'r1', item_id: 'i3', quantity: 4, starts_at: isoIn(72), ends_at: isoIn(96), status: 'ativa', notes: null, event_id: 'e1', event: 'Acampamento', event_cancelled: false, at_risk: true },
+    { id: 'r2', item_id: 'i2', quantity: 1, starts_at: isoIn(120), ends_at: isoIn(130), status: 'ativa', notes: null, event_id: null, event: null, event_cancelled: false, at_risk: false },
+  ];
+  const resJson = (r: Row) => {
+    const i = items.find((x) => x.id === r.item_id)!;
+    return { ...r, item: i.name, unit: i.unit, created_by: 'Ana Dirigente', created_at: isoIn(-1), close_note: null };
+  };
   const calls: { fn: string; body: Row }[] = [];
   const people = [{ id: 'u-ana', name: 'Ana Dirigente' }, { id: 'u-pedro', name: 'Pedro Teste' }];
   const lent = (id: string) => loans.filter((l) => l.item_id === id && l.status === 'ativo').reduce((s, l) => s + l.quantity - l.returned_qty, 0);
@@ -74,6 +97,7 @@ async function mockInventario(page: Page, manage: boolean, finOk = false) {
     }
     if (!fn.startsWith('inv_') && fn !== 'module_files_of') return route.fallback();
     calls.push({ fn, body: b });
+    if (opts.delay && fn === 'inv_overview') await new Promise((r) => setTimeout(r, opts.delay));
     switch (fn) {
       case 'inv_overview':
         return ok(route, {
@@ -95,7 +119,8 @@ async function mockInventario(page: Page, manage: boolean, finOk = false) {
       case 'inv_item': {
         const i = items.find((x) => x.id === b.p_item);
         if (!i) return fail(route, 'Registo não encontrado.');
-        return ok(route, { ...itemJson(i), can_manage: manage, pieces: [], loans: loans.filter((l) => l.item_id === i.id).map(loanJson), reservations: [],
+        return ok(route, { ...itemJson(i), can_manage: manage, pieces: [], loans: loans.filter((l) => l.item_id === i.id).map(loanJson),
+          reservations: reservations.filter((r) => r.item_id === i.id && r.status === 'ativa').map(resJson),
           purchases: purchases.filter((p) => p.item_id === i.id).map(purchaseJson),
           movements: [{ id: 1, kind: 'criacao', quantity: i.total, from_state: null, to_state: null, note: null, at: isoIn(-48), actor: 'Ana Dirigente', piece: null, borrower: null }] });
       }
@@ -177,12 +202,24 @@ async function mockInventario(page: Page, manage: boolean, finOk = false) {
         return ok(route, { item_id: p.item_id, movement_id: b.p_movement ?? null });
       }
       case 'inv_alerts':
-        return ok(route, { overdue: [], due_soon: [], low_stock: [], repair: items.filter((i) => i.repair > 0).map(itemJson), damaged: items.filter((i) => i.damaged > 0).map(itemJson), at_risk: [], requests: [] });
+        return ok(route, { overdue: [], due_soon: [], low_stock: items.filter((i) => i.min_quantity != null && stock(i).available < i.min_quantity).map(itemJson),
+          repair: items.filter((i) => i.repair > 0).map(itemJson), damaged: items.filter((i) => i.damaged > 0).map(itemJson),
+          at_risk: reservations.filter((r) => r.status === 'ativa' && r.at_risk).map(resJson), requests: [] });
+      case 'inv_event_options': return ok(route, events);
+      case 'inv_reservations':
+        return ok(route, reservations.filter((r) => (b.p_past ? r.status !== 'ativa' : r.status === 'ativa')).map(resJson));
+      case 'inv_reservation_create': {
+        const ev = events.find((e) => e.id === b.p_event);
+        const id = `r${reservations.length + 1}`;
+        reservations.push({ id, item_id: b.p_item, quantity: b.p_quantity, starts_at: b.p_starts_at ?? ev!.starts_at, ends_at: b.p_ends_at ?? ev!.ends_at,
+          status: 'ativa', notes: b.p_notes, event_id: b.p_event, event: ev?.title ?? null, event_cancelled: false, at_risk: false });
+        return ok(route, id);
+      }
       default:
         return ok(route, []);
     }
   });
-  return { calls, loans, items, purchases };
+  return { calls, loans, items, purchases, reservations };
 }
 
 test('lista: pesquisa e filtros ficam no endereço e sobrevivem ao «voltar»', async ({ page }, info) => {
@@ -199,6 +236,13 @@ test('lista: pesquisa e filtros ficam no endereço e sobrevivem ao «voltar»', 
   await expect(page).toHaveURL(/q=tenda/);
   await main.getByPlaceholder('Pesquisar material').fill('');
   await openFilters(page);
+  // À vista: pesquisa, tipo e estado; o local fica em «Mais filtros».
+  await expect(main.getByLabel('Filtrar por tipo')).toBeVisible();
+  await expect(main.getByLabel('Filtrar por estado')).toBeVisible();
+  await expect(main.getByLabel('Filtrar por localização')).toBeHidden();
+  await expect(main.getByLabel('Filtrar por conservação')).toBeHidden();
+  await expect(main.getByLabel('Ver arquivados')).toBeHidden();
+  await openMoreFilters(page);
   await main.getByLabel('Filtrar por localização').selectOption('Arrecadação');
   await expect(list.getByRole('listitem')).toHaveCount(2);
   await main.getByLabel('Filtrar por estado').selectOption('reparacao');
@@ -216,6 +260,9 @@ test('lista: pesquisa e filtros ficam no endereço e sobrevivem ao «voltar»', 
   await noHorizontalScroll(page);
   await page.goBack();
   await expect(main.getByLabel('Filtrar por estado')).toHaveValue('reparacao');
+  // Ao voltar, «Mais filtros» abre sozinho porque há um local escolhido.
+  await openFilters(page);
+  await expect(main.getByLabel('Filtrar por localização')).toBeVisible();
   await expect(main.getByLabel('Filtrar por localização')).toHaveValue('Arrecadação');
   await openFilters(page);
   await main.getByLabel('Filtrar por tipo').selectOption('c2');
@@ -234,14 +281,32 @@ test('criar artigo com validação clara', async ({ page }) => {
   await main.getByRole('button', { name: 'Registar artigo' }).click();
   await expect(main.getByText('Indica o nome do artigo.')).toBeVisible();
   expect(m.calls.some((c) => c.fn === 'inv_item_save')).toBe(false);
+  // Primeiro só o essencial, por esta ordem; o resto fica em «Mais detalhes» (fechado).
+  const first = await main.locator('form input:visible, form select:visible, form textarea:visible').evaluateAll((els) => els.map((e) => e.id));
+  expect(first).toEqual(['inv-name', 'inv-cat', 'inv-qty', 'inv-unit', 'inv-room', 'inv-cond']);
+  for (const label of ['Armário', 'Prateleira', 'Caixa', 'Fotografia (opcional)', 'Observações (opcional)', 'Quantidade mínima (opcional)', 'Descrição (opcional)']) {
+    await expect(main.getByLabel(label, { exact: true })).toBeHidden();
+  }
+  await expect(main.getByText('Peças identificadas (código ou n.º de série)')).toBeHidden();
   await main.getByLabel('Nome').fill('Fogareiro a gás');
   await main.getByLabel('Tipo', { exact: true }).selectOption('c2');
-  await main.getByLabel('Sala ou espaço').fill('Arrecadação');
+  await main.getByLabel('Quantidade inicial').fill('3');
+  await main.getByLabel('Localização').fill('Arrecadação');
+  await main.getByLabel('Estado de conservação').selectOption('novo');
+  // Erro num campo de «Mais detalhes» abre a secção.
+  const more = main.locator('details.more-options').filter({ hasText: 'Mais detalhes' });
+  await main.locator('#inv-min').evaluate((el) => {
+    const input = el as HTMLInputElement;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '-1');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await main.getByRole('button', { name: 'Registar artigo' }).click();
+  await expect(main.getByText('A quantidade mínima tem de ser um número inteiro, 0 ou mais.')).toBeVisible();
+  await expect(more).toHaveAttribute('open', '');
+  expect(m.calls.some((c) => c.fn === 'inv_item_save')).toBe(false);
   await main.getByLabel('Armário', { exact: true }).fill('Armário 2');
   await main.getByLabel('Caixa', { exact: true }).fill('Caixa verde');
-  await main.getByLabel('Estado de conservação').selectOption('novo');
   await main.getByLabel('Observações (opcional)').fill('Verificar a válvula');
-  await main.getByLabel('Quantidade inicial').fill('3');
   await main.getByLabel(/Quantidade mínima/).fill('1');
   await noHorizontalScroll(page);
   await main.getByRole('button', { name: 'Registar artigo' }).click();
@@ -327,6 +392,10 @@ test('quem só consulta não edita, mas pede empréstimos', async ({ page }) => 
   await expect(main.getByRole('list', { name: 'Material' }).getByRole('listitem')).toHaveCount(3);
   await expect(main.getByRole('link', { name: 'Novo artigo' })).toHaveCount(0);
   await expect(main.getByRole('link', { name: /Tipos/ })).toHaveCount(0);
+  await expect(main.getByRole('button', { name: 'Configurar' })).toHaveCount(0);
+  await expect(main.getByRole('navigation', { name: 'Inventário' }).getByRole('link')).toHaveCount(3);
+  // Os indicadores também servem a quem só consulta.
+  await expect(main.getByRole('list', { name: 'Resumo do inventário' }).getByRole('link', { name: /Stock baixo/ })).toContainText('1');
   await main.getByRole('link', { name: /Panela grande/ }).click();
   await expect(main.getByRole('button', { name: 'Emprestar' })).toHaveCount(0);
   await expect(main.getByRole('link', { name: /Editar/ })).toHaveCount(0);
@@ -342,28 +411,85 @@ test('quem só consulta não edita, mas pede empréstimos', async ({ page }) => 
   await main.getByText('Só os meus').click();
   await expect(page).toHaveURL(/meus=1/);
   await expect(main.locator('.inv-loan')).toHaveCount(1);
+  expect(m.calls.filter((c) => c.fn === 'inv_loans').at(-1)!.body).toMatchObject({ p_mine: true });
+  // Reservas: vê-as, sem ações de quem gere.
+  await main.getByRole('radio', { name: 'Reservas' }).click();
+  await expect(main.getByRole('radio', { name: 'Reservas' })).toBeChecked();
+  const res = main.getByRole('list', { name: 'Reservas' });
+  await expect(res.getByRole('listitem')).toHaveCount(2);
+  await expect(res.getByRole('button')).toHaveCount(0);
+  // Na ficha, não há «Reservar» (só quem gere reserva).
+  await page.goto('/inventario/artigo/i1');
+  await expect(main.getByRole('button', { name: 'Pedir empréstimo' })).toBeVisible();
+  await expect(main.getByRole('button', { name: 'Mais ações' })).toHaveCount(0);
   await noHorizontalScroll(page);
 });
 
-test('resumo centrado e filtros por local exato no endereço', async ({ page }, info) => {
+test('indicadores abrem os alertas: stock baixo e avariado filtram a lista, com teclado e «voltar»', async ({ page }) => {
   await installMock(page, leader());
   await mockInventario(page, true);
   await page.goto('/inventario');
   const main = page.locator('main');
   const summary = main.getByRole('list', { name: 'Resumo do inventário' });
   await expect(summary.getByRole('listitem')).toHaveCount(4);
-  await expect(summary.getByRole('link', { name: /Compras pendentes/ })).toContainText('2');
-  await expect(summary.getByRole('link', { name: /Compras pendentes/ })).toContainText('1 com prioridade alta');
-  await expect(summary.getByRole('link', { name: /Em reparação/ })).toContainText('1');
-  await expect(summary.getByRole('link', { name: /Devoluções em atraso/ })).toContainText('0');
-  // Cartões centrados
+  await expect(summary.getByRole('link', { name: /Emprestado/ })).toHaveAttribute('href', '/inventario/emprestimos?estado=ativo');
+  await expect(summary.getByRole('link', { name: /Em atraso/ })).toContainText('0');
+  await expect(summary.getByRole('link', { name: /Stock baixo/ })).toContainText('1');
+  await expect(summary.getByRole('link', { name: /Avariado/ })).toContainText('2');
+  await expect(summary.getByRole('link', { name: /Avariado/ })).toContainText('1 em reparação');
+  // Cartões centrados e com a mesma altura (com ou sem dica)
   const align = await summary.locator('.stat').first().evaluate((el) => getComputedStyle(el).textAlign);
   expect(align).toBe('center');
-  // Todos os cartões com a mesma altura (com ou sem dica)
   const heights = await summary.locator('.stat').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
   expect(new Set(heights).size).toBe(1);
   const list = main.getByRole('list', { name: 'Material' });
-  await openFilters(page);
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  // Teclado: o indicador «Stock baixo» abre-se com Enter.
+  await summary.getByRole('link', { name: /Stock baixo/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/alerta=stock/);
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  await expect(list).toContainText('Lanterna frontal');
+  await expect(list.getByRole('listitem').first().locator('.badge')).toHaveText('Mínimo 5 un.');
+  await expect(summary.getByRole('link', { name: /Stock baixo/ })).toHaveAttribute('aria-current', 'true');
+  await expect(main.getByText('Stock baixo', { exact: true }).last()).toBeVisible();
+  await noHorizontalScroll(page);
+  // Outro indicador: danificado ou em reparação.
+  await summary.getByRole('link', { name: /Avariado/ }).click();
+  await expect(page).toHaveURL(/alerta=avaria/);
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  await expect(list).toContainText('Tenda canadiana');
+  await expect(list).toContainText('Panela grande');
+  // «Voltar» regressa ao filtro anterior; voltar a carregar no indicador ativo tira o filtro.
+  await page.goBack();
+  await expect(page).toHaveURL(/alerta=stock/);
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  await summary.getByRole('link', { name: /Stock baixo/ }).click();
+  await expect(page).not.toHaveURL(/alerta=/);
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  await page.goto('/inventario?alerta=avaria');
+  await main.getByRole('button', { name: 'Ver todo o material' }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  // Linha «Também a ver»: reservas sem material suficiente → reservas filtradas em Empréstimos.
+  await main.getByRole('list', { name: 'Também a ver' }).getByRole('link', { name: '1 reserva sem material suficiente' }).click();
+  await expect(page).toHaveURL(/emprestimos\?ver=reservas&risco=1/);
+  const res = main.getByRole('list', { name: 'Reservas' });
+  await expect(res.getByRole('listitem')).toHaveCount(1);
+  await expect(res).toContainText('Lanterna frontal');
+  await expect(res).toContainText('Sem material suficiente');
+  await main.getByRole('button', { name: 'Ver todos' }).click();
+  await expect(res.getByRole('listitem')).toHaveCount(2);
+  await noHorizontalScroll(page);
+});
+
+test('«Mais filtros»: local exato, conservação e arquivados no endereço', async ({ page }, info) => {
+  await installMock(page, leader());
+  const m = await mockInventario(page, true);
+  await page.goto('/inventario');
+  const main = page.locator('main');
+  const list = main.getByRole('list', { name: 'Material' });
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  await openMoreFilters(page);
   await main.getByLabel('Filtrar por localização').selectOption('Arrecadação');
   await expect(list.getByRole('listitem')).toHaveCount(2);
   await main.getByLabel('Filtrar por armário').selectOption('Armário 2');
@@ -383,11 +509,102 @@ test('resumo centrado e filtros por local exato no endereço', async ({ page }, 
   // Mudar de local limpa o armário escolhido
   await main.getByLabel('Filtrar por localização').selectOption('Cozinha da sede');
   await expect(page).not.toHaveURL(/armario=/);
-  await summary.getByRole('link', { name: /Compras pendentes/ }).click();
+  await main.getByRole('navigation', { name: 'Inventário' }).getByRole('link', { name: /A comprar/ }).click();
   await expect(main.getByRole('heading', { name: 'A comprar', level: 1 })).toBeVisible();
   await page.goBack();
   await expect(main.getByLabel('Filtrar por localização')).toHaveValue('Cozinha da sede');
   await expect(main.getByLabel('Filtrar por conservação')).toHaveValue('bom');
+  // Arquivados: pede a lista arquivada ao servidor e esconde os indicadores.
+  await openFilters(page);
+  await main.getByLabel('Ver arquivados').click();
+  await expect(main.getByLabel('Ver arquivados')).toBeChecked();
+  await expect(page).toHaveURL(/arquivados=1/);
+  await expect.poll(() => m.calls.some((c) => c.fn === 'inv_overview' && c.body.p_archived === true)).toBe(true);
+  await expect(main.getByRole('list', { name: 'Resumo do inventário' })).toHaveCount(0);
+});
+
+test('três entradas; tipos em «Configurar»; reservas dentro de Empréstimos', async ({ page }) => {
+  await installMock(page, leader());
+  const m = await mockInventario(page, true);
+  await page.goto('/inventario');
+  const main = page.locator('main');
+  const nav = main.getByRole('navigation', { name: 'Inventário' });
+  await expect(nav.getByRole('link')).toHaveText([/Material/, /Empréstimos/, /A comprar\s*2/]);
+  await main.locator('.page-head').getByRole('button', { name: 'Configurar' }).click();
+  await main.getByRole('link', { name: 'Tipos de material' }).click();
+  await expect(main.getByRole('heading', { name: 'Tipos de material', level: 1 })).toBeVisible();
+  await expect(main.getByRole('list', { name: 'Categorias' }).getByRole('listitem')).toHaveCount(2);
+  await main.getByRole('button', { name: 'Novo tipo' }).click();
+  await main.getByLabel('Novo tipo (configurável)').fill('Ferramentas');
+  await main.getByRole('button', { name: 'Criar', exact: true }).click();
+  await expect.poll(() => m.calls.find((c) => c.fn === 'inv_category_save')?.body).toMatchObject({ p_id: null, p_name: 'Ferramentas' });
+  await main.getByRole('button', { name: 'Voltar' }).click();
+  await expect(main.getByRole('heading', { name: 'Inventário', level: 1 })).toBeVisible();
+  // Endereço antigo das reservas abre as reservas dentro de Empréstimos.
+  await page.goto('/inventario/reservas');
+  await expect(page).toHaveURL(/\/inventario\/emprestimos\?ver=reservas/);
+  await expect(main.getByRole('radio', { name: 'Reservas' })).toBeChecked();
+  const res = main.getByRole('list', { name: 'Reservas' });
+  await expect(res.getByRole('listitem')).toHaveCount(2);
+  await expect(res.getByRole('listitem').first()).toContainText('Reservado');
+  await expect(main.getByRole('list', { name: 'Empréstimos' })).toHaveCount(0);
+  await main.getByText('Terminadas e canceladas').click();
+  await expect(page).toHaveURL(/reservas=terminadas/);
+  await expect.poll(() => m.calls.some((c) => c.fn === 'inv_reservations' && c.body.p_past === true)).toBe(true);
+  await main.getByRole('radio', { name: 'Empréstimos' }).click();
+  await expect(page).not.toHaveURL(/ver=reservas/);
+  await expect(main.getByRole('radiogroup', { name: 'Estado dos empréstimos' })).toBeVisible();
+  // O endereço antigo dos alertas leva à lista com os indicadores.
+  await page.goto('/inventario/alertas');
+  await expect(page).toHaveURL(/\/inventario$/);
+  await expect(main.getByRole('list', { name: 'Resumo do inventário' })).toBeVisible();
+  await noHorizontalScroll(page);
+});
+
+test('reservar e comprar para uma atividade com o seletor comum (data · nome, hora quando há outra igual)', async ({ page }) => {
+  await installMock(page, leader());
+  const m = await mockInventario(page, true);
+  await page.goto('/inventario/artigo/i1');
+  const main = page.locator('main');
+  await main.locator('.page-head').getByRole('button', { name: 'Mais ações' }).click();
+  await main.getByRole('button', { name: 'Reservar', exact: true }).click();
+  const form = main.getByRole('form', { name: 'Reservar material' });
+  const ev = form.getByLabel('Atividade do calendário');
+  await expect(ev.locator('option')).toHaveText(['Sem atividade', '20/11/2026 · Dia do Patrono', '14/11/2026 · Acampamento · 09:00', '14/11/2026 · Acampamento · 15:00']);
+  await ev.selectOption({ label: '14/11/2026 · Acampamento · 15:00' });
+  await expect(form.getByLabel(/Usar o período da atividade/)).toBeChecked();
+  await form.getByLabel(/Quantidade/).fill('2');
+  await form.getByRole('button', { name: 'Reservar' }).click();
+  await expect(main.getByText('Reserva registada.')).toBeVisible();
+  expect(m.calls.find((c) => c.fn === 'inv_reservation_create')!.body).toMatchObject({ p_item: 'i1', p_event: 'e2', p_quantity: 2, p_starts_at: null, p_ends_at: null });
+  await expect(main.getByRole('region', { name: 'Reservas' })).toContainText('Acampamento');
+  // Compra ligada a uma atividade: guarda o id.
+  await main.locator('.page-head').getByRole('button', { name: 'Mais ações' }).click();
+  await main.getByRole('button', { name: 'Pôr na lista «A comprar»' }).click();
+  const buy = main.getByRole('form', { name: 'Nova compra' });
+  await buy.getByLabel('Atividade do calendário (opcional)').selectOption({ label: '20/11/2026 · Dia do Patrono' });
+  await buy.getByRole('button', { name: 'Acrescentar à lista' }).click();
+  await expect(main.getByText('Acrescentado à lista «A comprar».')).toBeVisible();
+  expect(m.calls.find((c) => c.fn === 'inv_purchase_save')!.body).toMatchObject({ p_item: 'i1', p_event: 'e3' });
+  await noHorizontalScroll(page);
+});
+
+test('a carregar e textos longos sem deslocamento horizontal', async ({ page }) => {
+  await installMock(page, leader());
+  const m = await mockInventario(page, true, false, { delay: 700 });
+  m.items.push({ id: 'i9', name: 'Conjunto de cordas de sisal entrançadas para construções pioneiras de grande porte e torres de observação', description: null, unit: 'rolos',
+    room: 'Arrecadação do pavilhão grande junto ao campo de futebol', cabinet: null, shelf: null, box: null, condition: 'bom', notes: null, tracking: 'quantidade',
+    category_id: 'c1', total: 12, damaged: 0, repair: 0, min_quantity: 20 });
+  await page.goto('/inventario');
+  const main = page.locator('main');
+  await expect(main.getByRole('status')).toBeVisible();
+  const list = main.getByRole('list', { name: 'Material' });
+  await expect(list.getByRole('listitem')).toHaveCount(4);
+  await expect(main.getByRole('status')).toHaveCount(0);
+  await noHorizontalScroll(page);
+  await list.getByRole('link', { name: /Conjunto de cordas/ }).click();
+  await expect(main.getByRole('heading', { level: 1 })).toContainText('Conjunto de cordas');
+  await noHorizontalScroll(page);
 });
 
 test('lista «A comprar»: nova compra, marcar comprado com inventário e despesa existente', async ({ page }, info) => {
@@ -483,18 +700,24 @@ test.describe('capturas', () => {
       await mockInventario(page, true, true);
       await page.goto('/inventario');
       await shoot(page, info, theme, 'inventario-lista');
+      await page.goto('/inventario?alerta=stock');
+      await shoot(page, info, theme, 'inventario-stock-baixo');
+      await page.goto('/inventario?local=Arrecada%C3%A7%C3%A3o');
+      await page.locator('main').getByRole('list', { name: 'Material' }).waitFor();
+      await openFilters(page);
+      await shoot(page, info, theme, 'inventario-mais-filtros');
       await page.goto('/inventario/artigo/i1');
       await shoot(page, info, theme, 'inventario-artigo');
       await page.goto('/inventario/comprar');
       await shoot(page, info, theme, 'inventario-comprar');
       await page.goto('/inventario/emprestimos');
       await shoot(page, info, theme, 'inventario-emprestimos');
+      await page.goto('/inventario/emprestimos?ver=reservas');
+      await shoot(page, info, theme, 'inventario-reservas');
       await page.goto('/inventario/novo');
       await shoot(page, info, theme, 'inventario-formulario');
-      await page.goto('/inventario/reservas');
-      await shoot(page, info, theme, 'inventario-reservas');
-      await page.goto('/inventario/alertas');
-      await shoot(page, info, theme, 'inventario-alertas');
+      await page.locator('main summary').filter({ hasText: 'Mais detalhes' }).click();
+      await shoot(page, info, theme, 'inventario-formulario-detalhes');
       await page.goto('/inventario/categorias');
       await shoot(page, info, theme, 'inventario-tipos');
       await page.goto('/inventario?q=nada-disto');
@@ -502,6 +725,8 @@ test.describe('capturas', () => {
       await page.goto('/inventario/artigo/i1');
       await page.locator('main .page-head').getByRole('button', { name: 'Mais ações' }).click();
       await shoot(page, info, theme, 'inventario-artigo-menu');
+      await page.getByRole('button', { name: 'Reservar', exact: true }).click();
+      await shoot(page, info, theme, 'inventario-reservar');
     });
   }
 });

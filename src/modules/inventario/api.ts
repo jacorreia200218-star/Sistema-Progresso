@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
 import type { Tone } from '../../lib/labels';
-import { formatLisbon } from '../common';
+import { formatLisbon, lisbonDay, lisbonTime } from '../common';
+import type { EventChoice } from '../EventSelect';
 
 export type ItemState = 'disponivel' | 'emprestado' | 'reservado' | 'danificado' | 'reparacao';
 export type Condition = 'disponivel' | 'danificado' | 'reparacao';
@@ -160,6 +161,16 @@ export function placeParts(i: Pick<Item, 'room' | 'cabinet' | 'shelf' | 'box' | 
   if (!parts.length && i.location) return [{ label: 'Local', value: i.location }];
   return parts;
 }
+
+/** Atividades do calendário no formato do seletor comum (dia e hora em Lisboa; sem hora nos de dia inteiro). */
+export function eventChoices(list: EventOption[]): EventChoice[] {
+  return list.map((e) => ({ id: e.id, title: e.title, day: lisbonDay(e.starts_at), time: e.all_day ? null : lisbonTime(e.starts_at) }));
+}
+
+/** Abaixo do mínimo: a mesma regra dos alertas no servidor (disponível < mínimo, não arquivado). */
+export const isLowStock = (i: Item) => !i.archived_at && i.min_quantity != null && i.stock.available < i.min_quantity;
+/** Com unidades danificadas ou em reparação. */
+export const isBroken = (i: Item) => !i.archived_at && (i.stock.damaged > 0 || i.stock.repair > 0);
 
 /** «3 un.» / «1 par» */
 export const qty = (n: number, unit: string) => `${n} ${unit}`;
