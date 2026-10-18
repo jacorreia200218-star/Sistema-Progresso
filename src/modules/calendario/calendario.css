@@ -194,3 +194,26 @@
 .cal-repeat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 12px; }
 .cal-repeat .checkbox { margin: 0; }
 .cal-repeat .date-input { max-width: 190px; }
+
+/* Detalhe do evento como ponto de ligação: separadores e módulos ligados */
+.ev-tabs { position: relative; margin: 4px 0 12px; scrollbar-width: none; }
+.ev-tabs::-webkit-scrollbar { display: none; }
+.ev-tabs .tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ev-tabs .fc-n { margin-left: 2px; }
+.ev-panel:focus-visible { outline: none; }
+.ev-link h2 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.ev-link h2 svg { color: var(--ink-soft); flex: none; }
+.ev-link-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 8px; }
+.ev-link .label { display: flex; align-items: center; gap: 6px; margin: 10px 0 2px; color: var(--ink-soft); font-size: var(--fs-small); }
+.ev-link .label:first-of-type { margin-top: 0; }
+.ev-link > p { margin: 0; }
+.ev-head-btn { min-height: 34px; padding: 6px 12px; }
+.ev-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.ev-stats > div { flex: 1 1 120px; padding: 8px 12px; border-radius: 10px; background: var(--surface-3); min-width: 0; }
+.ev-stats dt { font-size: var(--fs-small); color: var(--ink-soft); }
+.ev-stats dd { margin: 2px 0 0; font-weight: 700; font-size: var(--fs-section); font-variant-numeric: tabular-nums; }
+.ev-task { align-items: flex-start; gap: 10px; }
+.ev-task .grow { display: grid; gap: 2px; min-width: 0; }
+.ev-task-title { font-weight: 700; overflow-wrap: anywhere; line-height: 1.35; }
+.ev-task-meta { font-size: var(--fs-small); overflow-wrap: anywhere; }
+.ev-task .badge { flex: none; }
