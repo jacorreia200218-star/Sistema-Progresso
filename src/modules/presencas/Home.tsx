@@ -1,14 +1,16 @@
 // Página inicial: quadro (membros × sessões), sessões, pessoas e resumo para quem regista;
 // «As minhas presenças» para os restantes. Filtros e vista ficam no endereço.
-import { Link } from 'react-router-dom';
-import { BarChart3, CalendarDays, Plus, Table2, Users } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertCircle, BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Plus, Table2, Users } from 'lucide-react';
 import { Empty, ErrorBox, Loading, PageTitle } from '../../components/ui';
 import { useActiveSection } from '../../lib/session';
 import { formatDay, todayLisbon } from '../common';
 import { useModuleCtx } from '../ModuleShell';
-import { formatRate, KIND_LABEL, useBoard, useNarrow, type Board, type Cell, type Stats } from './api';
+import { EventSelect, type EventChoice } from '../EventSelect';
+import { fillSummary, formatRate, KIND_LABEL, needsFilling, useBoard, useNarrow, type Board, type Cell, type Stats } from './api';
 import { MemberView } from './MemberPage';
-import { Filters, Legend, markLabel, periodQuery, StatsTiles, StatusMark, useParam, usePeriod } from './parts';
+import { AbbrHead, AbbrLegend, AbbrText, Filters, Legend, markLabel, periodQuery, StatsTiles, StatusMark, useParam, usePeriod } from './parts';
 
 type View = 'quadro' | 'sessoes' | 'pessoas' | 'resumo';
 
@@ -60,11 +62,49 @@ function RegisterHome() {
       </div>
       {board.isLoading && <Loading />}
       <ErrorBox error={board.error} retry={() => board.refetch()} />
+      {d && d.sessions.length > 0 && <FillBar d={d} />}
       {d && view === 'quadro' && <BoardTable d={d} />}
       {d && view === 'sessoes' && <SessionList d={d} />}
       {d && view === 'pessoas' && <PeopleList d={d} />}
       {d && view === 'resumo' && <Summary d={d} />}
     </div>
+  );
+}
+
+/**
+ * Sessões por preencher e atalho para registar: escolhe a sessão (por omissão, a mais recente
+ * por preencher) e abre o registo. Enquanto houver sessões por preencher, as taxas são provisórias.
+ */
+function FillBar({ d }: { d: Board }) {
+  const nav = useNavigate();
+  const fill = fillSummary(d.sessions);
+  const usable = d.sessions.filter((s) => s.status === 'ativa' && s.applicable > 0);
+  const firstOpen = [...usable].reverse().find(needsFilling);
+  const [pick, setPick] = useState<string | null>(null);
+  const chosen = pick ?? firstOpen?.id ?? '';
+  const events: EventChoice[] = usable.map((s) => ({
+    id: s.id, title: s.title, day: s.date, team_name: s.team_name,
+    note: needsFilling(s) ? `${s.applicable - s.registered} por registar` : s.future ? 'futura' : 'preenchida',
+  }));
+  const q = periodQuery();
+  return (
+    <section className={`card pres-fill-bar${fill.sessions ? ' pending' : ''}`} aria-label="Registar presenças">
+      <p className="pres-fill-text" data-testid="por-preencher">
+        {fill.sessions > 0 ? (
+          <><AlertCircle size={16} aria-hidden="true" /> <strong>{fill.sessions} {fill.sessions === 1 ? 'sessão por preencher' : 'sessões por preencher'}</strong>
+            <span className="faint pres-block pres-fill-sub">{fill.missing} {fill.missing === 1 ? 'registo em falta' : 'registos em falta'} · taxas provisórias</span></>
+        ) : (
+          <><CheckCircle2 size={16} aria-hidden="true" /> <span>Todas as sessões até hoje estão preenchidas.</span></>
+        )}
+      </p>
+      {usable.length > 0 && (
+        <form className="pres-fill-pick" onSubmit={(e) => { e.preventDefault(); if (chosen) nav(`/presencas/sessoes/${chosen}${q}`); }}>
+          <label htmlFor="pres-pick" className="pres-fill-label">Sessão</label>
+          <EventSelect id="pres-pick" value={chosen} onChange={setPick} events={events} placeholder="Procurar sessão" empty="Escolhe a sessão" />
+          <button type="submit" className="btn" disabled={!chosen}><ClipboardCheck size={16} aria-hidden="true" /> Registar</button>
+        </form>
+      )}
+    </section>
   );
 }
 
@@ -125,11 +165,11 @@ function BoardTable({ d }: { d: Board }) {
                   </th>
                 );
               })}
-              <th scope="col" className="pres-num pres-num-first" title="Presenças">P</th>
-              <th scope="col" className="pres-num" title="Faltas justificadas">FJ</th>
-              <th scope="col" className="pres-num" title="Faltas injustificadas">FI</th>
-              <th scope="col" className="pres-num" title="Por registar">PR</th>
-              <th scope="col" className="pres-num" title="Taxa de assiduidade">Taxa</th>
+              <AbbrHead k="P" className="pres-num pres-num-first" />
+              <AbbrHead k="FJ" />
+              <AbbrHead k="FI" />
+              <AbbrHead k="PR" />
+              <th scope="col" className="pres-num" title="Taxa de assiduidade = P ÷ (P + FJ + FI)">Taxa</th>
               <th className="pres-fill" aria-hidden="true" />
             </tr>
           </thead>
@@ -164,7 +204,7 @@ function BoardTable({ d }: { d: Board }) {
           </tbody>
         </table>
       </div>
-      <Legend />
+      <Legend abbr />
     </div>
   );
 }
@@ -221,7 +261,7 @@ function PeopleList({ d }: { d: Board }) {
             <div className="grow">
               <div className="pres-row-title">{m.name}{!m.active && <span className="faint pres-small"> (saiu)</span>}</div>
               <div className="faint pres-small">
-                {m.team_name ?? 'Sem equipa'} · {m.stats.presencas} P{m.stats.parciais ? ` (${m.stats.parciais} parc.)` : ''} · {m.stats.justificadas} FJ · {m.stats.injustificadas} FI
+                {m.team_name ?? 'Sem equipa'} · {m.stats.presencas} <AbbrText k="P" />{m.stats.parciais ? ` (${m.stats.parciais} parc.)` : ''} · {m.stats.justificadas} <AbbrText k="FJ" /> · {m.stats.injustificadas} <AbbrText k="FI" />
                 {m.stats.por_registar > 0 && ` · ${m.stats.por_registar} por registar`}
               </div>
             </div>
@@ -269,11 +309,11 @@ function SummaryTable({ first, rows }: { first: string; rows: { key: string; lab
         <thead>
           <tr>
             <th scope="col">{first}</th>
-            <th scope="col" className="pres-num" title="Presenças">P</th>
-            <th scope="col" className="pres-num" title="Faltas justificadas">FJ</th>
-            <th scope="col" className="pres-num" title="Faltas injustificadas">FI</th>
-            <th scope="col" className="pres-num" title="Por registar">PR</th>
-            <th scope="col" className="pres-num">Taxa</th>
+            <AbbrHead k="P" />
+            <AbbrHead k="FJ" />
+            <AbbrHead k="FI" />
+            <AbbrHead k="PR" />
+            <th scope="col" className="pres-num" title="Taxa de assiduidade">Taxa</th>
           </tr>
         </thead>
         <tbody>
@@ -285,7 +325,7 @@ function SummaryTable({ first, rows }: { first: string; rows: { key: string; lab
           ))}
         </tbody>
       </table>
-      <p className="faint pres-small">P: presenças (parciais entre parênteses) · FJ: faltas justificadas · FI: faltas injustificadas · PR: por registar.</p>
+      <p className="pres-legend pres-legend-plain"><AbbrLegend /></p>
     </div>
   );
 }
