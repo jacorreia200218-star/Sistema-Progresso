@@ -1,0 +1,24 @@
+/* Calendário do iCloud: etiqueta de origem, aviso no detalhe e gestão. */
+.cal-src {
+  display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 0 6px; border-radius: 99px;
+  font-size: var(--fs-xs); line-height: 1.6; color: var(--ink-faint); background: var(--surface-3); vertical-align: 1px; white-space: nowrap;
+}
+.cal-src.is-off { color: var(--amber); background: var(--amber-tint); }
+.cal-src svg { flex: none; }
+.cal-src-note { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 12px; padding: 8px 12px; border-radius: var(--radius);
+  background: var(--surface-3); color: var(--ink-soft); font-size: var(--fs-small); }
+.cal-src-note svg { flex: none; margin-top: 2px; }
+
+.icloud-admin .icloud-intro { margin: 0 0 12px; }
+.icloud-admin h2 { margin-top: 0; }
+.icloud-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.icloud-head h3 { margin: 0; font-size: var(--fs-body); }
+.icloud-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.icloud-mask { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--fs-xs); color: var(--ink-faint); overflow-wrap: anywhere; margin: 4px 0 8px; }
+.icloud-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0 0 8px; font-size: var(--fs-small); }
+.icloud-facts dt { color: var(--ink-faint); }
+.icloud-facts dd { margin: 0; overflow-wrap: anywhere; }
+.icloud-preview { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 10px 0; }
+.icloud-preview ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-small); }
+.icloud-reminders { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+@media (max-width: 480px) { .icloud-facts { grid-template-columns: 1fr; } .icloud-facts dt { margin-top: 4px; } }

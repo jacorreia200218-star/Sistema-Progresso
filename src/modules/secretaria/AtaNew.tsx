@@ -8,24 +8,21 @@ import { ErrorBox, Field, Loading, MoreOptions, PageTitle } from '../../componen
 import { DateInput, TimeInput } from '../../components/DateInput';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
-import { MEETING_DEFAULT, nextSaturday, todayLisbon } from '../common';
-import { BASE, eventLabel, useSectionId, type AtaEvent } from './api';
+import { MEETING_DEFAULT, lisbonTime, todayLisbon, useModule } from '../common';
+import { EventSelect, type EventChoice } from '../EventSelect';
+import { useModuleCtx } from '../ModuleShell';
+import { BASE, useSectionId, type AtaEvent } from './api';
 
-/** Sábado mais recente (o próprio dia, se for sábado): a ata costuma ser da última reunião. */
-function lastSaturday() {
-  const today = todayLisbon();
-  const next = nextSaturday(today);
-  if (next === today) return today;
-  const d = new Date(`${next}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - 7);
-  return d.toISOString().slice(0, 10);
-}
+const toChoice = (e: AtaEvent): EventChoice => ({
+  id: e.id, title: e.title, day: e.day, time: !e.all_day && e.starts_at ? lisbonTime(e.starts_at) : null,
+  team_name: e.team_name, note: e.ata_id ? 'já tem ata' : null,
+});
 
 function NewEvent({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
   const section = useSectionId();
   const action = useAction();
   const [title, setTitle] = useState<string>(MEETING_DEFAULT.title);
-  const [day, setDay] = useState(lastSaturday);
+  const [day, setDay] = useState(todayLisbon);
   const [start, setStart] = useState<string>(MEETING_DEFAULT.start);
   const [end, setEnd] = useState<string>(MEETING_DEFAULT.end);
 
@@ -37,7 +34,7 @@ function NewEvent({ onCreated, onCancel }: { onCreated: (id: string) => void; on
   }
 
   return (
-    <div className="sec-item-form" role="group" aria-label="Criar no calendário">
+    <div className="sec-item-form" role="group" aria-label="Criar evento no calendário">
       <div className="sec-grid">
         <Field label="Nome do evento" htmlFor="ata-ev-title">
           <input id="ata-ev-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
@@ -71,14 +68,14 @@ export function AtaNew() {
   const [body, setBody] = useState('');
   const [reserved, setReserved] = useState(false);
   const [creating, setCreating] = useState(false);
+  const { space } = useModuleCtx();
+  const cal = useModule('calendario');
   const [errors, setErrors] = useState<{ event?: string; body?: string }>({});
 
   const list = events.data ?? [];
   const chosen = list.find((e) => e.id === event) ?? null;
   // Um evento pedido no endereço que já não está na lista (antigo ou cancelado) não fica escolhido.
   useEffect(() => { if (events.data && event && !chosen) setEvent(''); }, [events.data]);
-  // Sem eventos, abre logo «Criar no calendário».
-  useEffect(() => { if (events.data && events.data.length === 0) setCreating(true); }, [events.data]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -98,25 +95,35 @@ export function AtaNew() {
       <ErrorBox error={events.error} retry={() => events.refetch()} />
       {events.data && (
         <form className="card sec-form" onSubmit={submit} noValidate>
-          <Field label="Evento" htmlFor="ata-event">
-            <select id="ata-event" value={event} onChange={(e) => setEvent(e.target.value)} aria-invalid={!!errors.event}>
-              <option value="">Escolhe o evento do calendário</option>
-              {list.map((ev) => <option key={ev.id} value={ev.id}>{eventLabel(ev)}{ev.ata_id ? ' (já tem ata)' : ''}</option>)}
-            </select>
-            {errors.event && <span className="sec-error">{errors.event}</span>}
-            {chosen?.ata_id && (
-              <span className="sec-meta">Este evento já tem ata. <Link to={`${BASE}/atas/${chosen.ata_id}`}>Abrir a ata</Link></span>
-            )}
-          </Field>
+          {list.length === 0 && !creating ? (
+            <div className="sec-empty-events">
+              <p className="faint">Ainda não há eventos no calendário para associar a esta ata.</p>
+              <button type="button" className="btn secondary" onClick={() => setCreating(true)}>
+                <CalendarPlus size={16} aria-hidden="true" /> Criar reunião
+              </button>
+            </div>
+          ) : (
+            <Field label="Evento" htmlFor="ata-event">
+              <EventSelect id="ata-event" value={event} onChange={setEvent} events={list.map(toChoice)} invalid={!!errors.event}
+                placeholder="Procurar evento por nome ou data" />
+              {errors.event && <span className="sec-error">{errors.event}</span>}
+              {chosen?.ata_id && (
+                <span className="sec-meta">Este evento já tem ata. <Link to={`${BASE}/atas/${chosen.ata_id}`}>Abrir a ata</Link></span>
+              )}
+              {cal.space === 'teste' && space === 'real' && (
+                <span className="faint sec-meta">Só aparecem eventos reais; os de teste do calendário ficam à parte.</span>
+              )}
+            </Field>
+          )}
           {creating ? (
             <NewEvent onCancel={() => setCreating(false)} onCreated={async (id) => {
               await events.refetch();
               setEvent(id);
               setCreating(false);
             }} />
-          ) : (
+          ) : list.length > 0 && (
             <button type="button" className="btn ghost sec-add" onClick={() => setCreating(true)}>
-              <CalendarPlus size={16} aria-hidden="true" /> Criar no calendário
+              <CalendarPlus size={16} aria-hidden="true" /> Criar evento
             </button>
           )}
           <Field label="Ata" htmlFor="ata-body">

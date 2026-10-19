@@ -5,8 +5,9 @@ import { ConfirmButton, Empty, ErrorBox, Field, Loading, Notice } from '../../co
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { formatDay, formatEuros, parseEuros } from '../common';
-import { KIND_LABEL, useActivities, useActivityResults, useOptions, useSectionId, type ActivityResult, type Kind } from './api';
+import { KIND_LABEL, activityChoices, useActivities, useActivityResults, useOptions, useSectionId, type ActivityResult, type Kind } from './api';
 import { useCanManage } from './shared';
+import { EventSelect } from '../EventSelect';
 
 export function ActivitiesPage() {
   const q = useActivityResults();
@@ -131,10 +132,7 @@ function BudgetForm() {
       {!acts.isLoading && !acts.data?.length && <Notice kind="info">Ainda não há atividades no Calendário deste espaço.</Notice>}
       <div className="grid-2">
         <Field label="Atividade" htmlFor="b-act">
-          <select id="b-act" value={activity} onChange={(e) => setActivity(e.target.value)}>
-            <option value="">Escolhe…</option>
-            {(acts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
-          </select>
+          <EventSelect id="b-act" value={activity} onChange={setActivity} events={activityChoices(acts.data)} placeholder="Escolhe…" loading={acts.isLoading} />
         </Field>
         <Field label="Tipo" htmlFor="b-kind">
           <select id="b-kind" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>

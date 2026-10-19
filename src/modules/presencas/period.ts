@@ -70,3 +70,17 @@ export function rateSentence(s: RateInput): string {
   return `${formatRate(s.taxa)} (${s.presencas} ${s.presencas === 1 ? 'presença' : 'presenças'} em ${s.contadas} ${s.contadas === 1 ? 'sessão contada' : 'sessões contadas'})`;
 }
 
+// ---------------------------------------------------------------------------
+// Sessões por preencher (antes de tirar conclusões sobre a assiduidade).
+// ---------------------------------------------------------------------------
+export interface FillInput { status: 'ativa' | 'cancelada'; future: boolean; applicable: number; registered: number }
+
+/** Por preencher: já aconteceu, não foi cancelada e falta registar alguém. */
+export const needsFilling = (s: FillInput) => s.status === 'ativa' && !s.future && s.registered < s.applicable;
+
+/** Quantas sessões estão por preencher e quantos registos faltam nelas. */
+export function fillSummary(sessions: FillInput[]): { sessions: number; missing: number } {
+  const open = sessions.filter(needsFilling);
+  return { sessions: open.length, missing: open.reduce((n, s) => n + (s.applicable - s.registered), 0) };
+}
+

@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../components/ui';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
-import { formatDay, MEETING_DEFAULT, nextSaturday, todayLisbon } from '../common';
+import { formatDay, lisbonDay, lisbonTime, MEETING_DEFAULT, nextSaturday, todayLisbon } from '../common';
+import { EventSelect, type EventChoice } from '../EventSelect';
 import { useSectionId, type Board, type EventOption, type SessionDetail } from './api';
 import { DateInput } from '../../components/DateInput';
 
@@ -47,6 +48,13 @@ export function SessionForm() {
     ...(options.data ?? []),
   ];
   const ev = evOptions.find((e) => e.id === event);
+  // Formato comum do seletor: «DD/MM/AAAA · Nome» (hora/equipa só para distinguir homónimos).
+  const evChoices: EventChoice[] = evOptions.map((e) => ({
+    id: e.id, title: e.title, team_name: e.team_name,
+    day: e.starts_at ? lisbonDay(e.starts_at) : e.start,
+    time: e.starts_at && !e.all_day ? lisbonTime(e.starts_at) : null,
+    note: e.end && e.end !== e.start ? `até ${formatDay(e.end)}` : null,
+  }));
   const pickEvent = (eid: string) => {
     setEvent(eid);
     const e = evOptions.find((x) => x.id === eid);
@@ -87,12 +95,8 @@ export function SessionForm() {
         </Field>
         <MoreOptions open={!!existing.data?.session && (!!existing.data.session.cal_event || !!existing.data.session.team_id)}>
           <Field label="Atividade do Calendário" htmlFor="pres-event">
-            <select id="pres-event" value={event} onChange={(e) => pickEvent(e.target.value)}>
-              <option value="">Nenhuma (sessão própria)</option>
-              {evOptions.map((e) => (
-                <option key={e.id} value={e.id}>{formatDay(e.start)} · {e.title}{e.team_name ? ` (${e.team_name})` : ''}</option>
-              ))}
-            </select>
+            <EventSelect id="pres-event" value={event} onChange={pickEvent} events={evChoices} empty="Nenhuma (sessão própria)"
+              loading={options.isLoading} />
           </Field>
           <Field label="Tipo" htmlFor="pres-kind">
             <select id="pres-kind" value={kind} onChange={(e) => setKind(e.target.value as 'reuniao')}>

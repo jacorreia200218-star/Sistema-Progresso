@@ -1,22 +1,24 @@
 // Vista principal: calendário anual (ano civil ou ano escutista) com feriados, fins de
-// semana, dias com atividades e dias livres; lista curta das próximas atividades e
-// «O que te falta». Vista secundária: lista completa das próximas atividades.
-import { useEffect, useMemo, useRef } from 'react';
+// semana, dias com atividades e dias sem atividades registadas; por baixo (no telemóvel,
+// «O que te falta» por cima), um resumo curto: as três pendências mais próximas, as próximas
+// atividades e as datas para planear. Vista secundária: lista completa das próximas atividades.
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Download, Plus, Settings, X } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, Download, Plus, Settings, X } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
 import { Empty, ErrorBox, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { downloadFile, formatDay, formatLisbon, MONTHS, todayLisbon } from '../common';
+import { downloadFile, formatDay, MONTHS, todayLisbon } from '../common';
 import {
-  addDays, addMonths, busyDays, coversDay, eventDays, monthOf, period, sortKey, weekday, weekdayName, whenLabel, yearOf,
-  type CalListItem, type MyPending, type Period, type YearMode,
+  addDays, addMonths, busyDays, coversDay, eventDays, monthOf, period, sortKey, weekday, weekdayName, yearOf,
+  type CalListItem, type Period, type YearMode,
 } from './cal';
-import { dayMarks, freeSlots, isHoliday, MARK_LABEL, type DayMark, type SpecialDay } from './holidays';
+import { dayMarks, freeSlots, isHoliday, MARK_LABEL, type DayMark, type FreeSlot, type SpecialDay } from './holidays';
 import { buildIcs } from './ics';
-import { EventRow, MissingList, useParam } from './shared';
+import { EventRow, useParam } from './shared';
+import { PendingCard, PendingStrip, usePendingSummary } from './Pending';
 
 export interface CalConfig { year_start_month: number; can_manage: boolean; special_days: SpecialDay[] }
 
@@ -81,32 +83,18 @@ function ExportButton({ events, name, label = 'Exportar lista (.ics)' }: { event
   );
 }
 
-function MyPendingCard() {
-  const section = useActiveSection().membership.section_id;
-  const { space } = useModuleCtx();
-  const q = useQuery({ queryKey: ['cal-my-pending', section, space], queryFn: () => call<MyPending[]>('cal_my_pending', { p_section: section }) });
-  if (!q.data?.length) return null;
-  return (
-    <section className="card cal-todo" aria-labelledby="cal-todo-h">
-      <h2 id="cal-todo-h">O que te falta</h2>
-      <ul className="list">
-        {q.data.map((p) => (
-          <li key={p.id}>
-            <Link to={`/calendario/evento/${p.id}`} className="list-item">
-              <span className="grow">
-                <span className="cal-event-title">{p.title}</span>
-                <span className="cal-event-meta faint">
-                  {whenLabel(p)}
-                  {p.registration_deadline && <> · {p.deadline_passed ? 'Prazo terminou' : 'Prazo'}: {formatLisbon(p.registration_deadline)}</>}
-                </span>
-                <MissingList missing={p.missing} label="Falta-te" />
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
+/** Ecrã estreito (telemóvel). */
+function useNarrow(query = '(max-width: 640px)') {
+  const get = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+  const [narrow, setNarrow] = useState(get);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(query);
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return narrow;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,9 +114,10 @@ function Upcoming({ onlyMine }: { onlyMine: boolean }) {
     }
     return out;
   }, [q.data, today, onlyMine]);
+  const pending = usePendingSummary();
   return (
     <>
-      <MyPendingCard />
+      <PendingCard s={pending} />
       {q.isLoading ? <Loading /> : q.error ? <ErrorBox error={q.error} retry={() => q.refetch()} /> : !groups.length ? (
         <Empty title={onlyMine ? 'Não tens atividades marcadas.' : 'Ainda não há atividades marcadas.'}>
           <p className="faint">As novas atividades aparecem aqui assim que forem criadas.</p>
@@ -158,6 +147,9 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const [yearParam, setYear] = useParam('ano');
   const [day, setDay] = useParam('dia');
   const [highlight, setHighlight] = useParam('livres');
+  const [range, setRange] = useParam('livres_de');
+  const narrow = useNarrow();
+  const pending = usePendingSummary();
   const thisYear = yearOf(today, mode, startMonth);
   const year = /^\d{4}$/.test(yearParam) ? Number(yearParam) : thisYear;
   const p = period(mode, year, startMonth);
@@ -167,59 +159,127 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const marks = useMemo(() => dayMarks(p.from, p.to, cfg.data?.special_days ?? []), [p.from, p.to, cfg.data]);
   const busyAll = useMemo(() => busyDays(all, p.from, p.to), [all, p.from, p.to]);
   const busyShown = useMemo(() => (onlyMine ? busyDays(shown, p.from, p.to) : busyAll), [onlyMine, shown, busyAll, p.from, p.to]);
-  const free = useMemo(() => freeSlots(p.from, p.to, busyAll, marks), [p.from, p.to, busyAll, marks]);
-  const freeDays = useMemo(() => {
-    const s = new Set<string>();
-    for (const f of free) for (let d = f.from; d <= f.to; d = addDays(d, 1)) s.add(d);
-    return s;
-  }, [free]);
-  const go = (y: number) => setYear(y === thisYear ? '' : String(y), { dia: '' });
+  // Datas sem atividades: por omissão só a partir de hoje (se o período já começou e ainda não acabou).
+  const canFuture = p.from < today && today <= p.to;
+  const futureOnly = canFuture && range !== 'inicio';
+  const freeFrom = futureOnly ? today : p.from;
+  const free = useMemo(() => freeSlots(freeFrom, p.to, busyAll, marks), [freeFrom, p.to, busyAll, marks]);
+  const freeAll = useMemo(() => (freeFrom === p.from ? free : freeSlots(p.from, p.to, busyAll, marks)), [free, freeFrom, p.from, p.to, busyAll, marks]);
+  const freeDays = useMemo(() => slotDays(free), [free]);
+  const freeAllDays = useMemo(() => slotDays(freeAll), [freeAll]);
   const selected = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
   const ready = !cfg.isLoading && !q.isLoading;
+  const pickRef = useRef(setDay);
+  pickRef.current = setDay;
+  const pick = useCallback((d: string) => pickRef.current(d), []);
+
+  // Navegação por teclado: um só ponto de paragem (Tab) na grelha; setas mudam de dia.
+  const [focusDay, setFocusDay] = useState<string | null>(null);
+  const inPeriod = (d: string | null): d is string => !!d && d >= p.from && d <= p.to;
+  const tabStop = inPeriod(focusDay) ? focusDay : inPeriod(selected) ? selected : inPeriod(today) ? today : p.from;
+  const onGridKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const d = (e.target as HTMLElement).closest<HTMLElement>('[data-day]')?.dataset.day;
+    if (!d) return;
+    const n = keyTarget(d, e.key);
+    if (!n) return;
+    e.preventDefault();
+    if (!inPeriod(n)) return;
+    setFocusDay(n);
+    const el = document.querySelector<HTMLElement>(`button[data-day="${n}"]`);
+    el?.focus({ preventScroll: true });
+    el?.scrollIntoView({ block: 'nearest' });
+  };
+
+  // «Hoje» abre o dia de hoje; «Ir para o mês atual» desloca até ao mês atual. Ambos mantêm a vista anual.
+  const toMonth = useRef(false);
+  const scrollToCurrent = () => {
+    document.getElementById(`mes-${monthOf(today)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setFocusDay(today);
+    document.querySelector<HTMLElement>(`button[data-day="${today}"]`)?.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    if (toMonth.current && year === thisYear) { toMonth.current = false; scrollToCurrent(); }
+  });
+  const go = (y: number) => setYear(y === thisYear ? '' : String(y), { dia: '' });
+  const goToday = () => (year === thisYear ? setDay(today) : setYear('', { dia: today }));
+  const goMonth = () => {
+    if (year === thisYear) scrollToCurrent();
+    else { toMonth.current = true; go(thisYear); }
+  };
 
   return (
     <>
       <div className="cal-year-nav">
-        <button type="button" className="btn ghost icon-btn" aria-label="Ano anterior" onClick={() => go(year - 1)}><ChevronLeft size={20} aria-hidden="true" /></button>
-        <h2 className="cal-year-heading" aria-live="polite">{mode === 'escutista' ? `Ano escutista ${p.label}` : `Ano ${p.label}`}</h2>
-        <button type="button" className="btn ghost icon-btn" aria-label="Ano seguinte" onClick={() => go(year + 1)}><ChevronRight size={20} aria-hidden="true" /></button>
-        {year !== thisYear && <button type="button" className="btn secondary cal-today" onClick={() => go(thisYear)}>Hoje</button>}
+        <div className="cal-year-step">
+          <button type="button" className="btn ghost icon-btn" aria-label="Ano anterior" onClick={() => go(year - 1)}><ChevronLeft size={20} aria-hidden="true" /></button>
+          <h2 className="cal-year-heading" aria-live="polite">{mode === 'escutista' ? `Ano escutista ${p.label}` : `Ano ${p.label}`}</h2>
+          <button type="button" className="btn ghost icon-btn" aria-label="Ano seguinte" onClick={() => go(year + 1)}><ChevronRight size={20} aria-hidden="true" /></button>
+        </div>
+        <div className="cal-year-jump">
+          <button type="button" className="btn secondary cal-today" onClick={goToday}><CalendarCheck size={16} aria-hidden="true" /> Hoje</button>
+          <button type="button" className="btn ghost cal-to-month" onClick={goMonth}>Ir para o mês atual</button>
+        </div>
       </div>
       {mode === 'escutista' && (
         <p className="faint cal-period-hint">De {formatDay(p.from)} a {formatDay(p.to)} (começa em {MONTHS[startMonth - 1]}).</p>
       )}
       {cfg.error || q.error ? <ErrorBox error={cfg.error ?? q.error} retry={() => { cfg.refetch(); q.refetch(); }} /> : (
         <div className="cal-year-layout">
+          {narrow ? <PendingCard s={pending} /> : <PendingStrip s={pending} />}
           <div className="cal-year-main">
             <MonthJump months={p.months} today={today} />
-            <div className={`cal-year${highlight === '1' ? ' show-free' : ''}`} aria-busy={!ready}>
+            <p id="cal-keys" className="sr-only">Usa as setas para mudar de dia e Page Up ou Page Down para mudar de mês.</p>
+            <div className={`cal-year${highlight === '1' ? ' show-free' : ''}`} aria-busy={!ready} onKeyDown={onGridKey}>
               {p.months.map((ym) => (
-                <MiniMonth key={ym} ym={ym} today={today} marks={marks} busy={busyShown} free={freeDays} selected={selected} onPick={(d) => setDay(d)}
+                <MiniMonth key={ym} ym={ym} today={today} marks={marks} busy={busyShown} free={freeDays} selected={selected && monthOf(selected) === ym ? selected : null} onPick={pick}
+                  tabStop={monthOf(tabStop) === ym ? tabStop : null} onFocusDay={setFocusDay}
                   showYear={p.from.slice(0, 4) !== p.to.slice(0, 4) && (ym === p.months[0] || ym.endsWith('-01'))} />
               ))}
             </div>
             <Legend highlight={highlight === '1'} setHighlight={(on) => setHighlight(on ? '1' : '')} />
-            <MarksList p={p} marks={marks} busy={busyAll} onPick={(d) => setDay(d)} />
           </div>
-          <aside className="cal-year-side" aria-label="Resumo">
-            <MyPendingCard />
-            <NextEvents onlyMine={onlyMine} />
-            <FreeCard free={free} today={today} p={p} onPick={(d) => setDay(d)} />
-            {ready && shown.length > 0 && (
-              <div className="btn-row cal-export"><ExportButton events={shown} name={`atividades-${p.label.replace('/', '-')}`} label={`Exportar ${p.label} (.ics)`} /></div>
-            )}
-          </aside>
+          <div className="cal-summary" role="region" aria-label="Resumo">
+            {!narrow && <PendingCard s={pending} counters={false} />}
+            <NextEvents onlyMine={onlyMine} exclude={pending.shownIds} />
+            <FreeCard free={free} p={p} from={freeFrom} canFuture={canFuture} futureOnly={futureOnly}
+              setFutureOnly={(on) => setRange(on ? '' : 'inicio')} onPick={(d) => setDay(d)} />
+          </div>
+          <MarksList p={p} marks={marks} busy={busyAll} onPick={(d) => setDay(d)} />
+          {ready && shown.length > 0 && (
+            <div className="btn-row cal-export"><ExportButton events={shown} name={`atividades-${p.label.replace('/', '-')}`} label={`Exportar ${p.label} (.ics)`} /></div>
+          )}
         </div>
       )}
       {selected && (
         <DayDialog day={selected} events={shown.filter((e) => coversDay(e, selected))} marks={marks.get(selected) ?? []}
-          free={freeDays.has(selected)} onClose={() => setDay('')} />
+          free={freeAllDays.has(selected)} onClose={() => setDay('')} />
       )}
     </>
   );
 }
 
+function slotDays(slots: FreeSlot[]) {
+  const s = new Set<string>();
+  for (const f of slots) for (let d = f.from; d <= f.to; d = addDays(d, 1)) s.add(d);
+  return s;
+}
+
+/** Dia de destino de uma tecla na grelha (setas, Home/End na semana, Page Up/Down no mês). */
+function keyTarget(d: string, key: string): string | null {
+  const steps: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+  if (key in steps) return addDays(d, steps[key]);
+  if (key === 'Home') return addDays(d, -weekday(d));
+  if (key === 'End') return addDays(d, 6 - weekday(d));
+  if (key === 'PageUp' || key === 'PageDown') {
+    const ym = addMonths(monthOf(d), key === 'PageUp' ? -1 : 1);
+    const last = Number(addDays(`${addMonths(ym, 1)}-01`, -1).slice(8));
+    return `${ym}-${String(Math.min(Number(d.slice(8)), last)).padStart(2, '0')}`;
+  }
+  return null;
+}
+
 const WD = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+const WD_SHORT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const WD_FULL = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
 const MONTH_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -228,7 +288,7 @@ function dayLabel(d: string, marks: DayMark[], n: number, free: boolean, today: 
   if (d === today) parts.push('hoje');
   for (const m of marks) parts.push(`${m.kind === 'relevante' ? '' : `${MARK_LABEL[m.kind].toLowerCase()}: `}${m.name}`);
   if (n) parts.push(`${n} ${n === 1 ? 'atividade' : 'atividades'}`);
-  else if (free) parts.push('livre');
+  else if (free) parts.push('sem atividades registadas');
   return parts.join(', ');
 }
 
@@ -242,9 +302,9 @@ function EventMarks({ n }: { n: number }) {
   );
 }
 
-function MiniMonth({ ym, today, marks, busy, free, selected, onPick, showYear }: {
+const MiniMonth = memo(function MiniMonth({ ym, today, marks, busy, free, selected, onPick, showYear, tabStop, onFocusDay }: {
   ym: string; today: string; marks: Map<string, DayMark[]>; busy: Map<string, number>; free: Set<string>;
-  selected: string | null; onPick: (d: string) => void; showYear: boolean;
+  selected: string | null; onPick: (d: string) => void; showYear: boolean; tabStop: string | null; onFocusDay: (d: string) => void;
 }) {
   const first = `${ym}-01`;
   const last = addDays(`${addMonths(ym, 1)}-01`, -1);
@@ -261,7 +321,11 @@ function MiniMonth({ ym, today, marks, busy, free, selected, onPick, showYear }:
         <span className={showYear ? 'cal-mm-year' : 'sr-only'}> {ym.slice(0, 4)}</span>
       </h3>
       <div className="cal-mm-grid">
-        {WD.map((w, i) => <abbr key={i} title={WD_FULL[i]} className={`cal-mm-wd${i >= 5 ? ' is-weekend' : ''}`}>{w}</abbr>)}
+        {WD.map((w, i) => (
+          <abbr key={i} title={WD_FULL[i]} className={`cal-mm-wd${i >= 5 ? ' is-weekend' : ''}`}>
+            <span className="wd-long">{WD_SHORT[i]}</span><span className="wd-short" aria-hidden="true">{w}</span>
+          </abbr>
+        ))}
         {Array.from({ length: lead }, (_, i) => <span key={`b${i}`} className="cal-mm-blank" aria-hidden="true" />)}
         {days.map((d) => {
           const m = marks.get(d) ?? [];
@@ -278,7 +342,8 @@ function MiniMonth({ ym, today, marks, busy, free, selected, onPick, showYear }:
           if (selected === d) cls.push('is-selected');
           return (
             <button key={d} type="button" data-day={d} className={cls.join(' ')} aria-label={label} title={label}
-              aria-current={d === today ? 'date' : undefined} onClick={() => onPick(d)}>
+              aria-current={d === today ? 'date' : undefined} aria-describedby="cal-keys" tabIndex={d === tabStop ? 0 : -1}
+              onFocus={() => onFocusDay(d)} onClick={() => onPick(d)}>
               <span className="cal-dn">{Number(d.slice(8))}</span>
               <EventMarks n={n} />
             </button>
@@ -288,7 +353,7 @@ function MiniMonth({ ym, today, marks, busy, free, selected, onPick, showYear }:
       </div>
     </section>
   );
-}
+});
 
 /** Telemóvel: atalhos para cada mês (os meses ficam em coluna, com os dias em tamanho confortável). */
 function MonthJump({ months, today }: { months: string[]; today: string }) {
@@ -314,7 +379,7 @@ function Legend({ highlight, setHighlight }: { highlight: boolean; setHighlight:
         <li><span className="cal-key key-today" aria-hidden="true" /> Hoje</li>
         <li><span className="cal-key key-weekend" aria-hidden="true" /> Fim de semana</li>
       </ul>
-      <label className="checkbox"><input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} /> Destacar os dias livres</label>
+      <label className="checkbox"><input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} /> Destacar fins de semana e feriados sem atividades</label>
     </div>
   );
 }
@@ -339,11 +404,12 @@ function MarksList({ p, marks, busy, onPick }: { p: Period; marks: Map<string, D
   );
 }
 
-function NextEvents({ onlyMine }: { onlyMine: boolean }) {
+/** Próximas atividades (até três), sem repetir as que já aparecem em «O que te falta». */
+function NextEvents({ onlyMine, exclude }: { onlyMine: boolean; exclude: Set<string> }) {
   const today = todayLisbon();
   const q = useEvents(today, addDays(today, 365));
-  const next = (q.data ?? []).filter((e) => e.status === 'ativo' && (!onlyMine || e.involved))
-    .sort((a, b) => sortKey(a).localeCompare(sortKey(b))).slice(0, 5);
+  const next = (q.data ?? []).filter((e) => e.status === 'ativo' && (!onlyMine || e.involved) && !exclude.has(e.id))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b))).slice(0, 3);
   return (
     <section className="card cal-next" aria-labelledby="cal-next-h">
       <h2 id="cal-next-h">Próximas atividades</h2>
@@ -352,24 +418,35 @@ function NextEvents({ onlyMine }: { onlyMine: boolean }) {
           <ul className="list">{next.map((e) => <EventRow key={e.id} e={e} />)}</ul>
           <Link to="/calendario?vista=lista" className="btn ghost cal-see-all">Ver todas</Link>
         </>
-      ) : <p className="faint">{onlyMine ? 'Não tens atividades marcadas.' : 'Ainda não há atividades marcadas.'}</p>}
+      ) : <p className="faint">{exclude.size ? 'Sem outras atividades marcadas.' : onlyMine ? 'Não tens atividades marcadas.' : 'Ainda não há atividades marcadas.'}</p>}
     </section>
   );
 }
 
-function FreeCard({ free, today, p, onPick }: { free: ReturnType<typeof freeSlots>; today: string; p: Period; onPick: (d: string) => void }) {
-  const upcoming = free.filter((f) => f.to >= today);
+/** Fins de semana e feriados sem atividades registadas da secção (não é disponibilidade confirmada). */
+function FreeCard({ free, p, from, canFuture, futureOnly, setFutureOnly, onPick }: {
+  free: FreeSlot[]; p: Period; from: string; canFuture: boolean; futureOnly: boolean; setFutureOnly: (on: boolean) => void; onPick: (d: string) => void;
+}) {
   const weekends = free.filter((f) => f.kind === 'fim_de_semana').length;
   const holidays = free.filter((f) => f.kind === 'feriado').length;
-  const list = (upcoming.length ? upcoming : free).slice(0, 6);
+  const list = free.slice(0, 4);
   return (
     <section className="card cal-free" aria-labelledby="cal-free-h">
-      <h2 id="cal-free-h">Livres para planear</h2>
+      <div className="cal-card-head">
+        <h2 id="cal-free-h">Sem atividades registadas</h2>
+        {canFuture && (
+          <select className="cal-horizon" aria-label="Período considerado" value={futureOnly ? 'futuro' : 'todo'}
+            onChange={(e) => setFutureOnly(e.target.value === 'futuro')}>
+            <option value="futuro">A partir de hoje</option>
+            <option value="todo">Todo o período</option>
+          </select>
+        )}
+      </div>
+      <p className="faint cal-free-note">De {formatDay(from)} a {formatDay(p.to)} · não confirma a disponibilidade de cada pessoa</p>
       <ul className="cal-free-counts">
-        <li><strong>{weekends}</strong> Fins de semana livres</li>
-        <li><strong>{holidays}</strong> Feriados livres em dias úteis</li>
+        <li><strong>{weekends}</strong> {weekends === 1 ? 'Fim de semana' : 'Fins de semana'}</li>
+        <li><strong>{holidays}</strong> {holidays === 1 ? 'Feriado em dia útil' : 'Feriados em dias úteis'}</li>
       </ul>
-      <p className="faint cal-free-note">Em {p.label}, sem atividades da secção.</p>
       {list.length > 0 && (
         <ul className="cal-free-list">
           {list.map((f) => (
@@ -426,7 +503,7 @@ function DayDialog({ day, events, marks, free, onClose }: { day: string; events:
         {events.length ? (
           <ul className="list">{events.map((e) => <EventRow key={e.id} e={e} />)}</ul>
         ) : (
-          <p className="faint">Sem atividades neste dia.{free && ' Dia livre para planear.'}</p>
+          <p className="faint">Sem atividades registadas neste dia.{free && ' Bom para planear, mas a disponibilidade de cada pessoa não está confirmada.'}</p>
         )}
         {canManage && (
           <div className="btn-row">

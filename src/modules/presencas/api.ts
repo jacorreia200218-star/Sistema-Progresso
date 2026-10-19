@@ -32,7 +32,11 @@ export interface SessionMember {
   membership_id: string; name: string; team_id: string | null; team_name: string | null;
   status: PresStatus | null; partial: boolean; partial_note: string | null; justification: string | null; category: Category;
   updated_at: string | null; updated_by_name: string | null;
+  /** Resposta no Calendário (intenção de ir), só em sessões ligadas a uma atividade. Não é presença. */
+  cal_response?: CalResponse | null;
 }
+export type CalResponse = 'vou' | 'nao_vou' | 'por_confirmar';
+export const CAL_RESPONSE_LABEL: Record<CalResponse, string> = { vou: 'Vou', nao_vou: 'Não vou', por_confirmar: 'Por confirmar' };
 export interface HistoryRow {
   id: number; membership_id?: string; name?: string; session_id?: string; session_title?: string; session_date?: string;
   old_status: PresStatus | null; new_status: PresStatus | null; old_partial: boolean | null; new_partial: boolean | null;
@@ -58,7 +62,10 @@ export interface MemberDetail {
     status: PresStatus | null; partial: boolean; partial_note: string | null; justification: string | null; category: Category }[];
   history: HistoryRow[];
 }
-export interface EventOption { id: string; title: string; audience: string; team_id: string | null; team_name: string | null; start: string; end: string }
+export interface EventOption {
+  id: string; title: string; audience: string; team_id: string | null; team_name: string | null; start: string; end: string;
+  all_day?: boolean; starts_at?: string | null;
+}
 
 export const STATUS_LABEL: Record<PresStatus | 'por_registar', string> = {
   presente: 'Presente', justificada: 'Falta justificada', injustificada: 'Falta injustificada', por_registar: 'Por registar',
@@ -66,6 +73,11 @@ export const STATUS_LABEL: Record<PresStatus | 'por_registar', string> = {
 export const CATEGORY_LABEL: Record<Category, string> = {
   ...STATUS_LABEL, futura: 'Sessão futura', cancelada: 'Sessão cancelada',
 };
+/** Siglas das contagens (com o significado para title/aria-label e para a legenda). */
+export const ABBR = {
+  P: 'Presenças', FJ: 'Faltas justificadas', FI: 'Faltas injustificadas', PR: 'Por registar',
+} as const;
+export type Abbr = keyof typeof ABBR;
 export const KIND_LABEL = { reuniao: 'Reunião', atividade: 'Atividade' } as const;
 
 export const useSectionId = () => useActiveSection().membership.section_id;

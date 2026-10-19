@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMock, leader, pioneer } from './mock-api';
+import { CAPTURAS, THEMES, shoot } from './capturas-util';
 
 async function noHorizontalScroll(page: Page) {
   const width = page.viewportSize()!.width;
@@ -103,6 +104,9 @@ test('notificações: eliminar uma, desfazer, eliminar lidas e limpar todas', as
   await page.getByRole('button', { name: 'Desfazer' }).click();
   await expect(items).toHaveCount(4);
   await expect(page.getByRole('link', { name: 'Notificações, 2 por ler' })).toBeVisible();
+  // Só dados de teste: a chamada leva apenas o identificador da notificação simulada
+  expect(mock.calls.find((c) => c.fn === 'remove_notifications')?.body).toMatchObject({ p_scope: 'ids', p_ids: ['nl1'] });
+  expect(mock.calls.find((c) => c.fn === 'restore_notifications')?.body).toMatchObject({ p_ids: ['nl1'] });
 
   // Selecionar várias
   await items.nth(0).getByRole('checkbox').check();
@@ -228,4 +232,77 @@ test('progresso anterior: só os dirigentes registam, com o trilho completo e a 
   expect(mock.calls.find((c) => c.fn === 'recognize_in_negotiation')?.body).toMatchObject({
     p_membership: 'm-p1', p_comment: 'Concluiu este trilho no agrupamento anterior.', p_reference_date: '2025-06-15',
   });
+});
+
+test('percurso do membro: «Registar progresso anterior» à vista do dirigente, no separador Trilhos', async ({ page }) => {
+  const mock = await installMock(page, leader());
+  await page.goto('/membros/m-p1?separador=etapa');
+  await expect(page.getByRole('tab', { name: 'Etapa', selected: true })).toBeVisible();
+  await expect(page.locator('details', { hasText: 'Registar progresso anterior' })).toHaveCount(0); // já não fica no fundo da etapa
+  const action = page.locator('.member-head').getByRole('button', { name: 'Registar progresso anterior' });
+  await expect(action).toBeVisible();
+  await action.click();
+  await expect(page).toHaveURL(/separador=trilhos/);
+  await expect(page.getByRole('tab', { name: 'Trilhos', selected: true })).toBeVisible();
+  const form = page.locator('details#registar-anterior');
+  await expect(form).toHaveAttribute('open', '');
+  await expect(form.getByLabel('Área')).toBeFocused(); // pronto a usar com o teclado
+  await expect(form.getByLabel('Pioneiro')).toHaveCount(0); // o pioneiro já está escolhido
+  // Os trilhos do pioneiro continuam por baixo
+  await expect(page.locator('[role=tabpanel]').getByRole('link')).toHaveCount(18);
+  // Fechar e voltar a abrir pela ação do topo
+  await form.locator('summary').click();
+  await expect(form).not.toHaveAttribute('open', '');
+  await action.click();
+  await expect(form).toHaveAttribute('open', '');
+
+  await form.getByLabel('Área').selectOption({ index: 1 });
+  await form.getByLabel('Trilho', { exact: true }).selectOption({ index: 1 });
+  const objectives = form.getByRole('list', { name: 'Objetivos do trilho' }).getByRole('listitem');
+  await expect(objectives.first()).toBeVisible();
+  expect(await objectives.count()).toBeGreaterThan(1); // o trilho completo, com todos os objetivos
+  await form.getByLabel('Fundamentação').fill('Concluiu este trilho no agrupamento anterior, confirmado pela chefia de então.');
+  await form.getByLabel('Data relevante').fill('01/03/2025');
+  await form.getByRole('button', { name: 'Registar' }).click();
+  await page.getByRole('group', { name: 'Confirmação' }).getByRole('button', { name: 'Registar' }).click();
+  await expect(form.getByText('Progresso anterior registado.')).toBeVisible();
+  const body = mock.calls.find((c) => c.fn === 'recognize_in_negotiation')?.body;
+  expect(body).toMatchObject({ p_membership: 'm-p1', p_reference_date: '2025-03-01' });
+  expect(typeof body?.p_trail).toBe('string');
+
+  // Ligação direta com o trilho já escolhido; mudar de separador limpa o pedido de registo
+  await page.goto('/membros/m-p1?separador=trilhos&registar=anterior&trilho=social-solidariedade-e-tolerancia');
+  await expect(form).toHaveAttribute('open', '');
+  await expect(form.getByLabel('Trilho', { exact: true })).toHaveValue('t-social-solidariedade-e-tolerancia');
+  await page.getByRole('tab', { name: 'Resumo' }).click();
+  await expect(page).not.toHaveURL(/registar=/);
+});
+
+test('pioneiro: sem a ação de registar progresso anterior', async ({ page }) => {
+  const mock = await installMock(page, pioneer());
+  await page.goto('/membros/m-p1?separador=trilhos&registar=anterior');
+  await expect(page.locator('main h1').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Registar progresso anterior' })).toHaveCount(0);
+  await expect(page.locator('details#registar-anterior')).toHaveCount(0);
+  expect(mock.calls.some((c) => c.fn === 'recognize_in_negotiation')).toBe(false);
+});
+
+test.describe('capturas', () => {
+  test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
+  for (const theme of THEMES) {
+    test(`progresso anterior no percurso ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await page.goto('/membros/m-p1');
+      await shoot(page, info, theme, 'membro-acao-progresso-anterior', { full: false });
+      await page.locator('.member-head').getByRole('button', { name: 'Registar progresso anterior' }).click();
+      const form = page.locator('details#registar-anterior');
+      await form.getByLabel('Área').selectOption({ index: 1 });
+      await form.getByLabel('Trilho', { exact: true }).selectOption({ index: 1 });
+      await form.getByLabel('Fundamentação').fill('Concluiu este trilho no agrupamento anterior, com o acompanhamento da chefia de então e registo na ficha de progresso.');
+      await form.getByLabel('Data relevante').fill('01/03/2025');
+      await shoot(page, info, theme, 'membro-registar-progresso-anterior');
+    });
+  }
 });

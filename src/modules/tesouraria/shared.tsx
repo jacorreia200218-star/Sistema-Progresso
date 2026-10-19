@@ -5,7 +5,8 @@ import { Search } from 'lucide-react';
 import { useModuleCtx } from '../ModuleShell';
 import { todayLisbon } from '../common';
 import { Filters } from '../../components/ui';
-import { filtersFrom, monthLabel, periodLabel, scoutMonths, scoutYearLabel, scoutYearOf, useActivities, useOptions } from './api';
+import { EventSelect } from '../EventSelect';
+import { activityChoices, filtersFrom, monthLabel, periodLabel, scoutMonths, scoutYearLabel, scoutYearOf, useActivities, useOptions } from './api';
 
 /** Só mostra/esconde: o servidor exige sempre a permissão «tesouraria.gerir». */
 export function useCanManage() {
@@ -67,10 +68,11 @@ export function FiltersBar({ years = [], extended }: { years?: number[]; extende
           <option value="">Todos os meses</option>
           {f.ano !== 'todos' && scoutMonths(f.ano).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
         </select>
-        <select aria-label="Atividade" value={f.atividade ?? ''} onChange={(e) => set({ atividade: e.target.value || null })}>
-          <option value="">Atividade: todas</option>
-          {(acts.data ?? []).map((a) => <option key={a.id} value={a.id}>{a.title}</option>)}
-        </select>
+        <div className="fin-filter-act">
+          <label htmlFor="fin-f-act" className="sr-only">Atividade</label>
+          <EventSelect id="fin-f-act" value={f.atividade ?? ''} onChange={(id) => set({ atividade: id || null })}
+            events={activityChoices(acts.data)} empty="Atividade: todas" placeholder="Atividade: todas" loading={acts.isLoading} />
+        </div>
         {extended && (
           <>
             <select aria-label="Categoria" value={f.categoria ?? ''} onChange={(e) => set({ categoria: e.target.value || null })}>

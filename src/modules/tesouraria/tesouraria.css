@@ -133,3 +133,41 @@ a.fin-row:focus-visible { outline: 3px solid var(--focus); outline-offset: -2px;
 .fin-chart-dot { fill: var(--card); stroke: var(--accent-ink); stroke-width: 1.5; }
 .fin-chart-label { fill: var(--ink-faint); font-size: 11px; font-family: Arial, Helvetica, sans-serif; font-variant-numeric: tabular-nums; }
 .fin-chart-table { margin-top: 6px; }
+
+/* Filtro de atividade (seletor comum EventSelect) */
+.fin-filters .filters-body > .fin-filter-act { flex: 1 1 160px; min-width: 0; }
+.fin-filter-act select, .fin-filter-act .search-select { width: 100%; min-width: 0; }
+@media (max-width: 759px) { .fin-filters .filters-body > .fin-filter-act { flex-basis: 100%; } }
+
+/* Indicadores: saldo atual (hoje) à parte do período filtrado (receitas, despesas, resultado) */
+.fin-kpis-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px; align-items: start; }
+@media (min-width: 760px) { .fin-kpis-wrap { gap: 10px; } }
+.fin-kpi-group { min-width: 0; }
+.fin-kpi-group .fin-kpis { margin: 0; }
+.fin-kpi-group:first-child .fin-kpis { grid-template-columns: minmax(0, 1fr); }
+.fin-kpi-group:last-child .fin-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fin-kpi-cap {
+  margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 400; color: var(--ink-soft); text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@media (min-width: 760px) { .fin-kpi-cap { font-size: var(--fs-small); } }
+.fin-kpi-group:last-child .fin-kpi-cap { border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.fin-kpi-group:first-child .fin-kpi-cap { border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.fin-stats .stat.is-unset .stat-value { color: var(--ink-faint); }
+.fin-stats .stat.is-unset .stat-hint { color: var(--amber); }
+
+/* Configuração em falta: uma linha com a ação, sem cartão grande */
+.fin-setup { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; padding: 12px 14px; }
+.fin-setup-icon { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; flex: none;
+  color: var(--accent-ink); background: color-mix(in srgb, var(--accent-ink) 12%, transparent); }
+.fin-setup-text { flex: 1 1 200px; min-width: 0; }
+.fin-setup-text .card-title { margin: 0; }
+.fin-setup-text p { margin: 2px 0 0; font-size: var(--fs-small); }
+
+/* Sem movimentos: estado vazio compacto (sem gráfico) */
+.fin-empty { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 12px 14px; }
+.fin-empty-title { margin: 0; font-size: var(--fs-body); font-weight: 400; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+/* Categorias em uso */
+.fin-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.fin-chip { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: var(--fs-small); color: var(--ink); overflow-wrap: anywhere; }

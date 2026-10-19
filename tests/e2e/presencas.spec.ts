@@ -35,7 +35,7 @@ function stats(cells: Row[]) {
 }
 
 /** API simulada das Presenças, com estado. */
-async function installPres(page: Page, opts: { register?: boolean; many?: boolean } = {}) {
+async function installPres(page: Page, opts: { register?: boolean; many?: boolean; linked?: boolean } = {}) {
   const register = opts.register ?? true;
   // Quadro grande (só para as capturas): muitas pessoas, nomes longos e muitas sessões.
   const extra = opts.many ? ['Maria Inês Albuquerque Figueiredo', 'João Pedro Vasconcelos', 'Beatriz Sousa', 'Tomás Rodrigues Carvalho', 'Leonor Martins',
@@ -56,9 +56,18 @@ async function installPres(page: Page, opts: { register?: boolean; many?: boolea
       's2|m-p1': { status: 'justificada', partial: false, justification: 'Consulta médica' },
     } as Record<string, Row>,
     history: [] as Row[],
-    events: [{ id: 'ev1', title: 'Acampamento de outono', audience: 'seccao', team_id: null, team_name: null, start: day(-3), end: day(-1) }],
+    events: [
+      { id: 'ev1', title: 'Acampamento de outono', audience: 'seccao', team_id: null, team_name: null, start: day(-3), end: day(-1), all_day: true, starts_at: null },
+      // Duas atividades com o mesmo nome no mesmo dia: o seletor mostra a hora (Lisboa).
+      { id: 'ev2', title: 'Reunião de pais', audience: 'seccao', team_id: null, team_name: null, start: day(-8), end: day(-8), all_day: false, starts_at: `${day(-8)}T09:30:00Z` },
+      { id: 'ev3', title: 'Reunião de pais', audience: 'seccao', team_id: null, team_name: null, start: day(-8), end: day(-8), all_day: false, starts_at: `${day(-8)}T17:00:00Z` },
+    ] as Row[],
+    // Respostas no Calendário (Vou/Não vou) à atividade ev1: intenção, não presença.
+    calResponses: { 'm-p1': 'vou', 'm-p3': 'nao_vou' } as Record<string, string>,
     calls: [] as Row[],
   };
+  // Só para as capturas: a reunião semanal ligada a uma atividade com respostas «Vou/Não vou».
+  if (opts.linked) S.sessions.find((s) => s.id === 's3')!.cal_event_id = 'ev1';
   if (opts.many) {
     for (let i = 0; i < 14; i++) {
       const id = `sx${i}`;
@@ -118,7 +127,8 @@ async function installPres(page: Page, opts: { register?: boolean; many?: boolea
           can_register: register, today: TODAY,
           session: { ...s, team_name: teamName(s.team_id), effective_status: s.status, future: s.date > TODAY, created_by_name: 'Ana',
             cal_event: s.cal_event_id ? { id: 'ev1', title: 'Acampamento de outono', status: 'ativo', start: day(-3), end: day(-1) } : null },
-          members: cells.map((c) => ({ ...ALL.find((m) => m.membership_id === c.m), ...c, membership_id: c.m, updated_at: null, updated_by_name: null })),
+          members: cells.map((c) => ({ ...ALL.find((m) => m.membership_id === c.m), ...c, membership_id: c.m, updated_at: null, updated_by_name: null,
+            cal_response: s.cal_event_id ? S.calResponses[c.m] ?? null : null })),
           history: S.history.filter((h) => h.session_id === s.id),
         });
       }
@@ -192,6 +202,13 @@ test('quadro: membros e sessões, taxa com fórmula, filtros no endereço, sem r
   await expect(pedro.locator('td.pres-num').last()).toHaveText('50 %');
   const rita = table.locator('tbody tr', { has: page.getByRole('link', { name: 'Rita Teste', exact: true }) });
   await expect(rita.locator('td.pres-num').last()).toHaveText('0 %');
+  // Siglas com significado: cabeçalho acessível, title e legenda.
+  const fj = table.getByRole('columnheader', { name: 'Faltas justificadas' });
+  await expect(fj).toHaveText('FJ');
+  await expect(fj).toHaveAttribute('title', 'Faltas justificadas');
+  await expect(table.getByRole('columnheader', { name: 'Por registar' })).toBeVisible();
+  await expect(page.getByTestId('legenda-siglas')).toContainText('FI faltas injustificadas');
+  await expect(page.getByTestId('legenda-siglas')).toContainText('Taxa = P ÷ (P + FJ + FI)');
   // Sem texto explicativo da fórmula.
   await expect(page.getByText('Como se calcula a taxa de assiduidade')).toHaveCount(0);
   await expect(page.getByText(/ranking|classificação \d/i)).toHaveCount(0);
@@ -250,6 +267,91 @@ test('registo rápido: só as pessoas selecionadas, nada fica presente por omiss
   await noHorizontalScroll(page);
 });
 
+test('registo de um toque: P, FJ e FI por pessoa, com significado acessível', async ({ page }) => {
+  await installMock(page, leader());
+  const S = await installPres(page);
+  await page.goto('/presencas/sessoes/s3');
+  await expect(page.getByTestId('legenda-botoes')).toContainText('P presente');
+  await expect(page.getByTestId('legenda-botoes')).toContainText('FJ falta justificada');
+  const btn = page.getByRole('button', { name: 'Pedro Teste: Presente' });
+  await expect(btn).toHaveAttribute('aria-pressed', 'false');
+  await expect(btn).toHaveAttribute('title', 'Presente');
+  await btn.click();
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  expect(S.calls.filter((c) => c.fn === 'pres_record')).toEqual([expect.objectContaining({
+    p_session: 's3', p_memberships: ['m-p1'], p_status: 'presente', p_partial: false, p_justification: null, p_reason: null,
+  })]);
+  // Os outros continuam por registar (nada fica presente por omissão).
+  const members = page.getByRole('list', { name: 'Pessoas da sessão' });
+  await expect(members.getByText('Por registar')).toHaveCount(2);
+  // Teclado: foco no botão e Enter.
+  const rita = page.getByRole('button', { name: 'Rita Teste: Falta justificada' });
+  await rita.focus();
+  await page.keyboard.press('Enter');
+  await expect(rita).toHaveAttribute('aria-pressed', 'true');
+  expect(S.calls.filter((c) => c.fn === 'pres_record').pop()).toMatchObject({ p_memberships: ['m-p3'], p_status: 'justificada' });
+  await expect(members.getByText('Por registar')).toHaveCount(1);
+  await noHorizontalScroll(page);
+  // Sessão futura: só a falta justificada antecipada.
+  await page.goto('/presencas/sessoes/s4');
+  await expect(page.getByRole('button', { name: 'Pedro Teste: Presente' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Pedro Teste: Falta injustificada' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Pedro Teste: Falta justificada' })).toBeEnabled();
+});
+
+test('sessões por preencher antes das conclusões e atalho para registar', async ({ page }) => {
+  await installMock(page, leader());
+  const S = await installPres(page);
+  await page.goto('/presencas?vista=resumo');
+  const fill = page.getByTestId('por-preencher');
+  // s2 (falta o Guia) e s3 (ninguém registado); s1 está completa e s4 é futura.
+  await expect(fill).toContainText('2 sessões por preencher');
+  await expect(fill).toContainText('4 registos em falta');
+  await expect(page.getByTestId('taxa-provisoria')).toHaveText('Provisória: 4 por registar');
+  const pick = page.getByLabel('Sessão', { exact: true });
+  await expect(pick).toHaveValue('s3'); // a mais recente por preencher
+  await expect(pick.locator('option[value="s3"]')).toHaveText(`${dmy(day(-2))} · Reunião semanal · 3 por registar`);
+  await expect(pick.locator('option[value="s1"]')).toContainText('preenchida');
+  await pick.selectOption('s2');
+  await page.getByRole('button', { name: 'Registar', exact: true }).click();
+  await expect(page).toHaveURL(/\/presencas\/sessoes\/s2\?vista=resumo/);
+  await expect(page.getByRole('heading', { name: 'Reunião de equipa' })).toBeVisible();
+  await page.getByRole('button', { name: 'Guia Teste: Presente' }).click();
+  await expect(page.getByRole('button', { name: 'Guia Teste: Presente' })).toHaveAttribute('aria-pressed', 'true');
+  expect(S.calls.filter((c) => c.fn === 'pres_record').pop()).toMatchObject({ p_session: 's2', p_memberships: ['m-guia'], p_status: 'presente' });
+  // Voltar mantém a vista e o resumo atualiza.
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(/\/presencas\?vista=resumo/);
+  await expect(fill).toContainText('1 sessão por preencher');
+  await expect(fill).toContainText('3 registos em falta');
+  await noHorizontalScroll(page);
+});
+
+test('quadro grande: cabeçalho e coluna dos membros ficam fixos ao deslocar', async ({ page }) => {
+  test.skip(isMobile(page), 'O quadro largo é só para computador.');
+  await page.setViewportSize({ width: 1280, height: 640 });
+  await installMock(page, leader());
+  await installPres(page, { many: true });
+  await page.goto('/presencas?vista=quadro');
+  const wrap = page.getByRole('region', { name: 'Quadro de presenças' });
+  await expect(wrap).toBeVisible();
+  const can = await wrap.evaluate((el) => ({ x: el.scrollWidth > el.clientWidth, y: el.scrollHeight > el.clientHeight }));
+  expect(can).toEqual({ x: true, y: true });
+  // Teclado: o quadro recebe foco (região deslocável).
+  await wrap.focus();
+  await expect(wrap).toBeFocused();
+  await wrap.evaluate((el) => { el.scrollLeft = 400; el.scrollTop = 200; });
+  const box = (await wrap.boundingBox())!;
+  const head = (await wrap.getByRole('columnheader', { name: 'Membro' }).boundingBox())!;
+  expect(Math.abs(head.y - box.y)).toBeLessThan(2);
+  expect(Math.abs(head.x - box.x)).toBeLessThan(2);
+  const sessHead = (await wrap.locator('thead th.pres-sess-col').nth(10).boundingBox())!;
+  expect(Math.abs(sessHead.y - box.y)).toBeLessThan(2);
+  const name = (await wrap.locator('tbody th.pres-name-col').nth(9).boundingBox())!;
+  expect(Math.abs(name.x - box.x)).toBeLessThan(2);
+  await noHorizontalScroll(page);
+});
+
 test('correção individual com justificação restrita e histórico', async ({ page }) => {
   await installMock(page, leader());
   const S = await installPres(page);
@@ -288,6 +390,12 @@ test('nova sessão a partir de uma atividade do Calendário', async ({ page }) =
   // Formulário simples: evento, data e notas; a ligação ao Calendário fica em «Mais opções».
   await expect(page.getByLabel('Atividade do Calendário')).toBeHidden();
   await page.getByText('Mais opções').click();
+  // Seletor comum: «DD/MM/AAAA · Nome», mais recentes primeiro; hora só para distinguir homónimos.
+  const opts = await page.getByLabel('Atividade do Calendário').locator('option').allInnerTexts();
+  expect(opts[0]).toBe('Nenhuma (sessão própria)');
+  expect(opts[1]).toBe(`${dmy(day(-3))} · Acampamento de outono · até ${dmy(day(-1))}`);
+  expect(opts[2]).toMatch(new RegExp(`^${dmy(day(-8))} · Reunião de pais · \\d{2}:30$`));
+  expect(opts[3]).toMatch(new RegExp(`^${dmy(day(-8))} · Reunião de pais · \\d{2}:00$`));
   await page.getByLabel('Atividade do Calendário').selectOption('ev1');
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Acampamento de outono');
   await expect(page.getByLabel('Data', { exact: true })).toHaveValue(day(-3).split('-').reverse().join('/'));
@@ -295,6 +403,18 @@ test('nova sessão a partir de uma atividade do Calendário', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Acampamento de outono' })).toBeVisible();
   await expect(page.getByText(/Ligada à atividade do Calendário «Acampamento de outono»/)).toBeVisible();
   expect(S.calls.find((c) => c.fn === 'pres_session_save')).toMatchObject({ p_cal_event: 'ev1', p_kind: 'atividade', p_date: day(-3) });
+  // «Vou/Não vou» do Calendário aparece à parte e não conta como presença.
+  await expect(page.getByTestId('nota-calendario')).toBeVisible();
+  const list = page.getByRole('list', { name: 'Pessoas da sessão' });
+  const pedro = list.getByRole('listitem').filter({ hasText: 'Pedro Teste' });
+  await expect(pedro.getByText('Calendário: Vou')).toBeVisible();
+  await expect(pedro.getByText('Por registar')).toBeVisible();
+  await expect(list.getByText('Calendário: Não vou')).toHaveCount(1);
+  await expect(list.getByText('Por registar')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Selecionar quem disse «Vou» (1)' }).click();
+  await expect(page.getByRole('checkbox', { name: /Pedro Teste/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /Rita Teste/ })).not.toBeChecked();
+  expect(S.calls.filter((c) => c.fn === 'pres_record')).toHaveLength(0);
   // A atividade deixa de aparecer nas opções (uma sessão por atividade).
   await page.goto('/presencas/nova');
   await page.getByText('Mais opções').click();
@@ -324,6 +444,8 @@ test('telemóvel: vista por sessão e por pessoa em vez do quadro largo', async 
   await noHorizontalScroll(page);
   await page.goto('/presencas/sessoes/s3');
   await expect(page.getByRole('list', { name: 'Pessoas da sessão' })).toBeVisible();
+  const quick = (await page.getByRole('button', { name: 'Rita Teste: Falta injustificada' }).boundingBox())!;
+  expect(quick.height).toBeGreaterThanOrEqual(36); // alvo de toque
   await noHorizontalScroll(page);
   if (process.env.PRES_SHOTS) await page.screenshot({ path: `${process.env.PRES_SHOTS}/mobile-session.png`, fullPage: true });
 });
@@ -338,7 +460,10 @@ test('sem permissão de registo: só as próprias presenças e taxa, sem ações
   await expect(page.getByLabel('Equipa')).toHaveCount(0);
   await expect(page.getByTestId('taxa')).toHaveText('50 %');
   await expect(page.getByText('1 parcial')).toBeVisible();
-  expect(S.calls.every((c) => c.fn !== 'pres_board' || false)).toBe(true);
+  await expect(page.getByTestId('taxa-provisoria')).toHaveText('Provisória: 1 por registar');
+  await expect(page.getByTestId('por-preencher')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /: Presente$/ })).toHaveCount(0);
+  expect(S.calls.every((c) => c.fn !== 'pres_board' && c.fn !== 'pres_record')).toBe(true);
   expect(S.calls.some((c) => c.fn === 'pres_member' && c.p_membership === 'm-p1')).toBe(true);
   await noHorizontalScroll(page);
 });
@@ -364,7 +489,7 @@ test.describe('capturas', () => {
       test.setTimeout(90_000);
       await page.emulateMedia({ colorScheme: theme });
       await installMock(page, leader());
-      await installPres(page);
+      await installPres(page, { linked: true });
       await page.goto('/presencas');
       await shoot(page, info, theme, 'presencas-inicio');
       await page.goto('/presencas?vista=quadro');

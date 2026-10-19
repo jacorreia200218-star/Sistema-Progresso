@@ -38,6 +38,9 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
   const calls: { fn: string; body: Row }[] = [];
   const manage = who === 'ana';
   const config = { year_start_month: 9, special_days: [] as Row[] };
+  // Ligações do evento a outros módulos (cal_event_links); vazio = só «Detalhes».
+  const links: Row = {};
+  let sessions = 0;
   const view = (e: Row): Row => {
     const mine = e.people.find((p: Row) => p.profile_id === me) ?? { response: null, resolved: [] };
     const { people, ...rest } = e;
@@ -129,6 +132,14 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
         return ok(null);
       case 'module_files_of':
         return ok([]);
+      case 'cal_event_links':
+        return ok(links);
+      case 'pres_session_for_event': {
+        if (!links.pres_can_register) return fail('Não tens permissão para esta ação neste módulo.');
+        const created = !links.presencas;
+        if (created) { sessions++; links.presencas = { id: 'ses1', title: find()!.title, status: 'ativa', counts: { presente: 0, justificada: 0, injustificada: 0 }, mine: null }; }
+        return ok({ id: links.presencas.id, created });
+      }
       case 'cal_config':
         return ok({ ...config, can_manage: manage });
       case 'cal_set_year_start':
@@ -148,7 +159,7 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
         return route.fallback();
     }
   });
-  return { calls, events, config };
+  return { calls, events, config, links, sessions: () => sessions };
 }
 
 async function noHorizontalScroll(page: Page) {
@@ -187,19 +198,26 @@ test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades',
   await expect(dayButton(page, sat)).toHaveClass(/is-weekend/);
   const bg = await dayButton(page, sat).evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(bg).not.toBe('rgba(0, 0, 0, 0)');
-  // Próximas atividades ao lado (computador) ou abaixo (telemóvel)
+  // Cabeçalhos dos dias da semana por extenso curto quando há espaço
+  const wd = main.locator('.cal-mm').first().locator('.cal-mm-wd');
+  await expect(wd.nth(0).locator('.wd-long')).toBeVisible();
+  await expect(wd.nth(0).locator('.wd-long')).toHaveText('Seg');
+  await expect(wd.nth(5).locator('.wd-long')).toHaveText('Sáb');
+  // Próximas atividades sempre por baixo do calendário (nunca numa coluna ao lado)
   const next = main.getByRole('region', { name: 'Próximas atividades' });
   await expect(next.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
-  const [m1, m2] = [await main.locator('.cal-mm').nth(0).boundingBox(), await main.locator('.cal-mm').nth(1).boundingBox()];
+  const box = (i: number) => main.locator('.cal-mm').nth(i).boundingBox();
+  const [m1, m2, m4, m5] = [await box(0), await box(1), await box(3), await box(4)];
   const side = await next.boundingBox();
   const grid = await main.locator('.cal-year').boundingBox();
+  expect(side!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
   if (info.project.name === 'telemovel') {
     expect(Math.abs(m1!.x - m2!.x)).toBeLessThan(2); // meses em coluna
     expect(m2!.y).toBeGreaterThan(m1!.y + m1!.height - 1);
-    expect(side!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
   } else {
-    expect(Math.abs(m1!.y - m2!.y)).toBeLessThan(2); // meses lado a lado
-    expect(side!.x).toBeGreaterThan(grid!.x + grid!.width - 1);
+    expect(Math.abs(m1!.y - m4!.y)).toBeLessThan(2); // quatro meses por linha
+    expect(m5!.y).toBeGreaterThan(m1!.y + m1!.height - 1);
+    expect(grid!.width).toBeGreaterThan(900); // o calendário ocupa a largura toda
   }
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/calendario-ano-${info.project.name}.png`, fullPage: true });
@@ -220,11 +238,14 @@ test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades',
   await marks.locator('summary').click();
   await expect(marks).toContainText('Implantação da República');
   await expect(marks).toContainText('Feriado nacional (móvel)');
-  // Dias livres para planear
-  const free = main.getByRole('region', { name: 'Livres para planear' });
-  await expect(free).toContainText('Fins de semana livres');
-  await main.getByLabel('Destacar os dias livres').click();
-  await expect(main.getByLabel('Destacar os dias livres')).toBeChecked();
+  // Datas sem atividades registadas (período indicado; não é disponibilidade confirmada)
+  const free = main.getByRole('region', { name: 'Sem atividades registadas' });
+  await expect(free).toContainText('Fins de semana');
+  await expect(free).toContainText(`De 01/01/${y1} a 31/12/${y1}`);
+  await expect(free).toContainText('não confirma a disponibilidade');
+  await expect(free.getByLabel('Período considerado')).toHaveCount(0); // ano futuro: todo o período
+  await main.getByLabel('Destacar fins de semana e feriados sem atividades').click();
+  await expect(main.getByLabel('Destacar fins de semana e feriados sem atividades')).toBeChecked();
   await expect(page).toHaveURL(/livres=1/);
   await expect(main.locator('.cal-year.show-free .cal-d.is-free').first()).toBeVisible();
   await noHorizontalScroll(page);
@@ -258,7 +279,7 @@ test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', as
   const target = lisbonDay(isoIn(10 * D));
   if (target.slice(0, 4) !== evDay.slice(0, 4)) await main.getByRole('button', { name: 'Ano seguinte' }).click();
   await dayButton(page, target).click();
-  await expect(page.getByRole('dialog')).toContainText('Sem atividades neste dia.');
+  await expect(page.getByRole('dialog')).toContainText('Sem atividades registadas neste dia.');
   await page.getByRole('dialog').getByRole('link', { name: 'Nova atividade neste dia' }).click();
   await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
   // Formulário simples: evento, data e notas; o resto fica em «Mais opções».
@@ -445,6 +466,270 @@ test('nova atividade semanal: a reunião de sábado repete-se até ao fim do ano
   expect(cal.calls.some((c) => c.fn === 'cal_create_event')).toBe(false);
 });
 
+const LONG_TASK = 'Confirmar com a junta de freguesia o transporte das tendas e do material de cozinha até ao local do acampamento';
+const leaderLinks = (): Row => ({
+  pres_can_register: true, presencas: null,
+  ata_writer: true, reunioes: [],
+  tarefas: [
+    { id: 't1', kind: 'tarefa', title: LONG_TASK, exec_status: 'por_fazer', due_date: '2026-10-10', overdue: true, responsible_name: 'Pedro Teste', team_name: null, ata_id: 'ata1' },
+    { id: 't2', kind: 'tarefa', title: 'Levar mapas', exec_status: 'em_curso', due_date: null, overdue: false, responsible_name: 'Guia Teste', team_name: null, ata_id: null },
+  ],
+  reservas: [{ id: 'r1', item_id: 'i1', item: 'Tenda (teste)', unit: 'un.', quantity: 2, status: 'ativa' }], compras: [], inv_can_manage: true,
+  financas: { orcamento: { receitas: 5000, despesas: 3000, resultado: 2000 }, efetivo: { receitas: 0, despesas: 1250, resultado: -1250 },
+    por_confirmar: { receitas: 0, despesas: 0, resultado: 0 }, tem_dados: true }, fin_can_manage: true,
+});
+
+test('evento como ponto de ligação: separadores, teclado e «Registar presenças» sem duplicar', async ({ page }) => {
+  await installMock(page, leader());
+  const cal = await installCalendar(page, 'ana');
+  Object.assign(cal.links, leaderLinks());
+  await page.goto('/calendario/evento/ev1');
+  const main = page.locator('main');
+  const tabs = main.getByRole('tablist', { name: 'Secções da atividade' });
+  await expect(tabs.getByRole('tab')).toHaveText(['Detalhes', 'Presenças', /^Ata e tarefas2/, /^Material1/, 'Finanças']);
+  await expect(tabs.getByRole('tab', { name: 'Ata e tarefas (2 tarefas por fazer)' })).toBeVisible();
+  await expect(tabs.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true');
+  await expect(main.getByRole('heading', { name: 'Participantes' })).toBeVisible();
+
+  // Teclado: setas mudam de separador e o endereço guarda-o
+  await tabs.getByRole('tab', { name: 'Detalhes' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'Presenças' })).toBeFocused();
+  await expect(page).toHaveURL(/sec=presencas/);
+  await expect(main.getByRole('tabpanel')).toContainText('Ainda não há presenças registadas.');
+  await page.keyboard.press('End');
+  await expect(tabs.getByRole('tab', { name: 'Finanças' })).toHaveAttribute('aria-selected', 'true');
+  await expect(main.getByRole('tabpanel')).toContainText('12,50 €');
+  await expect(main.getByRole('link', { name: /Ver na Tesouraria/ })).toHaveAttribute('href', '/tesouraria/atividades#a-ev1');
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).not.toHaveURL(/sec=/);
+
+  // Ata e tarefas: escrever ata com o evento escolhido; tarefas com responsável e prazo
+  await tabs.getByRole('tab', { name: /Ata e tarefas/ }).click();
+  await expect(main.getByRole('link', { name: 'Escrever ata' })).toHaveAttribute('href', '/atas-e-tarefas/nova?evento=ev1');
+  const t1 = main.locator('.ev-task', { hasText: 'junta de freguesia' });
+  await expect(t1).toContainText('Pedro Teste · até 10/10/2026');
+  await expect(t1).toContainText('Em atraso');
+  await expect(t1).toHaveAttribute('href', '/atas-e-tarefas/atas/ata1');
+  await expect(main.locator('.ev-task', { hasText: 'Levar mapas' })).toContainText('Guia Teste · sem prazo');
+  await noHorizontalScroll(page);
+
+  // Material
+  await tabs.getByRole('tab', { name: /Material/ }).click();
+  await expect(main.getByRole('link', { name: /Tenda \(teste\)/ })).toHaveAttribute('href', '/inventario/artigo/i1');
+
+  // Registar presenças: abre (cria) a sessão ligada; voltar regressa ao separador
+  await tabs.getByRole('tab', { name: 'Presenças' }).click();
+  await main.getByRole('button', { name: 'Registar presenças' }).click();
+  await expect(page).toHaveURL(/\/presencas\/sessoes\/ses1$/);
+  expect(cal.calls.filter((c) => c.fn === 'pres_session_for_event').map((c) => c.body)).toEqual([{ p_section: expect.any(String), p_event: 'ev1' }]);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/calendario\/evento\/ev1\?sec=presencas$/);
+  await expect(main.getByRole('tab', { name: 'Presenças' })).toHaveAttribute('aria-selected', 'true');
+  await expect(main.getByRole('tabpanel')).toContainText('Presentes');
+  await main.getByRole('button', { name: 'Registar presenças' }).click();
+  await expect(page).toHaveURL(/\/presencas\/sessoes\/ses1$/);
+  expect(cal.sessions()).toBe(1);
+});
+
+test('evento ligado: o pioneiro vê só o que lhe diz respeito, sem blocos vazios', async ({ page }) => {
+  await installMock(page, pioneer());
+  const cal = await installCalendar(page, 'p1');
+  Object.assign(cal.links, {
+    pres_can_register: false, presencas: { id: 'ses9', title: 'Raid', status: 'ativa', counts: null, mine: 'justificada' },
+    ata_writer: false, reunioes: [], tarefas: [], reservas: [], compras: [], inv_can_manage: false,
+    financas: { orcamento: { receitas: 0, despesas: 0, resultado: 0 }, efetivo: { receitas: 0, despesas: 0, resultado: 0 },
+      por_confirmar: { receitas: 0, despesas: 0, resultado: 0 }, tem_dados: false }, fin_can_manage: false,
+  });
+  await page.goto('/calendario/evento/ev1?sec=financas');
+  const main = page.locator('main');
+  // Separador sem acesso cai para «Detalhes»
+  const tabs = main.getByRole('tablist', { name: 'Secções da atividade' });
+  await expect(tabs.getByRole('tab')).toHaveText(['Detalhes', 'Presenças']);
+  await expect(main.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true');
+  await main.getByRole('tab', { name: 'Presenças' }).click();
+  await expect(main.getByRole('tabpanel')).toContainText('A tua presença: Falta justificada');
+  await expect(main.getByRole('button', { name: 'Registar presenças' })).toHaveCount(0);
+  await expect(main.getByRole('link', { name: /Ver presenças/ })).toHaveAttribute('href', '/presencas/sessoes/ses9');
+  await noHorizontalScroll(page);
+});
+
+test('evento sem ligações: só os detalhes; com ata: «Abrir ata» em vez de «Escrever ata»', async ({ page }) => {
+  await installMock(page, leader());
+  const cal = await installCalendar(page, 'ana');
+  await page.goto('/calendario/evento/ev1');
+  const main = page.locator('main');
+  await expect(main.getByRole('heading', { name: 'Participantes' })).toBeVisible();
+  await expect(main.getByRole('tablist', { name: 'Secções da atividade' })).toHaveCount(0);
+
+  Object.assign(cal.links, { ata_writer: true, tarefas: [], reunioes: [{ id: 'm1', title: 'Raid', kind: 'seccao', starts_at: events0(cal), ata_id: 'ata7' }] });
+  await page.goto('/calendario/evento/ev1?sec=ata');
+  await expect(main.getByRole('tablist', { name: 'Secções da atividade' }).getByRole('tab')).toHaveText(['Detalhes', 'Ata e tarefas']);
+  await expect(main.getByRole('link', { name: 'Abrir ata' })).toHaveAttribute('href', '/atas-e-tarefas/atas/ata7');
+  await expect(main.getByRole('link', { name: 'Escrever ata' })).toHaveCount(0);
+});
+const events0 = (cal: { events: Row[] }) => cal.events[0].starts_at as string;
+/** Reuniões semanais fictícias (a começar daqui a 5 dias), todas por confirmar para o Pedro. */
+function addMeetings(events: Row[], n: number) {
+  for (let k = 0; k < n; k++) {
+    const start = isoIn(5 * D + k * 7 * D);
+    events.push({
+      ...events[0], id: `reu${k + 1}`, title: `Reunião semanal ${k + 1} (teste)`, starts_at: start, ends_at: new Date(Date.parse(start) + 90 * 60e3).toISOString(),
+      location: 'Sede (teste)', registration_deadline: null, needs_authorization: false, material: null, required: [],
+      people: [{ profile_id: 'u-p1', name: 'Pedro Teste', team_name: 'Equipa Andorinha', function: 'pioneiro', response: null, note: null, resolved: [] }],
+    });
+  }
+}
+
+test('o que te falta: três mais próximas, horizonte configurável e «Ver todas» filtrável', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
+  await installMock(page, pioneer());
+  const { events } = await installCalendar(page, 'p1');
+  addMeetings(events, 20);
+  await page.goto('/calendario');
+  const main = page.locator('main');
+  const todo = main.getByRole('region', { name: 'O que te falta' });
+  // Só as três mais próximas; o resto fica para «Ver todas»
+  await expect(todo.locator('.cal-pending-row')).toHaveCount(3);
+  await expect(todo.locator('.cal-pending-row').first()).toContainText('Raid de outono');
+  await expect(todo.getByLabel('Período das pendências')).toHaveValue('4');
+  // Contadores compactos (próximas 4 semanas: raid + 4 reuniões); no computador, numa linha por cima do calendário
+  const counter = main.locator('.cal-counter', { hasText: 'Confirmar presença' }).first();
+  await expect(counter).toHaveText(/5\s*Confirmar presença/);
+  await expect(main.locator('.cal-counter', { hasText: 'Autorização' }).first()).toHaveText(/1\s*Autorização/);
+  const grid = await main.locator('.cal-year').boundingBox();
+  if (info.project.name === 'telemovel') {
+    expect((await todo.boundingBox())!.y).toBeLessThan(grid!.y);
+  } else {
+    expect((await main.locator('.cal-strip').boundingBox())!.y).toBeLessThan(grid!.y);
+    expect((await todo.boundingBox())!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
+  }
+  await expect(todo).toContainText('16 mais tarde');
+  // A mesma reunião não se repete nas próximas atividades
+  const next = main.getByRole('region', { name: 'Próximas atividades' });
+  await expect(next).not.toContainText('Raid de outono');
+  await expect(next).not.toContainText('Reunião semanal 1 ');
+  await expect(next).toContainText('Reunião semanal 3 (teste)');
+  await noHorizontalScroll(page);
+
+  // Horizonte de 2 semanas, guardado para a próxima visita
+  await todo.getByLabel('Período das pendências').selectOption('2');
+  await expect(counter).toHaveText(/3\s*Confirmar presença/);
+  await page.reload();
+  await expect(main.getByRole('region', { name: 'O que te falta' }).getByLabel('Período das pendências')).toHaveValue('2');
+
+  // «Ver todas»: vista própria, filtrável por período e por tipo, e voltar.
+  // (Em 2 semanas só há três, já todas visíveis: «Ver todas» abre todas as datas.)
+  await main.getByRole('region', { name: 'O que te falta' }).getByRole('link', { name: /Ver todas/ }).click();
+  await expect(page).toHaveURL(/\/calendario\/pendentes\?semanas=todas/);
+  await expect(main.getByRole('heading', { name: 'O que te falta', level: 1 })).toBeVisible();
+  await expect(main.locator('.cal-pending-row')).toHaveCount(21);
+  await main.getByLabel('Período das pendências').selectOption({ label: 'Próximas 8 semanas' });
+  await expect(page).toHaveURL(/semanas=8/);
+  await expect(main.locator('.cal-pending-row')).toHaveCount(9);
+  await expect(main.getByRole('button', { name: /Ver também as mais tarde \(12\)/ })).toBeVisible();
+  await main.getByLabel('Período das pendências').selectOption({ label: 'Todas as datas' });
+  await expect(main.locator('.cal-pending-row')).toHaveCount(21);
+  await main.getByRole('button', { name: /Autorização/ }).click();
+  await expect(page).toHaveURL(/falta=autorizacao/);
+  await expect(main.getByRole('button', { name: /Autorização/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(main.locator('.cal-pending-row')).toHaveCount(1);
+  await noHorizontalScroll(page);
+  await main.locator('.cal-pending-row').first().click();
+  await expect(main.getByRole('heading', { name: 'Raid de outono (teste)', level: 1 })).toBeVisible();
+  await page.goBack();
+  await expect(main.locator('.cal-pending-row')).toHaveCount(1);
+  await main.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(/\/calendario(\?|$)/);
+  await expect(main.locator('.cal-mm')).toHaveCount(12);
+});
+
+test('sem pendências próximas: uma linha curta, sem cartão grande', async ({ page }) => {
+  await installMock(page, pioneer());
+  const { events } = await installCalendar(page, 'p1');
+  events[0].people[0].response = 'vou';
+  events[0].people[0].resolved = ['autorizacao', 'material'];
+  addMeetings(events, 1);
+  events[1].starts_at = isoIn(70 * D);
+  events[1].ends_at = isoIn(70 * D + H);
+  await page.goto('/calendario');
+  const todo = page.locator('main').getByRole('region', { name: 'O que te falta' });
+  await expect(todo).toContainText('Nada pendente até');
+  await expect(todo).toContainText('1 mais tarde');
+  await todo.getByRole('link', { name: 'Ver todas' }).click();
+  await expect(page).toHaveURL(/semanas=todas/);
+  await expect(page.locator('main .cal-pending-row')).toHaveCount(1);
+});
+
+test('teclado, «Hoje» e «Ir para o mês atual» mantêm a vista anual', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
+  await installMock(page, leader());
+  await installCalendar(page, 'ana');
+  await page.goto('/calendario');
+  const main = page.locator('main');
+  const today = todayDay();
+  const year = today.slice(0, 4);
+  // Um só ponto de paragem na grelha (o dia de hoje); as setas mudam de dia
+  await expect(main.locator('.cal-year button[tabindex="0"]')).toHaveCount(1);
+  await expect(dayButton(page, today)).toHaveAttribute('tabindex', '0');
+  await dayButton(page, today).focus();
+  const add = (d: string, n: number) => new Date(Date.parse(`${d}T12:00:00Z`) + n * D).toISOString().slice(0, 10);
+  let target = today;
+  for (const [key, n] of [['ArrowRight', 1], ['ArrowDown', 7], ['ArrowLeft', -1], ['ArrowUp', -7]] as const) {
+    const t = add(target, n);
+    if (t.slice(0, 4) !== year) continue;
+    await page.keyboard.press(key);
+    target = t;
+    await expect(dayButton(page, target)).toBeFocused();
+  }
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog').getByRole('heading', { name: new RegExp(fmt(target)) })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dayButton(page, target)).toBeFocused();
+
+  // Noutro ano: «Ir para o mês atual» volta ao ano atual e ao mês de hoje
+  await main.getByRole('button', { name: 'Ano seguinte' }).click();
+  await expect(page).toHaveURL(/ano=/);
+  await expect(main.getByRole('heading', { name: `Ano ${Number(year) + 1}`, level: 2 })).toBeVisible();
+  await main.getByRole('button', { name: 'Ir para o mês atual' }).click();
+  await expect(page).not.toHaveURL(/ano=/);
+  await expect(main.getByRole('heading', { name: `Ano ${year}`, level: 2 })).toBeVisible();
+  await expect(dayButton(page, today)).toBeFocused();
+  await expect(main.locator('.cal-mm')).toHaveCount(12);
+  // «Hoje» abre o dia de hoje, por cima da vista anual
+  await main.getByRole('button', { name: 'Ano anterior' }).click();
+  await expect(main.getByRole('heading', { name: `Ano ${Number(year) - 1}`, level: 2 })).toBeVisible();
+  await main.getByRole('button', { name: 'Hoje', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: new RegExp(fmt(today)) })).toBeVisible();
+  await expect(page).not.toHaveURL(/ano=/);
+  await expect(main.locator('.cal-mm')).toHaveCount(12);
+  await page.keyboard.press('Escape');
+
+  // Datas sem atividades: por omissão a partir de hoje; pode considerar o ano todo
+  const free = main.getByRole('region', { name: 'Sem atividades registadas' });
+  if (today !== `${year}-01-01`) {
+    await expect(free).toContainText(`De ${fmt(today)} a 31/12/${year}`);
+    await free.getByLabel('Período considerado').selectOption({ label: 'Todo o período' });
+    await expect(page).toHaveURL(/livres_de=inicio/);
+    await expect(free).toContainText(`De 01/01/${year} a 31/12/${year}`);
+  }
+  await noHorizontalScroll(page);
+});
+
+test('carregamento: o calendário aparece logo, com o estado de carregamento', async ({ page }) => {
+  await installMock(page, pioneer());
+  await installCalendar(page, 'p1');
+  await page.route('http://mock.supabase.test/rest/v1/rpc/cal_events_list', async (route) => {
+    await new Promise((r) => setTimeout(r, 800));
+    await route.fallback();
+  });
+  await page.goto('/calendario');
+  await expect(page.locator('main .cal-year[aria-busy="true"]')).toBeVisible();
+  await expect(page.locator('main .cal-mm')).toHaveCount(12);
+  await expect(page.locator('main .cal-year[aria-busy="false"]')).toBeVisible();
+});
+
 test.describe('capturas', () => {
   test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
   for (const theme of THEMES) {
@@ -452,7 +737,7 @@ test.describe('capturas', () => {
       test.setTimeout(90_000);
       await page.emulateMedia({ colorScheme: theme });
       await installMock(page, leader());
-      const { events } = await installCalendar(page, 'ana');
+      const { events, links } = await installCalendar(page, 'ana');
       const day = lisbonDay(events[0].starts_at);
       events.push({ ...events[0], id: 'ev2', title: 'Reunião de guias com um título bastante longo para testar o corte', starts_at: isoIn(3 * D + 4 * H), ends_at: isoIn(3 * D + 5 * H), location: null });
       events.push({ ...events[0], id: 'ev3', title: 'Atividade de serviço', starts_at: isoIn(3 * D + 6 * H), ends_at: isoIn(3 * D + 7 * H) });
@@ -473,10 +758,29 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'calendario-feriado', { full: false });
       await page.goto('/calendario/evento/ev1');
       await shoot(page, info, theme, 'calendario-detalhe');
+      Object.assign(links, leaderLinks());
+      await page.goto('/calendario/evento/ev1');
+      await shoot(page, info, theme, 'evento-ligacoes-detalhes');
+      for (const sec of ['presencas', 'ata', 'material', 'financas']) {
+        await page.goto(`/calendario/evento/ev1?sec=${sec}`);
+        await shoot(page, info, theme, `evento-ligacoes-${sec}`);
+      }
+      for (const k of Object.keys(links)) delete links[k];
       await page.goto('/calendario?vista=lista');
       await shoot(page, info, theme, 'calendario-lista');
       await page.goto('/calendario/nova');
       await shoot(page, info, theme, 'calendario-formulario');
+    });
+    test(`calendário com pendências ${theme}`, async ({ page }, info) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, pioneer());
+      const { events } = await installCalendar(page, 'p1');
+      addMeetings(events, 40);
+      await page.goto('/calendario');
+      await shoot(page, info, theme, 'calendario-ano-pendencias');
+      await page.goto('/calendario/pendentes?semanas=8');
+      await shoot(page, info, theme, 'calendario-pendentes');
     });
   }
 });

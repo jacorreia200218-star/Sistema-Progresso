@@ -2,17 +2,20 @@
 // empréstimo e formulários de empréstimo, devolução e reserva).
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Bell, CalendarClock, Layers, Package, ShoppingCart, Tags } from 'lucide-react';
+import { Layers, Package, ShoppingCart } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { Badge, ConfirmButton, ErrorBox, Field, Notice } from '../../components/ui';
 import { isoToLisbon, lisbonToIso } from '../common';
 import {
-  CONDITION_LABEL, LOAN_LABEL, STATE_LABEL, STATE_TONE, qty, useEventOptions, useOverview, usePeople, useSectionId, when,
+  CONDITION_LABEL, LOAN_LABEL, STATE_LABEL, STATE_TONE, eventChoices, qty, useEventOptions, useOverview, usePeople, useSectionId, when,
   type Condition, type ItemState, type Loan, type Piece, type Reservation, type Stock,
 } from './api';
 import { DateTimeInput } from '../../components/DateInput';
+import { EventSelect } from '../EventSelect';
 
+/** Três entradas principais: Material, Empréstimos (com as reservas) e A comprar. Os alertas
+ *  chegam-se pelos indicadores do resumo; os tipos ficam no menu de configuração. */
 export function InvTabs() {
   const ov = useOverview();
   const manage = ov.data?.can_manage;
@@ -24,16 +27,10 @@ export function InvTabs() {
         <Layers size={16} aria-hidden="true" /> Empréstimos
         {!!ov.data?.pending_requests && manage && <span className="nav-count" aria-label={`${ov.data.pending_requests} pedidos por decidir`}>{ov.data.pending_requests}</span>}
       </NavLink>
-      <NavLink to="/inventario/reservas" className={tab}><CalendarClock size={16} aria-hidden="true" /> Reservas</NavLink>
       <NavLink to="/inventario/comprar" className={tab}>
         <ShoppingCart size={16} aria-hidden="true" /> A comprar
         {!!ov.data?.summary?.purchases_pending && <span className="nav-count" aria-label={`${ov.data.summary.purchases_pending} compras pendentes`}>{ov.data.summary.purchases_pending}</span>}
       </NavLink>
-      <NavLink to="/inventario/alertas" className={tab}>
-        <Bell size={16} aria-hidden="true" /> Alertas
-        {!!ov.data?.overdue && <span className="nav-count" aria-label={`${ov.data.overdue} devoluções em atraso`}>{ov.data.overdue}</span>}
-      </NavLink>
-      {manage && <NavLink to="/inventario/categorias" className={tab}><Tags size={16} aria-hidden="true" /> Tipos</NavLink>}
     </nav>
   );
 }
@@ -411,10 +408,7 @@ export function ReservationForm({ item, onDone }: { item: { id: string; name: st
       {f.box}
       <ErrorBox error={action.error} />
       <Field label="Atividade do calendário" htmlFor={`${id}-e`} hint={events.data && events.data.length === 0 ? 'Não há atividades futuras no calendário: indica o período à mão.' : undefined}>
-        <select id={`${id}-e`} value={event} onChange={(e) => setEvent(e.target.value)}>
-          <option value="">Sem atividade</option>
-          {(events.data ?? []).map((e) => <option key={e.id} value={e.id}>{e.title} · {when(e.starts_at)}</option>)}
-        </select>
+        <EventSelect id={`${id}-e`} value={event} onChange={setEvent} events={eventChoices(events.data ?? [])} empty="Sem atividade" loading={events.isLoading} />
       </Field>
       {ev && (
         <label className="checkbox">
@@ -452,7 +446,7 @@ export function ReservationCard({ r, canManage, showItem = true }: { r: Reservat
   const [flash, setFlash] = useState<string | null>(null);
   const active = r.status === 'ativa';
   return (
-    <li className="card inv-loan">
+    <li className="card inv-loan inv-res">
       <div className="row between inv-loan-head">
         <div className="inv-loan-title">
           {showItem ? <Link to={`/inventario/artigo/${r.item_id}`}><strong>{r.item}</strong></Link> : <strong>{qty(r.quantity, r.unit)}</strong>}

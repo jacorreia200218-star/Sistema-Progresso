@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { Badge } from '../../components/ui';
 import { MISSING_LABEL, RESPONSE_LABEL, RESPONSE_TONE, whenLabel, type CalListItem, type Missing, type Response } from './cal';
+import { SourceTag } from './source';
 
 /** Parâmetro do endereço (sobrevive a «voltar»). Parte sempre do endereço atual. */
 export function useParam(key: string, fallback = '') {
@@ -50,6 +51,7 @@ export function EventRow({ e }: { e: CalListItem }) {
             {whenLabel(e)}
             {e.location && <> · <MapPin size={13} aria-hidden="true" /> {e.location}</>}
             {e.audience === 'equipa' && e.team_name && <> · {e.team_name}</>}
+            <SourceTag source={e.source} />
           </span>
           {!cancelled && e.involved && <MissingList missing={e.my_missing} label="Falta-te" />}
         </span>

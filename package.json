@@ -22,6 +22,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
     "@tanstack/react-query": "^5.104.2",
+    "ical.js": "^2.2.1",
     "lucide-react": "^1.56.0",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",

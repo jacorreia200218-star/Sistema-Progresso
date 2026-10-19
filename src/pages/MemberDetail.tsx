@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { History } from 'lucide-react';
 import { memberPosition, milestoneByKey, STATE_LABEL } from '../lib/caminho';
 import { useQuery } from '@tanstack/react-query';
 import { useActiveSection } from '../lib/session';
@@ -47,7 +48,18 @@ export default function MemberDetail() {
   const setTab = (k: TabKey) => {
     const next = new URLSearchParams(params);
     next.set('separador', k);
+    next.delete('registar');
     setParams(next, { replace: true });
+  };
+  // Ação dos dirigentes: abre o registo no separador Trilhos, junto aos trilhos do pioneiro.
+  const openRegister = () => {
+    const next = new URLSearchParams(params);
+    next.set('separador', 'trilhos');
+    next.set('registar', 'anterior');
+    setParams(next, { replace: true });
+    // Se o formulário já está na página (foi fechado), volta a abri-lo.
+    const el = document.getElementById('registar-anterior') as HTMLDetailsElement | null;
+    if (el) { el.open = true; el.scrollIntoView({ block: 'start' }); el.querySelector<HTMLElement>('select, textarea')?.focus({ preventScroll: true }); }
   };
 
   return (
@@ -64,6 +76,11 @@ export default function MemberDetail() {
             {milestoneByKey[pos.milestone].short} · {STATE_LABEL[pos.state].label}
           </Link>
         </div>
+        {s.isDirigente && member.status === 'ativo' && (
+          <button type="button" className="btn secondary member-action" onClick={openRegister}>
+            <History size={18} aria-hidden="true" /> Registar progresso anterior
+          </button>
+        )}
       </header>
 
       <div className="tabs" role="tablist" aria-label="Separadores do percurso">
@@ -158,9 +175,6 @@ function StageTab({ member, progress: p }: { member: MemberRow; progress: Member
         </>
       )}
       {s.isDirigente && open && <ProposeForMember pathId={open.id} progress={p} />}
-      {s.isDirigente && member.status === 'ativo' && (
-        <RegisterPrevious member={member} taken={() => new Set(p.requests.filter((r) => r.status !== 'recusado' && r.status !== 'cancelado').map((r) => r.trail_key))} />
-      )}
     </>
   );
 }
@@ -185,8 +199,17 @@ function ProposeOne({ pathId, trailId, progress, areaCode }: { pathId: string; t
 /** Catálogo pessoal: os 18 trilhos com o estado de cada um. */
 function TrailsTab({ member, progress }: { member: MemberRow; progress: MemberProgress }) {
   const s = useActiveSection();
+  const [params] = useSearchParams();
+  const register = params.get('registar') === 'anterior';
+  const trail = params.get('trilho');
+  const initialTrail = trail ? s.catalog.trailByKey.get(trail)?.id : undefined;
   return (
-    <div className="card">
+    <>
+      {s.isDirigente && member.status === 'ativo' && (
+        <RegisterPrevious member={member} open={register} initialTrail={initialTrail}
+          taken={() => new Set(progress.requests.filter((r) => r.status !== 'recusado' && r.status !== 'cancelado').map((r) => r.trail_key))} />
+      )}
+      <div className="card">
       {s.catalog.areas.map((a) => (
         <div key={a.id} style={{ marginBottom: 8 }}>
           <h3 className="row" style={{ margin: '6px 0 0' }}><span className="area-code" aria-hidden="true">{a.code}</span> {a.name}</h3>
@@ -205,7 +228,8 @@ function TrailsTab({ member, progress }: { member: MemberRow; progress: MemberPr
           </ul>
         </div>
       ))}
-    </div>
+      </div>
+    </>
   );
 }
 

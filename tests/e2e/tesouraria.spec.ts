@@ -2,7 +2,7 @@
 // (ano escutista, mês, atividade) no URL, lista de movimentos com pesquisa, quem consulta não vê
 // dados pessoais, criar receita/despesa, saldo inicial e situação do próprio, em telemóvel e
 // computador. Dados FICTÍCIOS, apenas para teste.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
@@ -20,6 +20,13 @@ async function openMore(page: Page) {
   await page.locator('main .page-actions').getByRole('button', { name: 'Mais ações' }).click();
 }
 
+/** Seletor comum de atividades (combobox com pesquisa): escreve e escolhe a opção. */
+async function pickEvent(page: Page, input: Locator, search: string, option: string | RegExp) {
+  await input.click();
+  await input.fill(search);
+  await page.getByRole('listbox', { name: 'Atividades' }).getByRole('option', { name: option }).click();
+}
+
 async function noHorizontalScroll(page: Page) {
   const width = page.viewportSize()!.width;
   const overflow = await page.evaluate((w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w, width);
@@ -31,18 +38,34 @@ const base = { state: 'efetivo', account_id: 'acc1', account_name: 'Caixa', acti
   created_by_name: 'Ana Dirigente Teste', updated_by_name: null, files: 0 };
 
 /** API simulada da Tesouraria (registada depois do installMock). Quem só consulta recebe os dados já filtrados, como o servidor faz. */
-async function mockFin(page: Page, manage: boolean) {
+/**
+ * Atividades do Calendário: muitas «Reunião» (como na secção real), duas no mesmo dia com hora e
+ * equipa diferentes, e uma cancelada. Mais de 12 opções: o seletor comum passa a ter pesquisa.
+ */
+const ACTIVITIES = [
+  { id: 'ev1', title: 'Acampamento de teste', status: 'ativo', day: '2026-09-20', time: null, team_name: null },
+  { id: 'r-a', title: 'Reunião', status: 'ativo', day: '2026-10-17', time: '10:30', team_name: 'Equipa A' },
+  { id: 'r-b', title: 'Reunião', status: 'ativo', day: '2026-10-17', time: '15:00', team_name: null },
+  { id: 'r-c', title: 'Reunião', status: 'cancelado', day: '2026-10-24', time: '15:00', team_name: null },
+  ...['2026-10-10', '2026-10-03', '2026-09-26', '2026-09-19', '2026-09-12', '2026-06-20', '2026-06-13', '2026-06-06', '2026-05-30', '2026-05-23']
+    .map((day, i) => ({ id: `r${i}`, title: 'Reunião', status: 'ativo', day, time: '15:00', team_name: null })),
+];
+
+async function mockFin(page: Page, manage: boolean, { empty = false }: { empty?: boolean } = {}) {
   const calls: { fn: string; body: Row }[] = [];
-  const accounts = [{ id: 'acc1', name: 'Caixa', kind: 'caixa', archived: false }];
-  const activities = [{ id: 'ev1', title: 'Acampamento de teste', status: 'ativo', day: '2026-09-20' }];
+  // «empty»: tesouraria por configurar (sem contas, sem saldo inicial, sem movimentos).
+  const accounts = empty ? [] : [{ id: 'acc1', name: 'Caixa', kind: 'caixa', archived: false }];
+  const activities = ACTIVITIES;
   const opening = { id: 'op1', account_id: null, account_name: null, reference_date: '2026-09-01', amount_cents: 10000, ...(manage ? { notes: 'Transitado (teste)' } : {}) };
-  const movements: Row[] = [
+  const openings: Row[] = empty ? [] : [opening];
+  const allMovements: Row[] = [
     { ...base, id: 'mv0', kind: 'receita', occurred_on: '2026-08-20', description: 'Venda antiga (teste)', category: 'Angariação de fundos', amount_cents: 5000, created_at: '2026-08-20T10:00:00Z', updated_at: '2026-08-20T10:00:00Z' },
     { ...base, id: 'mv4', kind: 'despesa', occurred_on: '2026-09-20', description: 'Gás (teste)', category: 'Material', amount_cents: 500, activity_id: 'ev1', activity_title: 'Acampamento de teste', created_at: '2026-09-20T10:00:00Z', updated_at: '2026-09-20T10:00:00Z' },
     { ...base, id: 'mv1', kind: 'receita', occurred_on: '2026-10-01', description: 'Venda de rifas (teste)', category: 'Angariação de fundos', amount_cents: 10, created_at: '2026-10-01T10:00:00Z', updated_at: '2026-10-01T10:00:00Z' },
     { ...base, id: 'mv2', kind: 'receita', occurred_on: '2026-10-02', description: 'Donativo; "anónimo"', category: 'Donativos', amount_cents: 20, created_at: '2026-10-02T10:00:00Z', updated_at: '2026-10-02T10:00:00Z' },
     { ...base, id: 'mv3', kind: 'receita', occurred_on: '2026-10-03', description: 'Inscrição de Pedro Teste', category: 'Atividades', amount_cents: 1500, member_profile_id: 'u-p9', member_name: 'Pedro Teste', notes: 'Nota privada de teste', files: 1, created_at: '2026-10-03T10:00:00Z', updated_at: '2026-10-03T10:00:00Z' },
   ];
+  const movements = empty ? [] : allMovements;
   const shared = (m: Row) => manage ? { ...m, before_opening: m.occurred_on < opening.reference_date } : {
     id: m.id, kind: m.kind, occurred_on: m.occurred_on, description: m.member_profile_id ? 'Pagamento individual' : m.description, category: m.category,
     amount_cents: m.amount_cents, state: m.state, activity_id: m.activity_id, activity_title: m.activity_title, individual: !!m.member_profile_id, mine: false,
@@ -69,11 +92,29 @@ async function mockFin(page: Page, manage: boolean) {
     if (!fn.startsWith('fin_') && fn !== 'module_files_of' && fn !== 'module_file_prepare') return route.fallback();
     calls.push({ fn, body });
     if (fn === 'module_files_of') return ok([]);
-    if (fn === 'fin_options') return ok({ can_manage: manage, space: 'teste', accounts, categories: ['Angariação de fundos', 'Atividades', 'Donativos', 'Material', 'Quotas'], opening: [{ account_id: null, reference_date: opening.reference_date }] });
+    if (fn === 'fin_options') return ok({ can_manage: manage, space: 'teste', accounts, categories: empty ? [] : ['Angariação de fundos', 'Atividades', 'Donativos', 'Material', 'Quotas'], opening: openings.map((o) => ({ account_id: o.account_id, reference_date: o.reference_date })) });
     if (fn === 'fin_activity_options') return ok(activities);
     if (fn === 'fin_members') return manage ? ok([{ profile_id: 'u-p9', full_name: 'Pedro Teste', function: 'pioneiro', team_id: 'teamA' }]) : route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: '42501', message: 'Não tens permissão para esta ação neste módulo.' }) });
-    if (fn === 'fin_list_opening_balances') return ok([opening]);
-    if (fn === 'fin_save_opening_balance') return ok('op2');
+    if (fn === 'fin_list_opening_balances') return ok(openings);
+    if (fn === 'fin_save_opening_balance') {
+      if (!body.p_id) openings.push({ id: 'op2', account_id: body.p_account, account_name: null, reference_date: body.p_reference_date, amount_cents: body.p_amount, notes: body.p_notes });
+      return ok('op2');
+    }
+    if (fn === 'fin_save_budget_line') return ok('bl1');
+    if (fn === 'fin_dashboard' && empty) {
+      const zero = { receitas: 0, despesas: 0, saldo: 0 };
+      const op = openings[0];
+      return ok({
+        can_manage: manage, space: 'teste', today: '2026-10-16',
+        opening: op ? { mode: 'global', total: op.amount_cents, reference_date: op.reference_date, items: [op] } : { mode: 'nenhum', total: 0, reference_date: null, items: [] },
+        current: { saldo_inicial: op?.amount_cents ?? 0, receitas: 0, despesas: 0, saldo: op?.amount_cents ?? 0 },
+        before_opening: { count: 0, receitas: 0, despesas: 0 },
+        totals: { efetivo: zero, pendente: zero, previsto: zero }, count: 0,
+        evolution: op ? { granularity: 'mes', from: op.reference_date, to: '2026-10-16', points: [{ date: op.reference_date, kind: 'inicio', saldo: op.amount_cents }] }
+          : { granularity: null, from: null, to: null, points: [] },
+        latest: [], by_category: [], years: [], activity: null, accounts: [],
+      });
+    }
     if (fn === 'fin_dashboard') {
       const list = filt(body);
       const counted = movements.filter((m) => m.state === 'efetivo' && m.occurred_on >= opening.reference_date);
@@ -103,7 +144,7 @@ async function mockFin(page: Page, manage: boolean) {
     if (fn === 'fin_list_movements') return ok(movements);
     if (fn === 'fin_create_movement') {
       const id = `mv${movements.length + 1}`;
-      movements.unshift({ ...base, id, kind: body.p_kind, occurred_on: body.p_on, description: body.p_description, category: body.p_category, amount_cents: body.p_amount, state: body.p_state, activity_id: body.p_activity, activity_title: body.p_activity ? 'Acampamento de teste' : null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      movements.unshift({ ...base, id, kind: body.p_kind, occurred_on: body.p_on, description: body.p_description, category: body.p_category, amount_cents: body.p_amount, state: body.p_state, activity_id: body.p_activity, activity_title: activities.find((a) => a.id === body.p_activity)?.title ?? null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
       return ok(id);
     }
     if (fn === 'fin_history') return ok([{ id: 1, entity: 'fin_movements', action: 'criado', old_values: null, new_values: {}, actor_name: 'Ana Dirigente Teste', at: new Date().toISOString() }]);
@@ -135,6 +176,11 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await expect(page.getByTestId('receitas-periodo')).toHaveText('15,30 €');
   await expect(page.getByTestId('despesas-periodo')).toHaveText('5,00 €');
   await expect(page.getByTestId('resultado-periodo')).toHaveText('10,30 €');
+  // Saldo atual (hoje, desde o saldo inicial) separado do período filtrado
+  await expect(main.getByRole('heading', { name: 'Hoje · 16/10/2026' })).toBeVisible();
+  await expect(page.getByTestId('saldo-hint')).toHaveText('desde 01/09/2026');
+  await expect(main.getByRole('heading', { name: 'Período · ano escutista 2026/27' })).toBeVisible();
+  await expect(page.getByTestId('configurar')).toHaveCount(0);
   const align = await page.locator('.fin-kpis .stat').first().evaluate((el) => getComputedStyle(el).textAlign);
   expect(align).toBe('center');
   // Só três indicadores principais, com a mesma altura
@@ -155,6 +201,7 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await expect(main.getByRole('link', { name: /Nova receita/ })).toHaveCount(0);
   const tabs = page.getByRole('navigation', { name: 'Secções da tesouraria' });
   await expect(tabs.getByRole('link', { name: 'Quotas' })).toHaveCount(0);
+  await expect(tabs.getByRole('link', { name: /Contas/ })).toHaveCount(0);
   // Por omissão, o ano escutista atual (setembro a agosto)
   expect(calls.find((c) => c.fn === 'fin_dashboard')!.body).toMatchObject({ p_from: '2026-09-01', p_to: '2027-08-31', p_activity: null });
 
@@ -163,6 +210,7 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   // Quem consulta só tem «Exportar CSV» no menu «Mais»
   await openMore(page);
   await expect(page.getByRole('button', { name: /Exportar CSV/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Contas, categorias e saldo inicial/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
 
   // Filtros por mês e atividade no URL; sobrevivem ao «voltar»
@@ -171,8 +219,12 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await filters.getByLabel('Mês').selectOption('2026-10');
   await expect(page).toHaveURL(/mes=2026-10/);
   await expect(page.getByTestId('despesas-periodo')).toHaveText('0,00 €');
-  await filters.getByLabel('Atividade').selectOption('ev1');
+  await expect(page.getByTestId('periodo')).toHaveText('outubro de 2026');
+  // Atividade: seletor comum com pesquisa (data · nome), guarda o id
+  const actFilter = filters.getByRole('combobox', { name: 'Atividade' });
+  await pickEvent(page, actFilter, 'acamp', '20/09/2026 · Acampamento de teste');
   await expect(page).toHaveURL(/atividade=ev1/);
+  await expect(actFilter).toHaveValue('20/09/2026 · Acampamento de teste');
   await expect(page.getByTestId('resultado-atividade')).toHaveText('−5,00 €');
   expect(calls.filter((c) => c.fn === 'fin_dashboard').at(-1)!.body).toMatchObject({ p_from: '2026-10-01', p_to: '2026-10-31', p_activity: 'ev1' });
   await tabs.getByRole('link', { name: 'A minha situação' }).click();
@@ -180,6 +232,8 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await page.goBack();
   await expect(page).toHaveURL(/mes=2026-10/);
   await expect(filters.getByLabel('Mês')).toHaveValue('2026-10');
+  await openFilters(page);
+  await expect(filters.getByRole('combobox', { name: 'Atividade' })).toHaveValue('20/09/2026 · Acampamento de teste');
   // Ano escutista anterior limpa o mês
   await openFilters(page);
   await filters.getByLabel('Ano escutista').selectOption('2025');
@@ -245,6 +299,7 @@ test('a minha situação: quotas devidas, pagas e em falta', async ({ page }, in
 });
 
 test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com pesquisa e CSV', async ({ page }, info) => {
+  test.setTimeout(60_000);
   await installMock(page, leader());
   const calls = await mockFin(page, true);
   await page.goto('/tesouraria');
@@ -280,11 +335,33 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await page.getByLabel('Descrição').fill('Gás para o acampamento');
   await page.getByLabel('Valor (€)').fill('12,30');
   await page.getByLabel('Categoria').fill('Material');
-  await page.getByLabel('Atividade (opcional)').selectOption('ev1');
+  // Muitas «Reunião»: cada opção tem a data; as do mesmo dia mostram hora e equipa. Escolha só com o teclado.
+  const actInput = page.getByRole('combobox', { name: 'Atividade (opcional)' });
+  await actInput.focus();
+  await actInput.fill('17/10');
+  const listbox = page.getByRole('listbox', { name: 'Atividades' });
+  await expect(listbox.getByRole('option')).toHaveText(['17/10/2026 · Reunião · 10:30 · Equipa A', '17/10/2026 · Reunião · 15:00']);
+  await actInput.press('ArrowDown');
+  await actInput.press('Enter');
+  await expect(actInput).toHaveValue('17/10/2026 · Reunião · 15:00');
+  await actInput.fill('reuni');
+  await expect(listbox.getByRole('option', { name: /^10\/10\/2026 · Reunião$/ })).toBeVisible();
+  await expect(listbox.getByRole('option', { name: /24\/10\/2026 · Reunião.*cancelada/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await pickEvent(page, actInput, 'acamp', '20/09/2026 · Acampamento de teste');
   await page.getByRole('button', { name: 'Registar movimento' }).click();
   await expect(page.getByRole('heading', { name: 'Gás para o acampamento' })).toBeVisible();
   await expect(page.getByText('−12,30 €')).toBeVisible();
   expect(calls.filter((c) => c.fn === 'fin_create_movement').at(-1)!.body).toMatchObject({ p_kind: 'despesa', p_amount: 1230, p_activity: 'ev1' });
+  // Outra despesa ligada à reunião da tarde de 17/10 (não à da manhã com o mesmo nome)
+  await page.goto('/tesouraria/movimentos/novo?tipo=despesa');
+  await page.getByLabel('Descrição').fill('Lanche da reunião');
+  await page.getByLabel('Valor (€)').fill('3,40');
+  await page.getByLabel('Categoria').fill('Material');
+  await pickEvent(page, page.getByRole('combobox', { name: 'Atividade (opcional)' }), 'reunião', '17/10/2026 · Reunião · 15:00');
+  await page.getByRole('button', { name: 'Registar movimento' }).click();
+  await expect(page.getByRole('heading', { name: 'Lanche da reunião' })).toBeVisible();
+  expect(calls.filter((c) => c.fn === 'fin_create_movement').at(-1)!.body).toMatchObject({ p_amount: 340, p_activity: 'r-b' });
 
   // Lista: quem gere vê o membro e abre o detalhe; pesquisa e filtros no URL; o formulário não está embutido
   await page.goto('/tesouraria/movimentos');
@@ -310,7 +387,7 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await expect(page.getByText('Sem movimentos')).toBeVisible();
   await page.getByRole('button', { name: 'Limpar filtros' }).click();
   await expect(page.getByRole('searchbox', { name: 'Pesquisar' })).toHaveValue('');
-  await expect(list.getByRole('listitem')).toHaveCount(6);
+  await expect(list.getByRole('listitem')).toHaveCount(7);
   await openMore(page);
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Exportar CSV/ }).click()]);
   const csv = readFileSync((await download.path())!, 'utf8');
@@ -341,6 +418,102 @@ test('tesoureiro autorizado: definir o saldo inicial (global ou por conta)', asy
   await page.screenshot({ path: `test-results/tesouraria-saldo-inicial-${info.project.name}.png`, fullPage: true });
 });
 
+test('tesouraria por configurar: ação «Configurar saldo inicial», sem saldo 0,00 € «confirmado» e estado vazio compacto', async ({ page }, info) => {
+  await installMock(page, leader());
+  const calls = await mockFin(page, true, { empty: true });
+  await page.goto('/tesouraria');
+  const main = page.locator('main');
+  const setup = page.getByTestId('configurar');
+  await expect(setup.getByRole('heading', { name: 'Tesouraria por configurar' })).toBeVisible();
+  // O saldo não aparece como 0,00 € confirmado
+  await expect(page.getByTestId('saldo-atual')).toHaveText('—');
+  await expect(page.getByTestId('saldo-hint')).toHaveText('por configurar');
+  await expect(main.getByText('0,00 €', { exact: true }).first()).toBeVisible(); // receitas/despesas do período, sim
+  await expect(page.getByTestId('saldo-atual')).not.toHaveText(/0,00/);
+  // Sem movimentos: sem gráfico nem listas, só uma linha
+  await expect(page.getByTestId('sem-movimentos')).toHaveText(/Sem movimentos em ano escutista 2026\/27/);
+  await expect(page.getByRole('img', { name: 'Evolução do saldo' })).toHaveCount(0);
+  await expect(main.getByRole('heading', { name: 'Evolução do saldo' })).toHaveCount(0);
+  await expect(main.getByRole('heading', { name: 'Últimos movimentos' })).toHaveCount(0);
+  await expect(main.getByRole('heading', { name: 'Saldo por conta ou caixa' })).toHaveCount(0);
+  const emptyH = await page.getByTestId('sem-movimentos').evaluate((el) => el.getBoundingClientRect().height);
+  expect(emptyH).toBeLessThan(90);
+  await noHorizontalScroll(page);
+  await page.screenshot({ path: `test-results/tesouraria-por-configurar-${info.project.name}.png`, fullPage: true });
+
+  // A ação abre a configuração com o formulário do saldo inicial já aberto (teclado: Enter na ligação)
+  await setup.getByRole('link', { name: 'Configurar saldo inicial' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/tesouraria\/contas\?configurar=1$/);
+  await expect(main.getByRole('heading', { name: 'Configuração da tesouraria', level: 1 })).toBeVisible();
+  await expect(page.getByTestId('saldo-inicial-vazio')).toHaveText(/Ainda não configurado/);
+  const form = page.getByRole('form', { name: 'Novo saldo inicial' });
+  await expect(form).toBeVisible();
+  await form.getByLabel('Data de referência').fill('2026-09-01');
+  await form.getByLabel('Valor (€)').fill('250,00');
+  await form.getByRole('button', { name: 'Guardar saldo inicial' }).click();
+  await expect(page.getByText('Saldo inicial definido.')).toBeVisible();
+  expect(calls.filter((c) => c.fn === 'fin_save_opening_balance')).toHaveLength(1);
+  expect(calls.find((c) => c.fn === 'fin_save_opening_balance')!.body).toMatchObject({ p_id: null, p_account: null, p_reference_date: '2026-09-01', p_amount: 25000 });
+  await expect(page.getByTestId('saldo-inicial-valor')).toHaveText('250,00 €');
+  // Categorias e contas no mesmo sítio (acesso secundário)
+  await expect(main.getByRole('heading', { name: 'Contas e caixas' })).toBeVisible();
+  await expect(main.getByRole('heading', { name: 'Categorias' })).toBeVisible();
+  await noHorizontalScroll(page);
+  // Voltar: regressa ao painel, que já mostra o saldo inicial
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(/\/tesouraria$/);
+  await expect(page.getByTestId('saldo-atual')).toHaveText('250,00 €');
+  await expect(page.getByTestId('saldo-hint')).toHaveText('desde 01/09/2026');
+  await expect(page.getByTestId('configurar').getByRole('heading')).toHaveText('Ainda não há contas nem caixas');
+});
+
+test('quem consulta, sem configuração: aviso sem ação nem acesso à configuração', async ({ page }) => {
+  await installMock(page, pioneer());
+  const calls = await mockFin(page, false, { empty: true });
+  await page.goto('/tesouraria');
+  const setup = page.getByTestId('configurar');
+  await expect(setup).toContainText('A tesouraria ainda não configurou o saldo inicial.');
+  await expect(setup.getByRole('link')).toHaveCount(0);
+  await expect(page.getByTestId('saldo-atual')).toHaveText('—');
+  await expect(page.getByTestId('sem-movimentos').getByRole('link')).toHaveCount(0);
+  await page.goto('/tesouraria/contas?configurar=1');
+  await expect(page.getByText(/reservada a quem a administração autorizou/)).toBeVisible();
+  await expect(page.getByRole('form', { name: 'Novo saldo inicial' })).toHaveCount(0);
+  expect(calls.some((c) => c.fn === 'fin_save_opening_balance' || c.fn === 'fin_list_opening_balances')).toBe(false);
+});
+
+test('tesoureiro autorizado: configuração pelo menu «Mais»; orçamento com o seletor de atividades', async ({ page }) => {
+  await installMock(page, leader());
+  const calls = await mockFin(page, true);
+  await page.goto('/tesouraria');
+  const tabs = page.getByRole('navigation', { name: 'Secções da tesouraria' });
+  await expect(tabs.getByRole('link')).toHaveText(['Painel', 'Movimentos', 'Atividades', 'A minha situação', 'Quotas']);
+  await openMore(page);
+  await page.getByRole('link', { name: /Contas, categorias e saldo inicial/ }).click();
+  await expect(page).toHaveURL(/\/tesouraria\/contas$/);
+  await expect(page.getByRole('form', { name: 'Novo saldo inicial' })).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Categorias em uso' }).getByRole('listitem')).toHaveCount(5);
+  // Saldo global já definido: não oferece outro
+  await expect(page.getByRole('button', { name: /Configurar saldo inicial|Juntar saldo/ })).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/tesouraria$/);
+
+  // Orçamento: a atividade escolhe-se pelo seletor comum e envia o id
+  await tabs.getByRole('link', { name: 'Atividades' }).click();
+  await page.getByRole('button', { name: 'Juntar linha de orçamento' }).click();
+  const form = page.getByRole('form', { name: 'Linha de orçamento' });
+  await form.getByRole('button', { name: 'Guardar linha' }).click();
+  await expect(form.getByText('Escolhe a atividade.')).toBeVisible();
+  await pickEvent(page, form.getByRole('combobox', { name: 'Atividade' }), '17/10', '17/10/2026 · Reunião · 10:30 · Equipa A');
+  await form.getByLabel('Categoria').fill('Alimentação');
+  await form.getByLabel('Valor previsto (€)').fill('20,00');
+  await form.getByLabel('Descrição').fill('Lanche');
+  await form.getByRole('button', { name: 'Guardar linha' }).click();
+  await expect(form.getByText('Linha de orçamento guardada.')).toBeVisible();
+  expect(calls.find((c) => c.fn === 'fin_save_budget_line')!.body).toMatchObject({ p_id: null, p_activity: 'r-a', p_kind: 'despesa', p_category: 'Alimentação', p_amount: 2000, p_description: 'Lanche' });
+});
+
 test.describe('capturas', () => {
   test.skip(!CAPTURAS, 'Só com CAPTURAS=1');
   for (const theme of THEMES) {
@@ -365,6 +538,18 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'tesouraria-quotas');
       await page.goto('/tesouraria/contas');
       await shoot(page, info, theme, 'tesouraria-contas');
+      await page.goto('/tesouraria/movimentos/novo');
+      await page.getByRole('combobox', { name: 'Atividade (opcional)' }).fill('reunião');
+      await shoot(page, info, theme, 'tesouraria-seletor-atividade');
+    });
+    test(`tesouraria por configurar ${theme}`, async ({ page }, info) => {
+      await page.emulateMedia({ colorScheme: theme });
+      await installMock(page, leader());
+      await mockFin(page, true, { empty: true });
+      await page.goto('/tesouraria');
+      await shoot(page, info, theme, 'tesouraria-por-configurar');
+      await page.goto('/tesouraria/contas?configurar=1');
+      await shoot(page, info, theme, 'tesouraria-configurar');
     });
   }
 });

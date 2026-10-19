@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
 import { MONTHS, todayLisbon } from '../common';
+import type { EventChoice } from '../EventSelect';
 
 export type Kind = 'receita' | 'despesa';
 export type MovState = 'previsto' | 'pendente' | 'efetivo';
@@ -13,7 +14,8 @@ export type Options = {
   can_manage: boolean; space: 'teste' | 'real'; accounts: Account[]; categories: string[];
   opening: { account_id: string | null; reference_date: string }[];
 };
-export type ActivityOption = { id: string; title: string; status: string; day: string | null };
+/** Atividade do Calendário; «time» (HH:MM, Lisboa) e «team_name» servem para distinguir atividades com o mesmo nome no mesmo dia. */
+export type ActivityOption = { id: string; title: string; status: string; day: string | null; time?: string | null; team_name?: string | null };
 export type Member = { profile_id: string; full_name: string; function: string | null; team_id: string | null };
 
 export type Opening = {
@@ -147,6 +149,9 @@ export function useActivities() {
   const s = useSectionId();
   return useQuery({ queryKey: ['fin', 'activities', s], queryFn: () => call<ActivityOption[]>('fin_activity_options', { p_section: s }) });
 }
+/** Atividades no formato do seletor comum (EventSelect). */
+export const activityChoices = (acts: ActivityOption[] = []): EventChoice[] =>
+  acts.map((a) => ({ id: a.id, title: a.title, day: a.day, time: a.time ?? null, team_name: a.team_name ?? null, cancelled: a.status === 'cancelado' }));
 export function useMembersFin(enabled: boolean) {
   const s = useSectionId();
   return useQuery({ queryKey: ['fin', 'members', s], queryFn: () => call<Member[]>('fin_members', { p_section: s }), enabled });

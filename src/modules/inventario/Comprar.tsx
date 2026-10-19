@@ -11,10 +11,11 @@ import { Badge, ConfirmButton, Empty, ErrorBox, Field, Filters, Loading, MoreMen
 import { formatDay, formatEuros, formatLisbonDay, parseEuros, todayLisbon } from '../common';
 import { InvTabs, useFormAction } from './parts';
 import {
-  PRIORITY_LABEL, PURCHASE_LABEL, norm, qty, useEventOptions, useExpenseOptions, useOverview, usePurchases, useSectionId,
+  PRIORITY_LABEL, PURCHASE_LABEL, eventChoices, norm, qty, useEventOptions, useExpenseOptions, useOverview, usePurchases, useSectionId,
   type Priority, type Purchase,
 } from './api';
 import { DateInput } from '../../components/DateInput';
+import { EventSelect } from '../EventSelect';
 
 const STATUS_FILTERS: [string, string][] = [['', 'Por comprar'], ['comprado', 'Compradas'], ['cancelado', 'Canceladas'], ['todos', 'Todas']];
 
@@ -182,11 +183,13 @@ export function PurchaseForm({ item, purchase, onDone }: {
         </Field>
       </div>
       <Field label="Atividade do calendário (opcional)" htmlFor={`${id}-e`}>
-        <select id={`${id}-e`} value={event} onChange={(e) => setEvent(e.target.value)}>
-          <option value="">Sem atividade</option>
-          {purchase?.event_id && !(events.data ?? []).some((e) => e.id === purchase.event_id) && <option value={purchase.event_id}>{purchase.event ?? 'Atividade ligada'}</option>}
-          {(events.data ?? []).map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-        </select>
+        <EventSelect id={`${id}-e`} value={event} onChange={setEvent} empty="Sem atividade" loading={events.isLoading}
+          events={[
+            ...eventChoices(events.data ?? []),
+            // Atividade já ligada que deixou de aparecer nas opções (passada): mantém-se pelo id.
+            ...(purchase?.event_id && !(events.data ?? []).some((e) => e.id === purchase.event_id)
+              ? [{ id: purchase.event_id, title: purchase.event ?? 'Atividade ligada', day: null }] : []),
+          ]} />
       </Field>
       <div className="btn-row">
         <button type="submit" className="btn" disabled={action.busy}>{purchase ? 'Guardar' : 'Acrescentar à lista'}</button>

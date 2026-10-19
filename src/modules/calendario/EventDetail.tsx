@@ -1,19 +1,22 @@
 // Detalhe de uma atividade: dados, a minha resposta, «O que te falta», participantes
-// (com pendências por pessoa para quem gere), anexos, exportação e gestão.
+// (com pendências por pessoa para quem gere), anexos, exportação e gestão; e, em
+// separadores, o que está ligado ao evento noutros módulos (ver EventLinks.tsx).
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Ban, Check, Download, FileText, Link2, Package, Paperclip, Pencil, Users, Wallet } from 'lucide-react';
+import { Ban, Check, Download, FileText, Paperclip, Pencil } from 'lucide-react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
 import { ErrorBox, Field, Loading, MoreInfo, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { downloadFile, formatDay, formatEuros, formatLisbon } from '../common';
+import { downloadFile, formatDay, formatLisbon } from '../common';
 import { listModuleFiles, openModuleFile, uploadModuleFile } from '../files';
 import { eventDays, MISSING_LABEL, RESPONSE_LABEL, reminderLabel, type CalDetail, type CalParticipant, type PendingItem, type Response } from './cal';
 import { buildIcs, icsFileName } from './ics';
 import { MissingList, ResponseBadge, useParam } from './shared';
+import { AtaPanel, EventTabs, FinancasPanel, MaterialPanel, PresencasPanel, TabPanel, eventTabs, useEventLinks, type TabKey } from './EventLinks';
+import { isReadonly, SourceNotice } from './source';
 
 const FILTERS: [string, string][] = [['', 'Todos'], ['vou', 'Vou'], ['nao_vou', 'Não vou'], ['por_confirmar', 'Por confirmar'], ['sem', 'Sem resposta'], ['falta', 'Com pendências']];
 
@@ -49,20 +52,50 @@ export function EventDetail() {
           <Link to={`/calendario/evento/${e.id}/editar`} className="btn secondary"><Pencil size={16} aria-hidden="true" /> Alterar</Link>
           <MoreMenu>
             <button type="button" className="btn" onClick={exportIcs}><Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)</button>
-            <button type="button" className="btn danger" onClick={() => setCancelling(true)}><Ban size={16} aria-hidden="true" /> Cancelar atividade…</button>
+            {!isReadonly(e) && <button type="button" className="btn danger" onClick={() => setCancelling(true)}><Ban size={16} aria-hidden="true" /> Cancelar atividade…</button>}
           </MoreMenu>
         </>
       ) : (
         <button type="button" className="btn secondary" onClick={exportIcs}><Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)</button>
       )} />
       {flash && <Notice kind="success">{flash}</Notice>}
+      <SourceNotice e={e} />
       {cancelled && (
         <Notice kind="warn">
           <strong>Atividade cancelada</strong>{e.cancelled_at && <> a {formatLisbon(e.cancelled_at)}</>}.{e.cancel_reason && <> Motivo: {e.cancel_reason}</>}
         </Notice>
       )}
       {manage && cancelling && <ManageBox e={e} onClose={() => setCancelling(false)} />}
+      <EventBody e={e} />
+    </>
+  );
+}
 
+/** Detalhes e, quando há, os separadores dos módulos ligados (separador no endereço: ?sec=). */
+function EventBody({ e }: { e: CalDetail }) {
+  const links = useEventLinks(e);
+  const [sec, setSec] = useParam('sec');
+  const tabs = eventTabs(e, links.data);
+  const current: TabKey = tabs.some((t) => t.key === sec) ? (sec as TabKey) : 'detalhes';
+  const l = links.data;
+  if (tabs.length === 1) return <Details e={e} />;
+  return (
+    <>
+      <EventTabs tabs={tabs} current={current} onSelect={(k) => setSec(k === 'detalhes' ? '' : k)} />
+      <TabPanel k={current}>
+        {current === 'detalhes' && <Details e={e} />}
+        {current === 'presencas' && l && <PresencasPanel e={e} l={l} />}
+        {current === 'ata' && l && <AtaPanel e={e} l={l} />}
+        {current === 'material' && l && <MaterialPanel e={e} l={l} />}
+        {current === 'financas' && l && <FinancasPanel e={e} l={l} />}
+      </TabPanel>
+    </>
+  );
+}
+
+function Details({ e }: { e: CalDetail }) {
+  return (
+    <>
       <section className="card cal-info" aria-label="Dados da atividade">
         <dl className="meta cal-facts">
           <When e={e} />
@@ -91,7 +124,6 @@ export function EventDetail() {
 
       {(e.involved || e.can_respond) && <MyResponse e={e} />}
       <Participants e={e} />
-      <Linked e={e} />
       <Attachments e={e} />
     </>
   );
@@ -258,112 +290,6 @@ function ParticipantRow({ e, p }: { e: CalDetail; p: CalParticipant }) {
       <ErrorBox error={action.error} />
       {action.success && <p className="cal-saved" role="status">{action.success}</p>}
     </li>
-  );
-}
-
-type Links = {
-  reservas?: { id: string; item_id: string; item: string; unit: string; quantity: number; status: string }[];
-  financas?: { orcamento: Totals; efetivo: Totals; por_confirmar: Totals } | null;
-  reunioes?: { id: string; title: string; kind: string; starts_at: string; ata_id: string | null }[];
-  ata_writer?: boolean;
-  compras?: { id: string; name: string; quantity: number; unit: string; status: string }[];
-  presencas?: { id: string; title: string; status: string; counts: { presente: number; justificada: number; injustificada: number } | null; mine: string | null } | null;
-  tarefas?: { id: string; kind: string; title: string; exec_status: string; due_date: string | null; overdue: boolean; responsible_name: string | null; team_name: string | null }[];
-};
-const TASK_STATUS: Record<string, string> = { por_fazer: 'Por fazer', em_curso: 'Em curso', concluida: 'Concluída', feita: 'Concluída', cancelada: 'Arquivada' };
-const PRES_STATUS: Record<string, string> = { presente: 'Presente', justificada: 'Falta justificada', injustificada: 'Falta injustificada' };
-type Totals = { receitas: number; despesas: number; resultado: number };
-
-// Registos de outros módulos ligados a esta atividade (só os módulos a que a pessoa tem
-// acesso, no mesmo espaço). Cada registo vive no seu módulo; aqui só se mostra a ligação.
-function Linked({ e }: { e: CalDetail }) {
-  const section = useActiveSection().membership.section_id;
-  const { space } = useModuleCtx();
-  const q = useQuery({
-    queryKey: ['cal-links', section, space, e.id],
-    queryFn: () => call<Links>('cal_event_links', { p_section: section, p_event: e.id }),
-    retry: false,
-  });
-  const l = q.data;
-  if (!l) return null;
-  const hasRes = !!l.reservas?.length, hasFin = !!l.financas;
-  const hasBuy = !!l.compras?.length, hasPres = !!l.presencas, hasTasks = !!l.tarefas?.length;
-  const atas = (l.reunioes ?? []).filter((m) => m.ata_id);
-  const canWriteAta = !!l.ata_writer && atas.length === 0;
-  if (!hasRes && !atas.length && !hasFin && !hasBuy && !hasPres && !hasTasks && !canWriteAta) return null;
-  return (
-    <section className="card" aria-labelledby="cal-links-h">
-      <h2 id="cal-links-h"><Link2 size={18} aria-hidden="true" /> Ligado a esta atividade</h2>
-      {hasRes && (
-        <>
-          <h3 className="label"><Package size={16} aria-hidden="true" /> Material reservado</h3>
-          <ul className="list">
-            {l.reservas!.map((r) => (
-              <li key={r.id}><Link className="list-item" to={`/inventario/artigo/${r.item_id}`}>
-                <span className="grow ellipsis">{r.item}</span><span className="faint">{r.quantity} {r.unit}{r.status === 'concluida' ? ' · concluída' : ''}</span>
-              </Link></li>
-            ))}
-          </ul>
-        </>
-      )}
-      {hasBuy && (
-        <>
-          <h3 className="label"><Package size={16} aria-hidden="true" /> Material a comprar</h3>
-          <ul className="list">
-            {l.compras!.map((c) => (
-              <li key={c.id}><Link className="list-item" to="/inventario/comprar">
-                <span className="grow ellipsis">{c.name}</span><span className="faint">{c.quantity} {c.unit} · {c.status === 'comprado' ? 'comprado' : 'por comprar'}</span>
-              </Link></li>
-            ))}
-          </ul>
-        </>
-      )}
-      {hasTasks && (
-        <>
-          <h3 className="label"><Check size={16} aria-hidden="true" /> Tarefas</h3>
-          <ul className="list">
-            {l.tarefas!.map((t) => (
-              <li key={t.id}><Link className="list-item" to="/atas-e-tarefas/tarefas">
-                <span className="grow ellipsis">{t.title}</span>
-                <span className={t.overdue ? 'badge tone-attention' : 'faint'}>
-                  {TASK_STATUS[t.exec_status] ?? t.exec_status}{t.due_date ? ` · ${formatDay(t.due_date)}` : ''}{t.overdue ? ' · em atraso' : ''}
-                </span>
-              </Link></li>
-            ))}
-          </ul>
-        </>
-      )}
-      {hasPres && (
-        <>
-          <h3 className="label"><Users size={16} aria-hidden="true" /> Presenças</h3>
-          <p className="faint">
-            {l.presencas!.counts
-              ? <>Presentes: {l.presencas!.counts.presente} · Faltas justificadas: {l.presencas!.counts.justificada} · Faltas injustificadas: {l.presencas!.counts.injustificada}</>
-              : <>A tua presença: {l.presencas!.mine ? PRES_STATUS[l.presencas!.mine] : 'por registar'}</>}
-            {' '}<Link to={`/presencas/sessoes/${l.presencas!.id}`}>Ver presenças</Link>
-          </p>
-        </>
-      )}
-      {hasFin && (
-        <>
-          <h3 className="label"><Wallet size={16} aria-hidden="true" /> Finanças</h3>
-          <p className="faint">
-            Orçamento: {formatEuros(l.financas!.orcamento.resultado)} · Efetivo: {formatEuros(l.financas!.efetivo.resultado)}
-            {l.financas!.por_confirmar.resultado !== 0 && <> · Por confirmar: {formatEuros(l.financas!.por_confirmar.resultado)}</>}
-            {' '}<Link to="/tesouraria/atividades">Ver na Tesouraria</Link>
-          </p>
-        </>
-      )}
-      {(atas.length > 0 || canWriteAta) && (
-        <>
-          <h3 className="label"><FileText size={16} aria-hidden="true" /> Ata</h3>
-          {atas.map((m) => (
-            <p key={m.id} className="faint"><Link to={`/atas-e-tarefas/atas/${m.ata_id}`}>Ver ata</Link></p>
-          ))}
-          {canWriteAta && <p className="faint"><Link to={`/atas-e-tarefas/nova?evento=${e.id}`}>Escrever ata</Link></p>}
-        </>
-      )}
-    </section>
   );
 }
 

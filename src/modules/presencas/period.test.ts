@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRate, periodFrom, rateSentence, scoutYearLabel, scoutYearOf, yearOptions } from './period';
+import { fillSummary, formatRate, needsFilling, periodFrom, rateSentence, scoutYearLabel, scoutYearOf, yearOptions } from './period';
 
 const P = (q: string) => new URLSearchParams(q);
 
@@ -49,5 +49,21 @@ describe('taxa de assiduidade', () => {
     expect(formatRate('66.7')).toBe('66,7 %');
     expect(formatRate(33.33)).toBe('33,3 %');
     expect(rateSentence({ presencas: 1, contadas: 3, taxa: '33.3' })).toBe('33,3 % (1 presença em 3 sessões contadas)');
+  });
+});
+
+describe('sessões por preencher', () => {
+  const s = (status: 'ativa' | 'cancelada', future: boolean, applicable: number, registered: number) => ({ status, future, applicable, registered });
+  it('só contam sessões passadas, ativas e com registos em falta', () => {
+    expect(needsFilling(s('ativa', false, 5, 2))).toBe(true);
+    expect(needsFilling(s('ativa', false, 5, 5))).toBe(false);
+    expect(needsFilling(s('ativa', true, 5, 0))).toBe(false);
+    expect(needsFilling(s('cancelada', false, 5, 0))).toBe(false);
+    expect(needsFilling(s('ativa', false, 0, 0))).toBe(false);
+  });
+  it('soma os registos em falta', () => {
+    expect(fillSummary([s('ativa', false, 5, 2), s('ativa', false, 3, 0), s('ativa', true, 4, 0), s('cancelada', false, 4, 0)]))
+      .toEqual({ sessions: 2, missing: 6 });
+    expect(fillSummary([])).toEqual({ sessions: 0, missing: 0 });
   });
 });

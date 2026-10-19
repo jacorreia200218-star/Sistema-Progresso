@@ -135,3 +135,47 @@
 }
 .module-presencas .pres-origin { border: 0; padding: 0; margin: 0 0 10px; }
 .module-presencas .pres-origin legend { font-weight: 700; margin-bottom: 4px; }
+
+/* Siglas (P, FJ, FI, PR) com significado */
+.module-presencas abbr.pres-abbr { text-decoration: none; cursor: help; }
+.module-presencas .pres-legend-abbr { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; }
+.module-presencas .pres-legend-abbr strong { color: var(--ink); }
+.module-presencas .pres-legend.pres-legend-plain { border-top: 0; padding: 8px 0 0; }
+.module-presencas .pres-provisional { color: var(--amber); font-weight: 700; }
+
+/* Sessões por preencher + escolher a sessão para registar */
+.module-presencas .pres-fill-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 14px; }
+.module-presencas .pres-fill-bar.pending { border-left: 4px solid var(--amber); }
+.module-presencas .pres-fill-sub { flex-basis: 100%; padding-left: 20px; }
+.module-presencas .pres-fill-text { margin: 0; flex: 1 1 220px; min-width: 0; font-size: var(--fs-small); display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; }
+.module-presencas .pres-fill-bar.pending .pres-fill-text svg { color: var(--amber); }
+.module-presencas .pres-fill-bar:not(.pending) .pres-fill-text svg { color: var(--green-ink); }
+.module-presencas .pres-fill-pick { display: flex; align-items: center; gap: 8px; flex: 2 1 420px; min-width: 0; }
+.module-presencas .pres-fill-pick > select, .module-presencas .pres-fill-pick > .search-select { flex: 1; min-width: 0; }
+.module-presencas .pres-fill-label { font-size: var(--fs-small); color: var(--ink-soft); }
+.module-presencas .pres-fill-pick .btn { flex: none; }
+
+/* Registo por pessoa: um toque (P, FJ, FI) e resposta do Calendário à parte */
+.module-presencas .pres-member-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 2px; }
+.module-presencas .pres-cal { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-xs); color: var(--ink-soft);
+  border: 1px dashed var(--ink-faint); border-radius: 99px; padding: 0 7px; white-space: nowrap; }
+.module-presencas .pres-quick-btns { display: inline-flex; gap: 4px; flex: none; }
+.module-presencas .pres-qbtn { min-width: 38px; min-height: 36px; padding: 0 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+  color: var(--ink-soft); font: inherit; font-size: var(--fs-small); font-weight: 700; cursor: pointer; }
+.module-presencas .pres-qbtn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.module-presencas .pres-qbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.module-presencas .pres-qbtn.on { border-color: currentColor; }
+.module-presencas .pres-qbtn.on.pres-presente { background: var(--green-tint); color: var(--green-ink); }
+.module-presencas .pres-qbtn.on.pres-justificada { background: var(--amber-tint); color: var(--amber); }
+.module-presencas .pres-qbtn.on.pres-injustificada { background: var(--danger-tint); color: var(--danger-ink); }
+.module-presencas .pres-qbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.module-presencas .pres-qbtn[aria-busy='true'] { opacity: 0.7; cursor: progress; }
+.module-presencas .pres-quick-help { margin: 2px 0 4px; }
+@media (max-width: 520px) {
+  .module-presencas .pres-member-row { flex-wrap: wrap; }
+  .module-presencas .pres-member-name { flex: 1 1 calc(100% - 80px); }
+  .module-presencas .pres-quick-btns { order: 4; margin-left: 30px; }
+  .module-presencas .pres-qbtn { min-width: 48px; }
+}
+
+.module-presencas .pres-select-row .btn { width: auto; min-height: 36px; }
