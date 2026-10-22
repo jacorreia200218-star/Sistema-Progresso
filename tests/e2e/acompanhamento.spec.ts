@@ -8,15 +8,11 @@ async function noHorizontalScroll(page: Page) {
   expect(overflow, 'sem deslocamento horizontal').toBeLessThanOrEqual(1);
 }
 
-test('acompanhamento: três separadores com contadores', async ({ page }, info) => {
+test('acompanhamento: cinco separadores com contadores (Pioneiros e Caminho incluídos)', async ({ page }, info) => {
   await installMock(page, leader());
   await page.goto('/acompanhamento');
   const tabs = page.getByRole('navigation', { name: 'Secções do acompanhamento' }).getByRole('link');
-  await expect(tabs).toHaveCount(3);
-  await expect(tabs.nth(0)).toContainText('Secção');
-  await expect(tabs.nth(1)).toContainText('Pedidos');
-  await expect(tabs.nth(1)).toContainText('3');
-  await expect(tabs.nth(2)).toContainText('Etapas');
+  await expect(tabs).toHaveText(['Secção', 'Pioneiros', 'Caminho', /Pedidos\s*3/, /Etapas/]);
   // Secção: pessoas por equipa, pesquisa e mérito secundário
   await expect(page.getByRole('region', { name: 'Equipa Andorinha' })).toBeVisible();
   await page.getByPlaceholder('Pesquisar por nome').fill('Pedro');
@@ -25,6 +21,21 @@ test('acompanhamento: três separadores com contadores', async ({ page }, info) 
   await expect(page.getByText('Anilha de mérito').first()).toBeVisible();
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/acomp-seccao-${info.project.name}.png`, fullPage: true });
+});
+
+test('Pioneiros e Caminho abrem dentro do Acompanhamento, que fica ativo no menu', async ({ page }) => {
+  await installMock(page, leader());
+  await page.goto('/acompanhamento');
+  const tabs = page.getByRole('navigation', { name: 'Secções do acompanhamento' });
+  await tabs.getByRole('link', { name: 'Caminho' }).click();
+  await expect(page).toHaveURL(/\/caminho$/);
+  await expect(page.getByRole('heading', { name: 'Acompanhamento', level: 1 })).toBeVisible();
+  await expect(tabs.getByRole('link', { name: 'Caminho' })).toHaveAttribute('aria-current', 'page');
+  await tabs.getByRole('link', { name: 'Pioneiros' }).click();
+  await expect(page).toHaveURL(/\/meu-progresso/);
+  await expect(tabs.getByRole('link', { name: 'Pioneiros' })).toHaveAttribute('aria-current', 'page');
+  const nav = page.getByRole('navigation', { name: 'Navegação principal' }).filter({ visible: true });
+  await expect(nav.getByRole('link', { name: /Acompanha/ })).toHaveAttribute('aria-current', 'page');
 });
 
 test('pedidos: caixa única com filtros por tipo, estado e equipa, sem duplicados', async ({ page }, info) => {

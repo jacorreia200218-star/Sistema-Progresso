@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { useActiveSection } from '../lib/session';
+import { LeadersHeader } from '../components/LeadersHeader';
 import { useTeams } from '../lib/hooks';
 import { fetchSectionPath, type PathMember } from '../lib/api';
 import { MILESTONES, milestoneByKey, type MilestoneKey } from '../lib/caminho';
@@ -86,7 +87,7 @@ export default function Caminho() {
 
   return (
     <div className={`caminho-page ${person || openList ? 'with-panel' : ''}`}>
-      <PageTitle title="Caminho da secção" />
+      {s.isDirigente ? <LeadersHeader current="caminho" /> : <PageTitle title="Caminho da secção" />}
 
       {total === 0 ? (
         <div className="card">
