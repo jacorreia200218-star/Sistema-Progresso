@@ -402,13 +402,9 @@ function Stages({ members }: { members: MemberRow[] }) {
   const stageOf = (pathId: string) => stageName(catalog, paths.data?.find((p) => p.id === pathId)?.stage_key ?? '');
   return (
     <>
-      <p className="faint prose">
-        A validação de um trilho (reunião de Equipa) não conclui a etapa. A etapa conclui-se com a decisão do Conselho de Guias e a opinião final da
-        Equipa de Animação; o reconhecimento público é registado à parte.
-      </p>
-      <h2 className="section-title">À espera do Conselho de Guias ou da opinião final</h2>
+      <h2 className="section-title">Etapas por validar</h2>
       <div className="card">
-        {open.length === 0 ? <Empty title="Sem etapas à espera do Conselho de Guias." /> : open.map((sr) => (
+        {open.length === 0 ? <Empty title="Sem etapas por validar." /> : open.map((sr) => (
           <StageDecision key={sr.id} sr={sr} member={names[sr.membership_id]} stage={stageOf(sr.stage_path_id)} />
         ))}
       </div>
@@ -439,14 +435,24 @@ function Stages({ members }: { members: MemberRow[] }) {
   );
 }
 
+/**
+ * Validação da etapa num só passo: regista a decisão do Conselho de Guias e a
+ * opinião final da Equipa de Animação com o mesmo sentido (pp. 11–12).
+ */
 export function StageDecision({ sr, member, stage }: { sr: StageRequest; member?: string; stage: string }) {
   const action = useAction();
   const [date, setDate] = useState(todayIso());
   const [comment, setComment] = useState('');
-  const [decision, setDecision] = useState<'favoravel' | 'desfavoravel'>('favoravel');
-  const [opinion, setOpinion] = useState<'confirmada' | 'nao_confirmada'>('confirmada');
-  const diverges = sr.status === 'decidido_conselho' && ((opinion === 'confirmada') !== (sr.council_decision === 'favoravel'));
-  const needComment = sr.status === 'submetido' ? decision === 'desfavoravel' : diverges || opinion === 'nao_confirmada';
+  const [validated, setValidated] = useState(true);
+  // Pedidos antigos já com a decisão do Conselho: falta só a opinião final.
+  const diverges = sr.status === 'decidido_conselho' && validated !== (sr.council_decision === 'favoravel');
+  const needComment = !validated || diverges;
+  const decide = async () => {
+    if (sr.status === 'submetido') {
+      await call('record_council_stage_decision', { p_stage_request: sr.id, p_decision: validated ? 'favoravel' : 'desfavoravel', p_date: date, p_comment: comment });
+    }
+    return call('record_final_opinion', { p_stage_request: sr.id, p_opinion: validated ? 'confirmada' : 'nao_confirmada', p_date: date, p_comment: comment });
+  };
   return (
     <div className="card flat">
       <div className="row between">
@@ -454,35 +460,22 @@ export function StageDecision({ sr, member, stage }: { sr: StageRequest; member?
         <Badge {...stageRequestLabel[sr.status]} />
       </div>
       <dl className="meta compact-meta">
-        <dt>Pedido</dt><dd>{formatDate(sr.requested_at)}</dd>
-        <dt>Decisão do Conselho de Guias</dt>
-        <dd>{sr.council_decision ? `${sr.council_decision === 'favoravel' ? 'Favorável' : 'Desfavorável'} (${formatDate(sr.council_date)})` : 'Por registar'}</dd>
-        <dt>Opinião final da Equipa de Animação</dt>
-        <dd>{sr.final_opinion ? `${sr.final_opinion === 'confirmada' ? 'Confirmada' : 'Não confirmada'} (${formatDate(sr.final_date)})` : 'Por registar'}</dd>
-        <dt>Reconhecimento</dt><dd>Registado à parte, depois de concluída</dd>
+        <dt>Pronta desde</dt><dd>{formatDate(sr.requested_at)}</dd>
+        {sr.council_decision && (
+          <><dt>Conselho de Guias</dt><dd>{sr.council_decision === 'favoravel' ? 'Favorável' : 'Desfavorável'} ({formatDate(sr.council_date)})</dd></>
+        )}
       </dl>
       {sr.council_comment && <div className="quote">{sr.council_comment}</div>}
       <ErrorBox error={action.error} />
       {action.success ? <Notice kind="success">{action.success}</Notice> : (
         <>
-          {sr.status === 'submetido' ? (
-            <fieldset>
-              <legend>Decisão do Conselho de Guias</legend>
-              <div className="radio-cards">
-                <label className="radio-card"><input type="radio" checked={decision === 'favoravel'} onChange={() => setDecision('favoravel')} /> Favorável</label>
-                <label className="radio-card"><input type="radio" checked={decision === 'desfavoravel'} onChange={() => setDecision('desfavoravel')} /> Desfavorável</label>
-              </div>
-            </fieldset>
-          ) : (
-            <fieldset>
-              <legend>Opinião final da Equipa de Animação</legend>
-              <div className="radio-cards">
-                <label className="radio-card"><input type="radio" checked={opinion === 'confirmada'} onChange={() => setOpinion('confirmada')} /> Confirmar a etapa</label>
-                <label className="radio-card"><input type="radio" checked={opinion === 'nao_confirmada'} onChange={() => setOpinion('nao_confirmada')} /> Não confirmar</label>
-              </div>
-              {diverges && <Notice kind="warn"><p className="prose">A opinião diverge do Conselho de Guias: fundamenta de forma construtiva e explica-a ao Conselho, à Equipa e ao pioneiro.</p></Notice>}
-            </fieldset>
-          )}
+          <fieldset>
+            <legend>Conselho de Guias e Equipa de Animação</legend>
+            <div className="radio-cards">
+              <label className="radio-card"><input type="radio" checked={validated} onChange={() => setValidated(true)} /> Etapa validada</label>
+              <label className="radio-card"><input type="radio" checked={!validated} onChange={() => setValidated(false)} /> Ainda não</label>
+            </div>
+          </fieldset>
           <Field label="Data" htmlFor={`d-${sr.id}`}>
             <DateInput id={`d-${sr.id}`} max={todayIso()} value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
@@ -490,11 +483,9 @@ export function StageDecision({ sr, member, stage }: { sr: StageRequest; member?
             <textarea id={`t-${sr.id}`} value={comment} onChange={(e) => setComment(e.target.value)} />
           </Field>
           <ConfirmButton className="btn" confirmLabel="Registar" disabled={action.busy || !date || (needComment && !comment.trim())}
-            description={sr.status === 'submetido' ? undefined : opinion === 'confirmada' ? 'A etapa fica concluída; o reconhecimento público regista-se depois.' : 'A etapa continua em curso.'}
-            onConfirm={() => action.run(() => sr.status === 'submetido'
-              ? call('record_council_stage_decision', { p_stage_request: sr.id, p_decision: decision, p_date: date, p_comment: comment })
-              : call('record_final_opinion', { p_stage_request: sr.id, p_opinion: opinion, p_date: date, p_comment: comment }), 'Decisão registada.')}>
-            {sr.status === 'submetido' ? 'Registar decisão do Conselho' : 'Registar opinião final'}
+            description={validated ? 'A etapa fica concluída e a seguinte abre.' : 'A etapa continua em curso.'}
+            onConfirm={() => action.run(decide, validated ? 'Etapa validada.' : 'Decisão registada.')}>
+            Registar
           </ConfirmButton>
         </>
       )}

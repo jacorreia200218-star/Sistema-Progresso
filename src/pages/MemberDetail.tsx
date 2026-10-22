@@ -10,7 +10,7 @@ import { useAction } from '../lib/useAction';
 import { nextAction, openPath, stageSummary } from '../lib/progress';
 import { CATEGORY_LABEL, progressCounts, trailCategory } from '../lib/meuprogresso';
 import { formatDate, functionLabel, todayIso } from '../lib/labels';
-import type { MemberProgress, StagePath } from '../lib/types';
+import type { CatalogTrail, MemberProgress, StagePath } from '../lib/types';
 import { Avatar, Badge, ConfirmButton, ErrorBox, Field, Loading, Meter, Notice } from '../components/ui';
 import { Crumbs } from '../components/nav';
 import { FaceisSummary } from '../components/caminho/Faceis';
@@ -400,15 +400,16 @@ function ProposeForMember({ pathId, progress }: { pathId: string; progress: Memb
   const [trail, setTrail] = useState('');
   const used = new Set(progress.choices.filter((c) => c.status === 'confirmada' || c.status === 'proposta').map((c) => c.trail_key));
   const takenAreas = new Set(progress.choices.filter((c) => c.stage_path_id === pathId && (c.status === 'confirmada' || c.status === 'proposta')).map((c) => c.area_code));
-  const options = s.catalog.areas.filter((a) => !takenAreas.has(a.code));
+  // Só o que falta: sem trilhos já escolhidos nem já validados (esses entram por «Trilhos reconhecidos sem etapa»).
+  const available = (t: CatalogTrail) => !used.has(t.key) && trailCategory(t, progress) !== 'validado';
+  const options = s.catalog.areas.filter((a) => !takenAreas.has(a.code) && a.catalog_trails.some(available));
   if (!options.length) return null;
   return (
     <details className="card flat">
       <summary>Propor trilho para a etapa</summary>
-      <p className="faint prose">Inclui trilhos já validados ou reconhecidos que queiras atribuir a esta etapa (sem contar duas vezes). A proposta fica a aguardar a negociação.</p>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
-      <TrailPicker catalog={s.catalog} id="pt" value={trail} onChange={setTrail} areas={options} available={(t) => !used.has(t.key)}
+      <TrailPicker catalog={s.catalog} id="pt" value={trail} onChange={setTrail} areas={options} available={available}
         describe={(t) => CATEGORY_LABEL[trailCategory(t, progress)].label.toLowerCase()} />
       <button type="button" className="btn secondary" disabled={!trail || action.busy}
         onClick={async () => { const r = await action.run(() => call('propose_choice', { p_stage_path: pathId, p_trail: trail, p_planned: null, p_replaces: null }), 'Proposta criada; confirma-a em «Propostas por negociar».'); if (r.ok) setTrail(''); }}>

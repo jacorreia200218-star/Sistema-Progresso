@@ -45,7 +45,8 @@ marco Início de Pista como orientação.
 - **Automático (só o que é administrativo)**: a 1.ª etapa abre quando se regista a Promessa; cada etapa
   seguinte abre quando a anterior fica concluída (a data da insígnia fica por registar); com um trilho
   confirmado e validado em cada área, a etapa segue sozinha para o Conselho de Guias. A decisão do
-  Conselho e a opinião final da Equipa de Animação continuam a ser registadas por pessoas. Se os
+  Conselho e a opinião final da Equipa de Animação continuam a ser registadas por pessoas, num só
+  passo («Etapa validada» / «Ainda não», com fundamentação quando não é validada). Se os
   dirigentes devolverem um trilho antes de o Conselho decidir, o pedido da etapa é cancelado e volta a
   ser criado quando o trilho for validado de novo.
 - Concluir requisitos nunca provoca automaticamente cerimónias, a anilha de mérito ou a passagem.
