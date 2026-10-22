@@ -228,10 +228,25 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
       )}
       {cfg.error || q.error ? <ErrorBox error={cfg.error ?? q.error} retry={() => { cfg.refetch(); q.refetch(); }} /> : (
         <div className="cal-year-layout">
-          {narrow ? <PendingCard s={pending} /> : <PendingStrip s={pending} />}
+          {!narrow && <PendingStrip s={pending} />}
           <div className="cal-year-main">
             <MonthJump months={p.months} today={today} />
             <p id="cal-keys" className="sr-only">Usa as setas para mudar de dia e Page Up ou Page Down para mudar de mês.</p>
+            {narrow ? (
+              // Telemóvel: os meses abertos, um por baixo do outro, como na vista «Mês».
+              <div className="cal-year-open" aria-busy={!ready}>
+                {p.months.map((ym) => (
+                  <section key={ym} id={`mes-${ym}`} className="cal-year-month" aria-labelledby={`cal-om-${ym}`}>
+                    <h3 id={`cal-om-${ym}`} className="cal-year-month-title">
+                      <Link to={`/calendario?vista=mes&mes=${ym}`} className="cal-mm-link">{monthLabel(ym)}</Link>
+                    </h3>
+                    <MonthGrid ym={ym} events={shown.filter((e) => { const r = eventDays(e); return r.from <= `${ym}-31` && r.to >= `${ym}-01`; })}
+                      marks={marks} busy={busyShown} today={today} selected={selected && monthOf(selected) === ym ? selected : null}
+                      onPick={pick} narrow busyState={!ready} />
+                  </section>
+                ))}
+              </div>
+            ) : (
             <div className={`cal-year${highlight === '1' ? ' show-free' : ''}`} aria-busy={!ready} onKeyDown={onGridKey}>
               {p.months.map((ym) => (
                 <MiniMonth key={ym} ym={ym} today={today} marks={marks} busy={busyShown} free={freeDays} selected={selected && monthOf(selected) === ym ? selected : null} onPick={pick}
@@ -239,10 +254,11 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
                   showYear={p.from.slice(0, 4) !== p.to.slice(0, 4) && (ym === p.months[0] || ym.endsWith('-01'))} />
               ))}
             </div>
-            <Legend highlight={highlight === '1'} setHighlight={(on) => setHighlight(on ? '1' : '')} />
+            )}
+            {!narrow && <Legend highlight={highlight === '1'} setHighlight={(on) => setHighlight(on ? '1' : '')} />}
           </div>
           <div className="cal-summary" role="region" aria-label="Resumo">
-            {!narrow && <PendingCard s={pending} counters={false} />}
+            <PendingCard s={pending} counters={narrow} />
             <NextEvents onlyMine={onlyMine} exclude={pending.shownIds} />
             <FreeCard free={free} p={p} from={freeFrom} canFuture={canFuture} futureOnly={futureOnly}
               setFutureOnly={(on) => setRange(on ? '' : 'inicio')} onPick={(d) => setDay(d)} />
@@ -280,10 +296,6 @@ function MonthView({ onlyMine }: { onlyMine: boolean }) {
   const busy = useMemo(() => busyDays(shown, from, to), [shown, from, to]);
   const selected = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
   const go = (m: string) => setMonth(m === monthOf(today) ? '' : m, { dia: '' });
-  const lead = weekday(from);
-  const days: string[] = [];
-  for (let d = from; d <= to; d = addDays(d, 1)) days.push(d);
-  const trail = (7 - ((lead + days.length) % 7)) % 7;
   const active = shown.filter((e) => e.status === 'ativo');
   return (
     <>
@@ -299,59 +311,7 @@ function MonthView({ onlyMine }: { onlyMine: boolean }) {
       </div>
       {cfg.error || q.error ? <ErrorBox error={cfg.error ?? q.error} retry={() => { cfg.refetch(); q.refetch(); }} /> : (
         <>
-          <div className={`card cal-month${narrow ? ' is-narrow' : ''}`} aria-busy={q.isLoading}>
-            <div className="cal-month-grid" aria-label={monthLabel(ym)}>
-              {WD_SHORT.map((w, i) => <abbr key={w} title={WD_FULL[i]} className={`cal-month-wd${i >= 5 ? ' is-weekend' : ''}`}>{narrow ? WD[i] : w}</abbr>)}
-              {Array.from({ length: lead }, (_, i) => <span key={`b${i}`} className="cal-month-blank" aria-hidden="true" />)}
-              {days.map((d) => {
-                const m = marks.get(d) ?? [];
-                const evs = shown.filter((e) => coversDay(e, d));
-                const cls = ['cal-month-day'];
-                if (weekday(d) >= 5) cls.push('is-weekend');
-                if (isHoliday(m)) cls.push('is-holiday');
-                if (d === today) cls.push('is-today');
-                if (selected === d) cls.push('is-selected');
-                const label = dayLabel(d, m, busy.get(d) ?? 0, false, today);
-                return (
-                  <div key={d} className={cls.join(' ')}>
-                    {narrow ? (
-                      // Telemóvel: o dia inteiro é o botão (abre o dia); dentro, os nomes das atividades
-                      <button type="button" className="cal-month-cell" data-day={d} aria-label={label} title={label}
-                        aria-current={d === today ? 'date' : undefined} onClick={() => setDay(d)}>
-                        <span className="cal-month-dn">{Number(d.slice(8))}</span>
-                        {evs.slice(0, 3).map((e) => (
-                          <span key={e.id} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}`} aria-hidden="true">{e.title}</span>
-                        ))}
-                        {evs.length > 3 && <span className="cal-chip-more" aria-hidden="true">+{evs.length - 3}</span>}
-                      </button>
-                    ) : (
-                      <button type="button" className="cal-month-dn" data-day={d} aria-label={label} title={label}
-                        aria-current={d === today ? 'date' : undefined} onClick={() => setDay(d)}>
-                        {Number(d.slice(8))}
-                      </button>
-                    )}
-                    {!narrow && (
-                      <>
-                        {m.length > 0 && <span className="cal-month-mark">{m[0].name}</span>}
-                        <ul className="cal-month-events">
-                          {evs.slice(0, 3).map((e) => (
-                            <li key={e.id}>
-                              <Link to={`/calendario/evento/${e.id}`} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}`} title={e.title}>
-                                {!e.all_day && eventDays(e).from === d && <span className="cal-chip-time">{lisbonTime(e.starts_at!)}</span>}
-                                {e.title}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                        {evs.length > 3 && <button type="button" className="cal-chip-more" onClick={() => setDay(d)}>+{evs.length - 3}</button>}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-              {Array.from({ length: trail }, (_, i) => <span key={`t${i}`} className="cal-month-blank" aria-hidden="true" />)}
-            </div>
-          </div>
+          <MonthGrid ym={ym} events={shown} marks={marks} busy={busy} today={today} selected={selected} onPick={setDay} narrow={narrow} busyState={q.isLoading} />
           <section className="card cal-month-group" aria-labelledby="cal-month-list-h">
             <h2 id="cal-month-list-h" className="cal-month-title">Atividades de {MONTHS[Number(ym.slice(5, 7)) - 1]}</h2>
             {q.isLoading ? <Loading compact rows={2} /> : shown.length ? (
@@ -367,6 +327,74 @@ function MonthView({ onlyMine }: { onlyMine: boolean }) {
         <DayDialog day={selected} events={shown.filter((e) => coversDay(e, selected))} marks={marks.get(selected) ?? []} free={false} onClose={() => setDay('')} />
       )}
     </>
+  );
+}
+
+/** Mês aberto: grelha grande com as atividades dentro dos dias (vista «Mês» e, no telemóvel, o ano). */
+function MonthGrid({ ym, events, marks, busy, today, selected, onPick, narrow, busyState }: {
+  ym: string; events: CalListItem[]; marks: Map<string, DayMark[]>; busy: Map<string, number>; today: string;
+  selected: string | null; onPick: (d: string) => void; narrow: boolean; busyState: boolean;
+}) {
+  const from = `${ym}-01`;
+  const to = addDays(`${addMonths(ym, 1)}-01`, -1);
+  const lead = weekday(from);
+  const days: string[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) days.push(d);
+  const trail = (7 - ((lead + days.length) % 7)) % 7;
+  return (
+    <div className={`card cal-month${narrow ? ' is-narrow' : ''}`} aria-busy={busyState}>
+      <div className="cal-month-grid" aria-label={monthLabel(ym)}>
+        {WD_SHORT.map((w, i) => <abbr key={w} title={WD_FULL[i]} className={`cal-month-wd${i >= 5 ? ' is-weekend' : ''}`}>{narrow ? WD[i] : w}</abbr>)}
+        {Array.from({ length: lead }, (_, i) => <span key={`b${i}`} className="cal-month-blank" aria-hidden="true" />)}
+        {days.map((d) => {
+          const m = marks.get(d) ?? [];
+          const evs = events.filter((e) => coversDay(e, d));
+          const cls = ['cal-month-day'];
+          if (weekday(d) >= 5) cls.push('is-weekend');
+          if (isHoliday(m)) cls.push('is-holiday');
+          if (d === today) cls.push('is-today');
+          if (selected === d) cls.push('is-selected');
+          const label = dayLabel(d, m, busy.get(d) ?? 0, false, today);
+          return (
+            <div key={d} className={cls.join(' ')}>
+              {narrow ? (
+                // Telemóvel: o dia inteiro é o botão (abre o dia); dentro, os nomes das atividades
+                <button type="button" className="cal-month-cell" data-day={d} aria-label={label} title={label}
+                  aria-current={d === today ? 'date' : undefined} onClick={() => onPick(d)}>
+                  <span className="cal-month-dn">{Number(d.slice(8))}</span>
+                  {evs.slice(0, 3).map((e) => (
+                    <span key={e.id} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}`} aria-hidden="true">{e.title}</span>
+                  ))}
+                  {evs.length > 3 && <span className="cal-chip-more" aria-hidden="true">+{evs.length - 3}</span>}
+                </button>
+              ) : (
+                <button type="button" className="cal-month-dn" data-day={d} aria-label={label} title={label}
+                  aria-current={d === today ? 'date' : undefined} onClick={() => onPick(d)}>
+                  {Number(d.slice(8))}
+                </button>
+              )}
+              {!narrow && (
+                <>
+                  {m.length > 0 && <span className="cal-month-mark">{m[0].name}</span>}
+                  <ul className="cal-month-events">
+                    {evs.slice(0, 3).map((e) => (
+                      <li key={e.id}>
+                        <Link to={`/calendario/evento/${e.id}`} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}`} title={e.title}>
+                          {!e.all_day && eventDays(e).from === d && <span className="cal-chip-time">{lisbonTime(e.starts_at!)}</span>}
+                          {e.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  {evs.length > 3 && <button type="button" className="cal-chip-more" onClick={() => onPick(d)}>+{evs.length - 3}</button>}
+                </>
+              )}
+            </div>
+          );
+        })}
+        {Array.from({ length: trail }, (_, i) => <span key={`t${i}`} className="cal-month-blank" aria-hidden="true" />)}
+      </div>
+    </div>
   );
 }
 
