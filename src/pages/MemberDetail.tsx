@@ -153,8 +153,8 @@ function StageTab({ member, progress: p }: { member: MemberRow; progress: Member
 
       {open && counts.unassigned.length > 0 && (
         <section className="card" aria-labelledby="h-sem-etapa">
-          <h2 id="h-sem-etapa">Trilhos reconhecidos sem etapa</h2>
-          <p className="faint prose">Já estão validados mas só contam para a etapa depois de propostos e confirmados na negociação. Nada é associado automaticamente.</p>
+          <h2 id="h-sem-etapa">Trilhos validados sem etapa</h2>
+          {s.isDirigente && <PlacePrevious member={member} />}
           <ul className="list">
             {counts.unassigned.map((t) => (
               <li key={t.id} className="list-item">
@@ -390,6 +390,22 @@ function RequestStage({ pathId }: { pathId: string }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** Distribui os trilhos já validados pelas etapas: as etapas completas ficam concluídas (etapa anterior). */
+function PlacePrevious({ member }: { member: MemberRow }) {
+  const action = useAction();
+  return (
+    <>
+      <ErrorBox error={action.error} />
+      {action.success && <Notice kind="success">{action.success}</Notice>}
+      <ConfirmButton className="btn" confirmLabel="Distribuir" disabled={action.busy}
+        description="Cada etapa recebe um trilho validado de cada área. As etapas que ficam completas são dadas como concluídas (progresso anterior) e a seguinte abre. O que sobra fica na etapa em curso."
+        onConfirm={() => action.run(() => call('place_previous_progress', { p_membership: member.id }), 'Trilhos distribuídos pelas etapas.')}>
+        Distribuir pelas etapas
+      </ConfirmButton>
+    </>
   );
 }
 

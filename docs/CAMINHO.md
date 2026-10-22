@@ -37,6 +37,9 @@ marco Início de Pista como orientação.
 - Realizar uma oportunidade educativa não valida o trilho (p. 11); a sugestão de pelo menos duas
   oportunidades por trilho é orientação, não mínimo.
 - Progresso já demonstrado pode ser **reconhecido na negociação**, quando fundamentado (p. 10).
+- **Distribuir pelas etapas** (ficha do pioneiro › Etapa, só dirigentes): os trilhos já validados sem etapa
+  são atribuídos um por área; cada etapa que fique completa é declarada concluída como etapa anterior e a
+  seguinte abre. O que sobra fica na etapa em curso.
 - Validação do trilho: reunião de Equipa, comunicada ao Conselho de Guias (pp. 11–12).
 - Validação da etapa: Conselho de Guias, terminando com a **opinião final da Equipa de Animação**,
   fundamentada quando contrária (p. 12).
