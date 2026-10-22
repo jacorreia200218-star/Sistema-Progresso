@@ -350,6 +350,39 @@ test('ano escutista (outubro a agosto) por omissão e dias especiais', async ({ 
   await expect(dayButton(page, `${sy + 1}-06-24`)).toHaveAttribute('aria-label', /feriado municipal: São João/);
 });
 
+test('vista «Mês»: o mês aberto com as atividades nos dias e a lista por baixo', async ({ page }, info) => {
+  const mobile = info.project.name === 'telemovel';
+  if (mobile) await page.setViewportSize({ width: 390, height: 844 });
+  await installMock(page, leader());
+  await installCalendar(page, 'ana');
+  const evDay = lisbonDay(isoIn(3 * D));
+  const ym = evDay.slice(0, 7);
+  // O nome do mês no ano escutista abre a vista do mês
+  await page.goto(`/calendario?tipo=civil`);
+  const main = page.locator('main');
+  await main.locator(`#mes-${ym} .cal-mm-link`).click();
+  await expect(page).toHaveURL(new RegExp(`vista=mes`));
+  await expect(main.getByRole('tab', { name: 'Mês' })).toHaveAttribute('aria-selected', 'true');
+  const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const name = MONTHS[Number(ym.slice(5, 7)) - 1];
+  await expect(main.getByRole('heading', { name: `${name} de ${ym.slice(0, 4)}`, level: 2 })).toBeVisible();
+  const list = main.getByRole('region', { name: new RegExp(`Atividades de ${name}`) });
+  await expect(list.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
+  const cell = main.locator('.cal-month-day', { has: page.locator(`[data-day="${evDay}"]`) });
+  if (mobile) await expect(cell.locator('.cal-dots')).toBeVisible();
+  else await expect(cell.locator('.cal-chip', { hasText: 'Raid de outono' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: `test-results/calendario-mes-${info.project.name}.png`, fullPage: true });
+  // Mês seguinte e voltar
+  await main.getByRole('button', { name: 'Mês seguinte' }).click();
+  await expect(list.getByRole('link', { name: /Raid de outono/ })).toHaveCount(0);
+  await main.getByRole('button', { name: 'Mês anterior' }).click();
+  await expect(list.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
+  // Tocar no dia abre o resumo do dia
+  await page.locator(`[data-day="${evDay}"]`).click();
+  await expect(page.getByRole('dialog').getByRole('link', { name: /Raid de outono/ })).toBeVisible();
+});
+
 test('lista completa das próximas atividades', async ({ page }) => {
   await installMock(page, leader());
   await installCalendar(page, 'ana');
