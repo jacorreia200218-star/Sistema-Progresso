@@ -22,8 +22,8 @@ function source(extra: Row = {}): Row {
   };
 }
 
-async function installIcloud(page: Page, start: Row[] = []) {
-  const state = { sources: start, calendar_status: 'teste', auto_sync: true };
+async function installIcloud(page: Page, start: Row[] = [], calendar_status = 'teste', inbox: Row[] = []) {
+  const state = { sources: start, calendar_status, auto_sync: true, inbox };
   const calls: { fn: string; body: Row; auth?: string }[] = [];
   let syncFails = 0;
   await page.route('http://mock.supabase.test/rest/v1/rpc/**', async (route: Route) => {
@@ -32,7 +32,9 @@ async function installIcloud(page: Page, start: Row[] = []) {
     const ok = (data: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data ?? null) });
     const s = () => state.sources.find((x) => x.id === body.p_source)!;
     switch (fn) {
-      case 'cal_sources_list': calls.push({ fn, body }); return ok(state);
+      case 'cal_sources_list': calls.push({ fn, body }); return ok({ sources: state.sources, calendar_status: state.calendar_status, auto_sync: state.auto_sync });
+      case 'cal_source_inbox_list': return ok(state.inbox);
+      case 'cal_source_inbox_decide': calls.push({ fn, body }); state.inbox = state.inbox.filter((x) => !body.p_ids.includes(x.id)); return ok(body.p_ids.length);
       case 'cal_source_update': calls.push({ fn, body }); Object.assign(s(), { name: body.p_data.name, audience: body.p_data.audience, team_id: body.p_data.team_id, team_name: body.p_data.team_id ? 'Equipa Andorinha' : null, reminder_minutes: body.p_data.reminder_minutes }); return ok(null);
       case 'cal_source_disconnect': calls.push({ fn, body }); Object.assign(s(), { status: body.p_mode === 'parar' ? 'parada' : 'arquivada' }); return ok(3);
       case 'cal_source_resume': calls.push({ fn, body }); Object.assign(s(), { status: 'ativa' }); return ok(null);
@@ -68,6 +70,61 @@ async function installIcloud(page: Page, start: Row[] = []) {
   });
   return { state, calls, failSync: (n = 1) => { syncFails = n; } };
 }
+
+test('calendário publicado: ligações novas vão para os dados reais e avisa se uma ficou no teste', async ({ page }) => {
+  await installMock(page, leader());
+  const ic = await installIcloud(page, [source({ space: 'teste' })], 'disponivel');
+  await page.goto('/gestao/icloud');
+  await expect(page.getByText('O Calendário escutista ainda não está publicado')).toHaveCount(0);
+  await expect(page.getByText('Ligado ao espaço de teste: estas atividades não aparecem no Calendário.')).toBeVisible();
+  const add = page.getByRole('region', { name: 'Ligar um calendário do iCloud' });
+  if (!(await add.getByLabel('Link do calendário').isVisible())) await page.getByText('Ligar outro calendário').click();
+  await add.getByLabel('Link do calendário').fill(LINK);
+  await add.getByRole('button', { name: 'Verificar link' }).click();
+  await expect(add.getByLabel('Nome na app')).toBeVisible();
+  await expect(add.getByText('Onde aparecem')).toHaveCount(0);
+  await add.getByRole('button', { name: 'Confirmar e importar' }).click();
+  await expect.poll(() => ic.calls.find((c) => c.fn === 'api:create')?.body.space).toBe('real');
+});
+
+test('por rever: aprovar, editar antes de aprovar e rejeitar', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
+  await installMock(page, leader());
+  const start = '2026-11-07T14:30:00+00:00';
+  const end = '2026-11-07T16:00:00+00:00';
+  const item = (title: string, extra: Row = {}) => ({ rid: '', title, description: null, location: null, all_day: false, starts_at: start, ends_at: end, start_date: null, end_date: null, ...extra });
+  const ic = await installIcloud(page, [source({ review: true, pending_review: 3 })], 'disponivel', [
+    { id: 'i1', source_name: 'Agrupamento', kind: 'nova', item: item('Reunião'), current: null },
+    { id: 'i2', source_name: 'Agrupamento', kind: 'alterada', item: item('Raid de inverno', { location: 'Serra' }),
+      current: { id: 'e2', status: 'ativo', ...item('Raid', { location: 'Sintra' }) } },
+    { id: 'i3', source_name: 'Agrupamento', kind: 'removida', item: {}, current: { id: 'e3', status: 'ativo', ...item('Festa') } },
+  ]);
+  await page.goto('/gestao/icloud');
+  const rev = page.getByRole('region', { name: 'Por rever' });
+  await expect(rev.locator('.icloud-review-row')).toHaveCount(3);
+  await expect(rev.getByText('Antes: 07/11/2026 · 14:30–16:00 · Raid · Sintra')).toBeVisible();
+  await expect(rev.getByText('Removida do iCloud')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  if (CAPTURAS) for (const t of THEMES) await shoot(page, info, t, 'icloud-rever');
+  // Editar antes de aprovar
+  const first = rev.locator('.icloud-review-row').first();
+  await first.getByRole('button', { name: 'Editar' }).click();
+  await first.getByLabel('Título').fill('Reunião de sábado');
+  await first.getByLabel('Local').fill('Sede');
+  await first.getByRole('button', { name: 'Guardar e aprovar' }).click();
+  await expect.poll(() => ic.calls.find((c) => c.fn === 'cal_source_inbox_decide')?.body).toMatchObject({
+    p_ids: ['i1'], p_decision: 'aprovar', p_edits: { title: 'Reunião de sábado', location: 'Sede', description: '' },
+  });
+  await expect(rev.locator('.icloud-review-row')).toHaveCount(2);
+  // A removida não se edita; rejeitar
+  const last = rev.locator('.icloud-review-row').last();
+  await expect(last.getByRole('button', { name: 'Editar' })).toHaveCount(0);
+  await last.getByRole('button', { name: 'Rejeitar' }).click();
+  await expect(rev.locator('.icloud-review-row')).toHaveCount(1);
+  expect(ic.calls.filter((c) => c.fn === 'cal_source_inbox_decide').at(-1)!.body).toMatchObject({ p_ids: ['i3'], p_decision: 'rejeitar' });
+  await rev.getByRole('button', { name: 'Aprovar' }).click();
+  await expect(page.getByRole('region', { name: 'Por rever' })).toHaveCount(0);
+});
 
 test('gestão: verificar o link, pré-visualizar e confirmar a importação', async ({ page }) => {
   await installMock(page, leader());

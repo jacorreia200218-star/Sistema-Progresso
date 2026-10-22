@@ -13,7 +13,7 @@ export interface IcloudPreview {
   sample: { title: string; day: string; all_day: boolean; starts_at: string | null }[];
 }
 
-export type SyncStats = Partial<Record<'criadas' | 'atualizadas' | 'canceladas' | 'removidas' | 'reativadas' | 'sem_alteracao' | 'ignoradas', number>>;
+export type SyncStats = Partial<Record<'criadas' | 'atualizadas' | 'canceladas' | 'removidas' | 'reativadas' | 'sem_alteracao' | 'ignoradas' | 'por_rever', number>>;
 
 export interface IcloudSource {
   id: string;
@@ -27,6 +27,8 @@ export interface IcloudSource {
   team_name: string | null;
   reminder_minutes: number[];
   status: 'ativa' | 'parada' | 'arquivada';
+  review: boolean;
+  pending_review: number;
   created_at: string;
   created_by_name: string | null;
   stopped_at: string | null;
@@ -72,7 +74,7 @@ export async function icloudRequest<T>(body: Record<string, unknown>): Promise<T
 
 const PARTS: [keyof SyncStats, string, string][] = [
   ['criadas', 'nova', 'novas'], ['atualizadas', 'alterada', 'alteradas'], ['canceladas', 'cancelada', 'canceladas'],
-  ['removidas', 'removida', 'removidas'], ['reativadas', 'reativada', 'reativadas'],
+  ['removidas', 'removida', 'removidas'], ['reativadas', 'reativada', 'reativadas'], ['por_rever', 'por rever', 'por rever'],
 ];
 
 /** «3 novas, 1 alterada» ou «sem alterações». */

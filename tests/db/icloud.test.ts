@@ -90,6 +90,9 @@ describe('gestão da fonte', () => {
     await expectError(svc('cal_source_create', { p_profile: w.users.Ana, p_section: S(), p_data: { url: URL_REAL, name: 'Outra vez' } }), 'já está ligado');
     // Teste e real separados: o mesmo calendário pode alimentar o espaço de teste.
     teste = await svc('cal_source_create', { p_profile: w.users.Tecnico, p_section: S(), p_data: { url: URL_TESTE, name: 'Teste', space: 'teste' } });
+    // Estes testes cobrem a sincronização direta; a revisão tem testes próprios (icloud-revisao).
+    expect((await sourceRow(real)).review).toBe(true);
+    await admin(`update public.cal_sources set review = false where id = any ($1)`, [[real, teste]]);
     const l = await rpc<any>(w.users.Tecnico, 'cal_sources_list', { p_section: S() });
     expect(l.calendar_status).toBe('teste');
     expect(l.auto_sync).toBe(false); // sem pg_cron localmente

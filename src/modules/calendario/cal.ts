@@ -177,19 +177,23 @@ export type YearMode = 'civil' | 'escutista';
 
 export interface Period { mode: YearMode; year: number; label: string; months: string[]; from: string; to: string }
 
+/** O ano escutista vai sempre de outubro a agosto; setembro já conta para o ano seguinte. */
+export const SCOUT_YEAR = { first: 10, last: 8, cutoff: 9 };
+
 /** Ano (civil ou escutista) que contém o dia indicado. */
-export function yearOf(day: string, mode: YearMode, startMonth: number): number {
+export function yearOf(day: string, mode: YearMode): number {
   const y = Number(day.slice(0, 4));
-  if (mode === 'civil' || startMonth === 1) return y;
-  return Number(day.slice(5, 7)) >= startMonth ? y : y - 1;
+  if (mode === 'civil') return y;
+  return Number(day.slice(5, 7)) >= SCOUT_YEAR.cutoff ? y : y - 1;
 }
 
-/** Os 12 meses do período: civil = janeiro a dezembro; escutista = do mês inicial até 11 meses depois. */
-export function period(mode: YearMode, year: number, startMonth: number): Period {
-  const first = mode === 'civil' ? `${year}-01` : `${year}-${String(startMonth).padStart(2, '0')}`;
-  const months = Array.from({ length: 12 }, (_, i) => addMonths(first, i));
-  const to = addDays(`${addMonths(months[11], 1)}-01`, -1);
-  const label = mode === 'civil' || startMonth === 1 ? String(year) : `${year}/${year + 1}`;
+/** Meses do período: civil = janeiro a dezembro; escutista = outubro a agosto do ano seguinte. */
+export function period(mode: YearMode, year: number): Period {
+  const first = mode === 'civil' ? `${year}-01` : `${year}-${String(SCOUT_YEAR.first).padStart(2, '0')}`;
+  const length = mode === 'civil' ? 12 : 12 - SCOUT_YEAR.first + 1 + SCOUT_YEAR.last;
+  const months = Array.from({ length }, (_, i) => addMonths(first, i));
+  const to = addDays(`${addMonths(months[length - 1], 1)}-01`, -1);
+  const label = mode === 'civil' ? String(year) : `${year}/${year + 1}`;
   return { mode, year, label, months, from: `${first}-01`, to };
 }
 

@@ -176,7 +176,7 @@ test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades',
   if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
   await installMock(page, leader());
   await installCalendar(page, 'ana');
-  await page.goto('/calendario');
+  await page.goto('/calendario?tipo=civil');
   const main = page.locator('main');
   await expect(main.getByRole('heading', { name: 'Calendário escutista', level: 1 })).toBeVisible();
   await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
@@ -306,29 +306,35 @@ test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', as
   if (last.slice(0, 4) === target.slice(0, 4)) await expect(dayButton(page, last)).toHaveClass(/has-events/);
 });
 
-test('ano escutista e configuração de dias especiais', async ({ page }, info) => {
+test('ano escutista (outubro a agosto) por omissão e dias especiais', async ({ page }, info) => {
   if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
   await installMock(page, leader());
   const cal = await installCalendar(page, 'ana');
   await page.goto('/calendario');
   const main = page.locator('main');
-  await main.getByRole('tab', { name: 'Ano escutista' }).click();
-  await expect(page).toHaveURL(/tipo=escutista/);
+  await expect(main.getByRole('tab', { name: 'Ano escutista' })).toHaveAttribute('aria-selected', 'true');
   const t = todayDay();
+  // Setembro já conta para o ano escutista seguinte.
   const sy = Number(t.slice(5, 7)) >= 9 ? Number(t.slice(0, 4)) : Number(t.slice(0, 4)) - 1;
   await expect(main.getByRole('heading', { name: `Ano escutista ${sy}/${sy + 1}`, level: 2 })).toBeVisible();
-  await expect(main.locator('.cal-mm-title').first()).toHaveText(`setembro ${sy}`);
+  await expect(main.locator('.cal-mm')).toHaveCount(11);
+  await expect(main.locator('.cal-mm-title').first()).toHaveText(`outubro ${sy}`);
   await expect(main.locator('.cal-mm-title').last()).toHaveText(`agosto ${sy + 1}`);
   await main.getByRole('button', { name: 'Ano anterior' }).click();
   await expect(page).toHaveURL(new RegExp(`ano=${sy - 1}`));
   await expect(main.getByRole('heading', { name: `Ano escutista ${sy - 1}/${sy}`, level: 2 })).toBeVisible();
+  await main.getByRole('tab', { name: 'Ano civil' }).click();
+  await expect(page).toHaveURL(/tipo=civil/);
+  await expect(main.locator('.cal-mm')).toHaveCount(12);
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/calendario-escutista-${info.project.name}.png`, fullPage: true });
 
-  // Configurar: feriado municipal recorrente e mês inicial
+  // Configurar: feriado municipal recorrente (o ano escutista já não se configura)
+  await page.goto('/calendario');
   await main.getByRole('button', { name: 'Mais ações' }).click();
-  await main.getByRole('link', { name: 'Dias e ano escutista' }).click();
-  await expect(page.getByRole('heading', { name: 'Dias especiais e ano escutista', level: 1 })).toBeVisible();
+  await main.getByRole('link', { name: 'Dias especiais' }).click();
+  await expect(page.getByRole('heading', { name: 'Dias especiais', level: 1 })).toBeVisible();
+  await expect(page.getByLabel('Começa em')).toHaveCount(0);
   await page.getByRole('button', { name: 'Acrescentar' }).click();
   await expect(page.getByText('Indica a data.')).toBeVisible();
   await page.getByLabel('Data').fill('2026-06-24');
@@ -337,13 +343,9 @@ test('ano escutista e configuração de dias especiais', async ({ page }, info) 
   await expect(page.getByText('Dia acrescentado.')).toBeVisible();
   expect(cal.config.special_days).toEqual([{ id: 'sd1', day: '2026-06-24', name: 'São João', kind: 'municipal', recurring: true }]);
   await expect(main.locator('.cal-sd-list')).toContainText('Todos os anos a 24/06');
-  await page.getByLabel('Começa em').selectOption({ label: 'outubro' });
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect(page.getByText('Mês inicial guardado.')).toBeVisible();
   await noHorizontalScroll(page);
 
-  await page.goto(`/calendario?tipo=escutista&ano=${sy}`);
-  await expect(main.locator('.cal-mm-title').first()).toHaveText(`outubro ${sy}`);
+  await page.goto(`/calendario?ano=${sy}`);
   await expect(dayButton(page, `${sy + 1}-06-24`)).toHaveClass(/is-holiday/);
   await expect(dayButton(page, `${sy + 1}-06-24`)).toHaveAttribute('aria-label', /feriado municipal: São João/);
 });
@@ -642,7 +644,7 @@ test('o que te falta: três mais próximas, horizonte configurável e «Ver toda
   await expect(main.locator('.cal-pending-row')).toHaveCount(1);
   await main.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(/\/calendario(\?|$)/);
-  await expect(main.locator('.cal-mm')).toHaveCount(12);
+  await expect(main.locator('.cal-mm')).toHaveCount(11);
 });
 
 test('sem pendências próximas: uma linha curta, sem cartão grande', async ({ page }) => {
@@ -666,7 +668,7 @@ test('teclado, «Hoje» e «Ir para o mês atual» mantêm a vista anual', async
   if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
   await installMock(page, leader());
   await installCalendar(page, 'ana');
-  await page.goto('/calendario');
+  await page.goto('/calendario?tipo=civil');
   const main = page.locator('main');
   const today = todayDay();
   const year = today.slice(0, 4);
@@ -726,7 +728,7 @@ test('carregamento: o calendário aparece logo, com o estado de carregamento', a
   });
   await page.goto('/calendario');
   await expect(page.locator('main .cal-year[aria-busy="true"]')).toBeVisible();
-  await expect(page.locator('main .cal-mm')).toHaveCount(12);
+  await expect(page.locator('main .cal-mm')).toHaveCount(11);
   await expect(page.locator('main .cal-year[aria-busy="false"]')).toBeVisible();
 });
 

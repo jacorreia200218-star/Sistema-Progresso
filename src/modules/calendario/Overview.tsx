@@ -42,11 +42,11 @@ export function useCalConfig() {
 
 export function Overview() {
   const [view, setView] = useParam('vista', 'ano');
-  const [mode] = useParam('tipo', 'civil');
+  const [mode] = useParam('tipo', 'escutista');
   const [mine, setMine] = useParam('minhas');
   const { can } = useModuleCtx();
   const canManage = can('calendario.gerir', true);
-  const current = view === 'lista' ? 'lista' : mode === 'escutista' ? 'escutista' : 'civil';
+  const current = view === 'lista' ? 'lista' : mode === 'civil' ? 'civil' : 'escutista';
   const flash = (useLocation().state as { flash?: string } | null)?.flash;
   return (
     <div className="cal-page">
@@ -54,15 +54,15 @@ export function Overview() {
         <>
           <Link to="/calendario/nova" className="btn"><Plus size={18} aria-hidden="true" /> Nova atividade</Link>
           <MoreMenu>
-            <Link to="/calendario/configurar" className="btn"><Settings size={16} aria-hidden="true" /> Dias e ano escutista</Link>
+            <Link to="/calendario/configurar" className="btn"><Settings size={16} aria-hidden="true" /> Dias especiais</Link>
           </MoreMenu>
         </>
       )} />
       {flash && <Notice kind="success">{flash}</Notice>}
       <div className="cal-toolbar">
         <div className="tabs" role="tablist" aria-label="Vistas do calendário">
-          <button type="button" role="tab" className="tab" aria-selected={current === 'civil'} onClick={() => setView('ano', { tipo: '', ano: '', dia: '' })}>Ano civil</button>
-          <button type="button" role="tab" className="tab" aria-selected={current === 'escutista'} onClick={() => setView('ano', { tipo: 'escutista', ano: '', dia: '' })}>Ano escutista</button>
+          <button type="button" role="tab" className="tab" aria-selected={current === 'escutista'} onClick={() => setView('ano', { tipo: '', ano: '', dia: '' })}>Ano escutista</button>
+          <button type="button" role="tab" className="tab" aria-selected={current === 'civil'} onClick={() => setView('ano', { tipo: 'civil', ano: '', dia: '' })}>Ano civil</button>
           <button type="button" role="tab" className="tab" aria-selected={current === 'lista'} onClick={() => setView('lista', { dia: '' })}>Lista</button>
         </div>
         <label className="checkbox cal-mine">
@@ -143,16 +143,15 @@ function Upcoming({ onlyMine }: { onlyMine: boolean }) {
 function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const today = todayLisbon();
   const cfg = useCalConfig();
-  const startMonth = cfg.data?.year_start_month ?? 9;
   const [yearParam, setYear] = useParam('ano');
   const [day, setDay] = useParam('dia');
   const [highlight, setHighlight] = useParam('livres');
   const [range, setRange] = useParam('livres_de');
   const narrow = useNarrow();
   const pending = usePendingSummary();
-  const thisYear = yearOf(today, mode, startMonth);
+  const thisYear = yearOf(today, mode);
   const year = /^\d{4}$/.test(yearParam) ? Number(yearParam) : thisYear;
-  const p = period(mode, year, startMonth);
+  const p = period(mode, year);
   const q = useEvents(p.from, p.to, !cfg.isLoading);
   const all = useMemo(() => [...(q.data ?? [])].sort((a, b) => sortKey(a).localeCompare(sortKey(b))), [q.data]);
   const shown = useMemo(() => (onlyMine ? all.filter((e) => e.involved) : all), [all, onlyMine]);
@@ -221,7 +220,7 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
         </div>
       </div>
       {mode === 'escutista' && (
-        <p className="faint cal-period-hint">De {formatDay(p.from)} a {formatDay(p.to)} (começa em {MONTHS[startMonth - 1]}).</p>
+        <p className="faint cal-period-hint">De {formatDay(p.from)} a {formatDay(p.to)}</p>
       )}
       {cfg.error || q.error ? <ErrorBox error={cfg.error ?? q.error} retry={() => { cfg.refetch(); q.refetch(); }} /> : (
         <div className="cal-year-layout">
