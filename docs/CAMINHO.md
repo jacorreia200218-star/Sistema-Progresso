@@ -13,7 +13,7 @@ Fonte: `docs/fonte/Manual_do_Dirigente_Sistema_de_Progresso.pdf` (numeração im
 |---|---|---|---|---|
 | 1 | Sinais de Pista | 3, 4, 14 | Não (acontece na secção anterior) | Aproximação informal; termina com a passagem de secção |
 | 2 | Início de Pista (adesão, Desprendimento) | 4–7, 62 | Sim | Entrada confirmada na secção → **perfil traçado** (data) → **decisão sobre a adesão** em Conselho de Guias com toda a Equipa de Animação |
-| 3 | Promessa / Investidura | 8 | Sim | Data da Promessa/Investidura; só depois abre a 1.ª etapa (p. 10) |
+| 3 | Promessa / Investidura | 8 | Sim | Data da Promessa/Investidura; ao registá-la, a 1.ª etapa abre sozinha (p. 10) |
 | 4 | Conhecimento (Saber) | 9–13, 62 | Sim | Ciclo da etapa (ver 2) |
 | 5 | Vontade (Querer) | 9–13, 62–63 | Sim | Ciclo da etapa |
 | 6 | Construção (Agir) | 9–13, 63 | Sim | Ciclo da etapa |
@@ -42,6 +42,12 @@ marco Início de Pista como orientação.
   fundamentada quando contrária (p. 12).
 - **Reconhecimento** público na celebração, depois de concluída (pp. 12–13).
 - A **insígnia de progresso é entregue no início** de cada etapa (p. 9).
+- **Automático (só o que é administrativo)**: a 1.ª etapa abre quando se regista a Promessa; cada etapa
+  seguinte abre quando a anterior fica concluída (a data da insígnia fica por registar); com um trilho
+  confirmado e validado em cada área, a etapa segue sozinha para o Conselho de Guias. A decisão do
+  Conselho e a opinião final da Equipa de Animação continuam a ser registadas por pessoas. Se os
+  dirigentes devolverem um trilho antes de o Conselho decidir, o pedido da etapa é cancelado e volta a
+  ser criado quando o trilho for validado de novo.
 - Concluir requisitos nunca provoca automaticamente cerimónias, a anilha de mérito ou a passagem.
 
 ## 3. Estados (no modelo e na interface)
@@ -53,11 +59,11 @@ Calculados no servidor (`private.member_position`) e, com a mesma regra, no clie
 | Início de Pista | `em_adesao` | Entrada confirmada; a viver a adesão |
 | | `perfil_tracado` | A Equipa de Animação registou o traçado do perfil |
 | Promessa | `aguarda_promessa` | Adesão decidida; Promessa/Investidura por registar |
-| | `aguarda_etapa` | Promessa feita; 1.ª etapa por abrir |
+| | `aguarda_etapa` | Promessa feita; 1.ª etapa por abrir (só em casos raros: a etapa abre sozinha) |
 | Etapa (**estar em**) | `em_curso` | Etapa aberta (insígnia), trilhos em escolha/desenvolvimento |
-| | `requisitos_cumpridos` | Um trilho confirmado e validado em cada área; **falta pedir/decidir** a validação da etapa |
+| | `requisitos_cumpridos` | Um trilho confirmado e validado em cada área sem pedido em curso (ex.: depois de «não confirmada»); falta pedir a validação |
 | | `em_validacao` | Pedido no Conselho de Guias / a aguardar opinião final |
-| Etapa (**ter concluído**) | `concluida` | Validada (Conselho de Guias + opinião final); reconhecimento por registar |
+| Etapa (**ter concluído**) | `concluida` | Validada (Conselho de Guias + opinião final); reconhecimento por registar. Como a etapa seguinte abre sozinha, a posição passa logo a ser essa etapa |
 | | `reconhecida` | Concluída e com reconhecimento público registado |
 | Acampamento | `etapas_concluidas` | Construção concluída; anilha por registar |
 | | `anilha_atribuida` | Atribuição da anilha registada pela Equipa de Animação |

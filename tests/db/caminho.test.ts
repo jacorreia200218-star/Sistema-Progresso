@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { admin, asUser, buildWorld, confirmAllAreas, expectError, pool, rpc, today, trailsByArea, validateTrail, type World } from './helpers';
+import { admin, asUser, buildWorld, confirmAllAreas, expectError, openStageRequest, pool, rpc, today, trailsByArea, validateTrail, type World } from './helpers';
 
 let w: World;
 let other: World;
@@ -40,10 +40,17 @@ describe('posição no caminho (pp. 3, 4–14)', () => {
     const prof = await admin(`select profile_traced_on is not null as t from public.adhesions where membership_id = $1`, [w.members.P1]);
     expect(prof[0].t).toBe(true); // registar a adesão não apaga o traçado do perfil
     await expectError(rpc(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'conhecimento', p_insignia_on: today() }), 'Promessa/Investidura');
+    // Com a Promessa registada, o Conhecimento abre sozinho (insígnia por registar).
     await rpc(w.users.Ana, 'record_adhesion', { p_membership: w.members.P1, p_decided_on: today(), p_commitment_on: today(), p_notes: null, p_is_historical: false });
-    expect(await pos(w.members.P1)).toEqual({ milestone: 'promessa', state: 'aguarda_etapa' });
-    path = await rpc(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'conhecimento', p_insignia_on: today() });
     expect(await pos(w.members.P1)).toEqual({ milestone: 'conhecimento', state: 'em_curso' });
+    const auto = await admin(`select id, insignia_delivered_on from public.stage_paths where membership_id = $1`, [w.members.P1]);
+    expect(auto).toHaveLength(1);
+    expect(auto[0].insignia_delivered_on).toBeNull();
+    expect((await admin(`select 1 from public.notifications where profile_id = $1 and kind = 'etapa_aberta'`, [w.users.P1])).length).toBe(1);
+    // Abrir à mão devolve a mesma etapa e regista a insígnia
+    path = await rpc(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'conhecimento', p_insignia_on: today() });
+    expect(path).toBe(auto[0].id);
+    expect((await admin(`select insignia_delivered_on is not null as i from public.stage_paths where id = $1`, [path]))[0].i).toBe(true);
   });
 
   it('seis trilhos validados quaisquer não cumprem os requisitos da etapa', async () => {
@@ -55,16 +62,19 @@ describe('posição no caminho (pp. 3, 4–14)', () => {
   it('requisitos cumpridos → em validação → concluída → reconhecida', async () => {
     const byAreaKeys = await confirmAllAreas(w, 'P1', path, 0);
     for (const t of byAreaKeys.slice(2)) await validateTrail(w, 'P1', t.id); // F e A já validados
-    expect(await pos(w.members.P1)).toEqual({ milestone: 'conhecimento', state: 'requisitos_cumpridos' });
-    const sr = await rpc<string>(w.users.P1, 'request_stage_validation', { p_stage_path: path });
+    // Com um trilho validado em cada área, a etapa segue sozinha para o Conselho de Guias.
     expect(await pos(w.members.P1)).toEqual({ milestone: 'conhecimento', state: 'em_validacao' });
+    const sr = (await openStageRequest(path))!;
+    await expectError(rpc(w.users.P1, 'request_stage_validation', { p_stage_path: path }), 'Já existe um pedido');
     await rpc(w.users.Ana, 'record_council_stage_decision', { p_stage_request: sr, p_decision: 'favoravel', p_date: today(), p_comment: null });
     expect((await pos(w.members.P1)).state).toBe('em_validacao'); // ainda falta a opinião final
+    // Concluída a etapa, a seguinte abre sozinha; o reconhecimento regista-se à parte.
     await rpc(w.users.Ana, 'record_final_opinion', { p_stage_request: sr, p_opinion: 'confirmada', p_date: today(), p_comment: null });
-    expect(await pos(w.members.P1)).toEqual({ milestone: 'conhecimento', state: 'concluida' });
+    expect(await pos(w.members.P1)).toEqual({ milestone: 'vontade', state: 'em_curso' });
     await rpc(w.users.Ana, 'record_recognition', { p_stage_path: path, p_date: today(), p_note: null });
-    expect(await pos(w.members.P1)).toEqual({ milestone: 'conhecimento', state: 'reconhecida' });
-    await rpc(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'vontade', p_insignia_on: today() });
+    expect((await admin(`select recognized_on is not null as r from public.stage_paths where id = $1`, [path]))[0].r).toBe(true);
+    const vontade = await rpc(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'vontade', p_insignia_on: today() });
+    expect((await admin(`select stage_key from public.stage_paths where id = $1`, [vontade]))[0].stage_key).toBe('vontade');
     expect(await pos(w.members.P1)).toEqual({ milestone: 'vontade', state: 'em_curso' });
   });
 });

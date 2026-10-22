@@ -11,6 +11,7 @@
 | Q5 | No «Caminho da secção», os pioneiros devem ver quantos colegas estão em cada marco? | Implementado: contagens visíveis a qualquer membro ativo; nomes só dentro das permissões existentes. Numa secção pequena a contagem pode identificar alguém — fácil de restringir aos dirigentes se preferirem. |
 | Q6 | Registar na aplicação os Sinais de Pista e a passagem de secção? | Não registados: são momentos informativos no Caminho. A saída faz-se com «Saiu da secção» na Gestão. |
 | Q7 | Pioneiros com etapa aberta antes de a Promessa passar a ser exigida | Mantêm-se na etapa; a Promessa aparece como «por registar» até a Equipa de Animação a registar. |
+| Q8 | A app deve fazer avançar as etapas sozinha? (João, 22/10/2026) | Só o que é administrativo: abrir a etapa (após a Promessa e após a etapa anterior concluída) e levar a etapa ao Conselho de Guias quando tem um trilho validado em cada área. Seis trilhos não concluem a etapa: o Conselho de Guias e a opinião final da Equipa de Animação continuam a decidir (pp. 11–12). |
 
 Ver também as regras locais L1–L5 em `catalog/RELATORIO_IMPORTACAO.md` e as regras do Caminho em `docs/CAMINHO.md`.
 

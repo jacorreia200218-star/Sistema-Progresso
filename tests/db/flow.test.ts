@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { admin, asUser, buildWorld, confirmAllAreas, expectError, pool, rpc, today, trailsByArea, validateTrail, type World } from './helpers';
+import { admin, asUser, buildWorld, confirmAllAreas, expectError, openStageRequest, pool, rpc, today, trailsByArea, validateTrail, type World } from './helpers';
 
 let w: World;
 let byArea: Awaited<ReturnType<typeof trailsByArea>>;
@@ -31,7 +31,10 @@ describe('adesão e abertura de etapa', () => {
     await expectError(rpc(w.users.GuiaA, 'record_adhesion', { p_membership: w.members.P1, p_decided_on: today(), p_commitment_on: today(), p_notes: null, p_is_historical: false }), 'dirigentes');
     await rpc(w.users.Ana, 'record_adhesion', { p_membership: w.members.P1, p_decided_on: today(), p_commitment_on: today(), p_notes: 'Promessa', p_is_historical: false });
     await expectError(rpc(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'vontade', p_insignia_on: null }), 'etapa anterior');
+    // A Promessa abre o Conhecimento; abrir à mão devolve a mesma etapa e regista a insígnia.
+    const auto = (await admin(`select id from public.stage_paths where membership_id = $1 and stage_key = 'conhecimento'`, [w.members.P1]))[0].id;
     path1 = await rpc(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'conhecimento', p_insignia_on: today() });
+    expect(path1).toBe(auto);
     const p = await asUser(w.users.P1, `select status, insignia_delivered_on is not null as insignia from public.stage_paths where id = $1`, [path1]);
     expect(p[0]).toEqual({ status: 'em_curso', insignia: true });
   });
@@ -157,13 +160,18 @@ describe('validação da etapa', () => {
   it('não se pede validação da etapa só pela contagem: os trilhos têm de estar validados', async () => {
     await expectError(rpc(w.users.P1, 'request_stage_validation', { p_stage_path: path1 }), 'Faltam trilhos');
     for (const code of ['A', 'C', 'E', 'I', 'S']) await validateTrail(w, 'P1', byArea[code][0].id);
+    // Um trilho validado em cada área: a etapa segue sozinha para o Conselho de Guias.
+    expect(await openStageRequest(path1)).toBeDefined();
   });
 
   it('devolução fundamentada pelo Conselho de Guias reabre um trilho', async () => {
     const r = (await admin(`select id from public.trail_requests where membership_id = $1 and trail_key = $2`, [w.members.P1, byArea.S[0].key]))[0].id;
     await expectError(rpc(w.users.GuiaA, 'record_council_return', { p_request: r, p_meeting_date: today(), p_comment: 'x' }), 'dirigentes');
     await expectError(rpc(w.users.Ana, 'record_council_return', { p_request: r, p_meeting_date: today(), p_comment: '' }), 'fundamentada');
+    const auto = (await openStageRequest(path1))!;
     await rpc(w.users.Ana, 'record_council_return', { p_request: r, p_meeting_date: today(), p_comment: 'Atitude ainda incoerente com o trilho.' });
+    // O pedido da etapa (ainda sem decisão do Conselho) é cancelado
+    expect((await admin(`select status from public.stage_requests where id = $1`, [auto]))[0].status).toBe('cancelado');
     await expectError(rpc(w.users.P1, 'request_stage_validation', { p_stage_path: path1 }), 'Faltam trilhos');
     await rpc(w.users.P1, 'start_new_version', { p_request: r });
     await rpc(w.users.P1, 'save_request_draft', { p_request: r, p_reflection: 'Trabalhei a atitude.', p_experiences: '', p_period_start: null, p_period_end: null, p_approximate_date: null });
@@ -171,11 +179,12 @@ describe('validação da etapa', () => {
     const v = (await admin(`select current_version from public.trail_requests where id = $1`, [r]))[0].current_version;
     await rpc(w.users.GuiaA, 'record_team_decision', { p_request: r, p_expected_version: v, p_validated: true, p_meeting_date: today(), p_comment: null });
     await rpc(w.users.Ana, 'confirm_trail_validation', { p_request: r, p_comment: null });
+    expect(await openStageRequest(path1)).toBeDefined();
   });
 
   let sr: string;
   it('pedido separado, decisão do Conselho de Guias e opinião final', async () => {
-    sr = await rpc(w.users.GuiaA, 'request_stage_validation', { p_stage_path: path1 });
+    sr = (await openStageRequest(path1))!;
     await expectError(rpc(w.users.P1, 'request_stage_validation', { p_stage_path: path1 }), 'Já existe um pedido');
     // Escolhas bloqueadas durante a validação
     await expectError(rpc(w.users.P1, 'propose_choice', { p_stage_path: path1, p_trail: byArea.A[2].id, p_planned: null, p_replaces: null }), 'em validação');
@@ -188,6 +197,8 @@ describe('validação da etapa', () => {
     await rpc(w.users.Rui, 'record_final_opinion', { p_stage_request: sr, p_opinion: 'confirmada', p_date: today(), p_comment: 'A Equipa de Animação observou progresso consistente; explicado ao Conselho.' });
     const p = await asUser(w.users.P1, `select status, completion_kind, completed_on is not null done from public.stage_paths where id = $1`, [path1]);
     expect(p[0]).toEqual({ status: 'concluida', completion_kind: 'normal', done: true });
+    // A etapa seguinte abre sozinha
+    expect((await admin(`select status from public.stage_paths where membership_id = $1 and stage_key = 'vontade'`, [w.members.P1]))[0].status).toBe('em_curso');
   });
 
   it('trilhos de etapa concluída não podem ser devolvidos; reconhecimento é separado', async () => {
@@ -216,14 +227,14 @@ describe('anilha de mérito', () => {
     const path2 = (await admin(`select id from public.stage_paths where membership_id = $1 and stage_key = 'vontade'`, [w.members.P1]))[0].id;
     const chosen2 = await confirmAllAreas(w, 'P1', path2, 1);
     for (const t of chosen2) await validateTrail(w, 'P1', t.id);
-    let sr = await rpc<string>(w.users.P1, 'request_stage_validation', { p_stage_path: path2 });
+    let sr = (await openStageRequest(path2))!;
     await rpc(w.users.Ana, 'record_council_stage_decision', { p_stage_request: sr, p_decision: 'favoravel', p_date: today(), p_comment: null });
     await rpc(w.users.Ana, 'record_final_opinion', { p_stage_request: sr, p_opinion: 'confirmada', p_date: today(), p_comment: null });
 
     const path3 = await rpc<string>(w.users.Ana, 'open_stage', { p_membership: w.members.P1, p_stage_key: 'construcao', p_insignia_on: today() });
     const chosen3 = await confirmAllAreas(w, 'P1', path3, 2);
     for (const t of chosen3) await validateTrail(w, 'P1', t.id);
-    sr = await rpc(w.users.P1, 'request_stage_validation', { p_stage_path: path3 });
+    sr = (await openStageRequest(path3))!;
     expect((await rpc(w.users.Ana, 'merit_eligibility', { p_membership: w.members.P1 })).eligible).toBe(false); // última etapa ainda não confirmada
     await rpc(w.users.Ana, 'record_council_stage_decision', { p_stage_request: sr, p_decision: 'favoravel', p_date: today(), p_comment: null });
     await rpc(w.users.Ana, 'record_final_opinion', { p_stage_request: sr, p_opinion: 'confirmada', p_date: today(), p_comment: null });

@@ -40,9 +40,9 @@ const STAGE_COMMON = {
     'Trilhos já alcançados podem ser reconhecidos na negociação, quando devidamente fundamentados (p. 10).',
   ],
   validation:
-    'Cada trilho é validado primeiro pelos guias, na reunião de Equipa, a pedido do pioneiro, e depois confirmado pelos dirigentes. Com um trilho validado em cada área, a etapa é validada no Conselho de Guias e o processo termina com a opinião da Equipa de Animação, fundamentada quando contrária (pp. 11–12).',
+    'Cada trilho é validado primeiro pelos guias, na reunião de Equipa, a pedido do pioneiro, e depois confirmado pelos dirigentes. Com um trilho validado em cada área, a etapa segue sozinha para o Conselho de Guias, que a valida e o processo termina com a opinião da Equipa de Animação, fundamentada quando contrária (pp. 11–12).',
   advance:
-    'A etapa só fica concluída depois da opinião final da Equipa de Animação. Segue-se o reconhecimento público, na celebração (p. 12). A insígnia da etapa seguinte é entregue no início dessa etapa (p. 9).',
+    'A etapa só fica concluída depois da opinião final da Equipa de Animação. Nesse momento a etapa seguinte abre sozinha e a sua insígnia é entregue no início (p. 9). Segue-se o reconhecimento público, na celebração (p. 12).',
 };
 
 export const MILESTONES: Milestone[] = [
@@ -71,7 +71,7 @@ export const MILESTONES: Milestone[] = [
     summary: 'O elemento reconhece que quer assumir o compromisso. A Promessa faz-se uma vez; nas secções seguintes renova-se com a Investidura. Deve haver um momento prévio de reflexão.',
     needed: ['Preparar e compreender a fórmula da Promessa ao longo do Início de Pista.', 'Viver o momento de reflexão prévio.'],
     validation: 'Validada no Conselho de Guias; propõe-se que o elemento não espere mais de 2 meses pelo momento da Promessa (p. 8).',
-    advance: 'Depois da Promessa/Investidura faz-se a primeira escolha/negociação e começa a etapa do Conhecimento, com a entrega da insígnia (pp. 9–10).',
+    advance: 'Registada a Promessa/Investidura, a etapa do Conhecimento abre sozinha: faz-se a primeira escolha/negociação e entrega-se a insígnia (pp. 9–10).',
   },
   {
     key: 'conhecimento', name: 'Conhecimento', short: 'Conhecimento', icon: 'seta', pages: 'pp. 9–13, 62', tracked: true,

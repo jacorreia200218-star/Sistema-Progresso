@@ -110,6 +110,10 @@ describe('progresso anterior', () => {
     await rpc(w.users.Ana, 'declare_historical_stage', { p_stage_path: p, p_date: '2025-06-01', p_comment: 'Etapa celebrada em junho de 2025 (registo em papel).' });
     const s = await asUser(w.users.P3, `select status, completion_kind from public.stage_paths where id = $1`, [p]);
     expect(s[0]).toEqual({ status: 'concluida', completion_kind: 'historico' });
+    // O pedido ao Conselho criado sozinho é substituído pela declaração; a Vontade abre sozinha
+    const reqs = await admin(`select kind, status::text from public.stage_requests where stage_path_id = $1 order by requested_at`, [p]);
+    expect(reqs).toEqual([{ kind: 'normal', status: 'cancelado' }, { kind: 'historico', status: 'confirmada' }]);
+    expect((await admin(`select status from public.stage_paths where membership_id = $1 and stage_key = 'vontade'`, [w.members.P3]))[0].status).toBe('em_curso');
     expect(await admin(`select 1 from public.merit_awards where membership_id = $1`, [w.members.P3])).toHaveLength(0);
   });
 });

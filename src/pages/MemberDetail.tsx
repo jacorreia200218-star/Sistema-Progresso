@@ -292,7 +292,7 @@ function AdhesionCard({ member, progress }: { member: MemberRow; progress: Membe
             <button type="button" className="btn ghost" onClick={() => setEditing(true)}>{a?.commitment_on ? 'Corrigir' : 'Registar a Promessa'}</button>
           ) : (
             <div style={{ marginTop: 10 }}>
-              <p className="faint prose">A data de adesão é o dia em que passou a pioneiro. A primeira etapa só abre depois da Promessa (p. 10).</p>
+              <p className="faint prose">A data de adesão é o dia em que passou a pioneiro. Com a Promessa registada, a etapa do Conhecimento abre sozinha (p. 10).</p>
               <div className="grid-2">
                 <Field label="Data de adesão (passagem a pioneiro)" htmlFor="ad-d"><DateInput id="ad-d" max={todayIso()} value={decided} onChange={(e) => setDecided(e.target.value)} /></Field>
                 <Field label="Data da Promessa (se já aconteceu)" htmlFor="ad-c"><DateInput id="ad-c" max={todayIso()} value={commitment} onChange={(e) => setCommitment(e.target.value)} /></Field>
