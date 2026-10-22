@@ -300,3 +300,8 @@ button.cal-counter[aria-pressed='true'] { background: var(--amber); color: var(-
 .cal-mm-link { color: inherit; text-decoration: none; }
 .cal-mm-link:hover { color: var(--accent-ink); text-decoration: underline; }
 .cal-mm-link::first-letter { text-transform: uppercase; }
+/* Ano no telemóvel: os meses abertos em coluna (mesma grelha da vista «Mês»). */
+.cal-year-open { display: grid; gap: 18px; }
+.cal-year-month { scroll-margin-top: 110px; }
+.cal-year-month-title { font-size: var(--fs-section) !important; margin: 0 0 8px 4px !important; font-weight: 700; color: var(--ink); }
+.cal-year-month .cal-month { margin-bottom: 0; }
