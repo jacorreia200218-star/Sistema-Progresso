@@ -1,12 +1,11 @@
-// Configuração do calendário (quem gere): mês inicial do ano escutista, feriado municipal
-// e outros dias relevantes. O servidor volta a verificar a permissão.
+// Configuração do calendário (quem gere): feriado municipal e outros dias relevantes. O servidor volta a verificar a permissão.
 import { useState, type FormEvent } from 'react';
 import { call } from '../../lib/api';
 import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
 import { ConfirmButton, ErrorBox, Field, Loading, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { formatDay, MONTHS } from '../common';
+import { formatDay } from '../common';
 import { useCalConfig, type CalConfig } from './Overview';
 import type { SpecialDay } from './holidays';
 import { DateInput } from '../../components/DateInput';
@@ -14,7 +13,7 @@ import { DateInput } from '../../components/DateInput';
 export function Config() {
   const { can } = useModuleCtx();
   const cfg = useCalConfig();
-  const title = 'Dias especiais e ano escutista';
+  const title = 'Dias especiais';
   if (!can('calendario.gerir', true)) {
     return (
       <>
@@ -30,34 +29,10 @@ export function Config() {
       <PageTitle title={title} back="/calendario" />
       <p className="prose faint cal-config-intro">
         Os feriados nacionais (incluindo os móveis, como a Sexta-feira Santa e o Corpo de Deus) aparecem automaticamente.
-        Aqui acrescentas o feriado municipal e outros dias relevantes para a secção, e escolhes o mês em que começa o ano escutista.
+        Aqui acrescentas o feriado municipal e outros dias relevantes para a secção.
       </p>
-      <YearStart current={cfg.data.year_start_month} />
       <SpecialDays cfg={cfg.data} />
     </>
-  );
-}
-
-function YearStart({ current }: { current: number }) {
-  const section = useActiveSection().membership.section_id;
-  const action = useAction();
-  const [month, setMonth] = useState(current);
-  const save = (e: FormEvent) => {
-    e.preventDefault();
-    action.run(() => call('cal_set_year_start', { p_section: section, p_month: month }), 'Mês inicial guardado.');
-  };
-  return (
-    <form className="card cal-form" onSubmit={save} aria-labelledby="cal-ys-h">
-      <h2 id="cal-ys-h">Ano escutista</h2>
-      <Field label="Começa em" htmlFor="cal-ys">
-        <select id="cal-ys" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-          {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-        </select>
-      </Field>
-      <ErrorBox error={action.error} />
-      {action.success && <Notice kind="success">{action.success}</Notice>}
-      <div className="btn-row"><button type="submit" className="btn" disabled={action.busy || month === current}>Guardar</button></div>
-    </form>
   );
 }
 

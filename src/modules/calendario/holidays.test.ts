@@ -60,18 +60,20 @@ describe('dias especiais da secção', () => {
 });
 
 describe('ano civil, ano escutista e dias livres', () => {
-  it('períodos de 12 meses', () => {
-    const civil = period('civil', 2026, 9);
+  it('ano civil de 12 meses e ano escutista de outubro a agosto', () => {
+    const civil = period('civil', 2026);
     expect(civil).toMatchObject({ label: '2026', from: '2026-01-01', to: '2026-12-31' });
     expect(civil.months).toHaveLength(12);
-    const esc = period('escutista', 2026, 9);
-    expect(esc).toMatchObject({ label: '2026/2027', from: '2026-09-01', to: '2027-08-31' });
-    expect(esc.months[0]).toBe('2026-09');
-    expect(esc.months[11]).toBe('2027-08');
-    expect(period('escutista', 2026, 1).label).toBe('2026');
-    expect(yearOf('2026-10-15', 'escutista', 9)).toBe(2026);
-    expect(yearOf('2027-03-01', 'escutista', 9)).toBe(2026);
-    expect(yearOf('2027-03-01', 'civil', 9)).toBe(2027);
+    const esc = period('escutista', 2026);
+    expect(esc).toMatchObject({ label: '2026/2027', from: '2026-10-01', to: '2027-08-31' });
+    expect(esc.months).toHaveLength(11);
+    expect(esc.months[0]).toBe('2026-10');
+    expect(esc.months[10]).toBe('2027-08');
+    expect(yearOf('2026-10-15', 'escutista')).toBe(2026);
+    expect(yearOf('2027-03-01', 'escutista')).toBe(2026);
+    // Setembro já pertence ao ano escutista seguinte.
+    expect(yearOf('2027-09-10', 'escutista')).toBe(2027);
+    expect(yearOf('2027-03-01', 'civil')).toBe(2027);
   });
 
   it('fins de semana e feriados sem atividades', () => {

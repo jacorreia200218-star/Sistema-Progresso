@@ -38,13 +38,13 @@ export function AdminIcloud() {
         <Cloud size={14} aria-hidden="true" /> Sincronização automática:{' '}
         {d.auto_sync ? 'de hora a hora.' : 'por ativar (pg_cron no Supabase). Entretanto, usa «Sincronizar agora».'}
       </p>
-      {d.sources.map((s) => <SourceCard key={s.id} s={s} teams={active} />)}
-      <AddSource teams={active} first={!d.sources.some((s) => s.status !== 'arquivada')} />
+      {d.sources.map((s) => <SourceCard key={s.id} s={s} teams={active} published={d.calendar_status === 'disponivel'} />)}
+      <AddSource teams={active} first={!d.sources.some((s) => s.status !== 'arquivada')} published={d.calendar_status === 'disponivel'} />
     </div>
   );
 }
 
-function SourceCard({ s, teams }: { s: IcloudSource; teams: Team[] }) {
+function SourceCard({ s, teams, published }: { s: IcloudSource; teams: Team[]; published: boolean }) {
   const section = useActiveSection().membership.section_id;
   const action = useAction();
   const [mode, setMode] = useState<'parar' | 'arquivar'>('parar');
@@ -73,6 +73,9 @@ function SourceCard({ s, teams }: { s: IcloudSource; teams: Team[] }) {
         <dt>Última sincronização</dt>
         <dd>{s.last_success_at ? `${formatLisbon(s.last_success_at)} · ${statsLabel(s.last_stats)}` : 'ainda não'}</dd>
       </dl>
+      {published && s.space === 'teste' && s.status !== 'arquivada' && (
+        <Notice kind="warn">Ligado ao espaço de teste: estas atividades não aparecem no Calendário. Arquiva esta ligação e volta a ligar o link.</Notice>
+      )}
       {s.last_error && (
         <Notice kind="error">
           <strong>Falhou a {formatLisbon(s.last_error_at ?? s.last_attempt_at ?? s.created_at)}</strong>{s.failures > 1 && ` (${s.failures} vezes seguidas)`}: {s.last_error} As atividades já importadas mantêm-se.
@@ -189,7 +192,7 @@ function EditSource({ s, teams }: { s: IcloudSource; teams: Team[] }) {
   );
 }
 
-function AddSource({ teams, first }: { teams: Team[]; first: boolean }) {
+function AddSource({ teams, first, published }: { teams: Team[]; first: boolean; published: boolean }) {
   const section = useActiveSection().membership.section_id;
   const check = useAction();
   const save = useAction();
@@ -211,7 +214,7 @@ function AddSource({ teams, first }: { teams: Team[]; first: boolean }) {
   };
   const confirm = async () => {
     const r = await save.run(() => icloudRequest<{ id: string; stats: SyncStats }>({
-      action: 'create', section_id: section, url, name, space, audience, team_id: audience === 'equipa' ? team : null, reminder_minutes: rem,
+      action: 'create', section_id: section, url, name, space: published ? 'real' : space, audience, team_id: audience === 'equipa' ? team : null, reminder_minutes: rem,
     }));
     if (r.ok) {
       setDone(`Ligado. ${r.value?.stats.criadas ?? 0} atividades importadas.`);
@@ -247,13 +250,14 @@ function AddSource({ teams, first }: { teams: Team[]; first: boolean }) {
             {!preview.complete && <Notice kind="warn">Leitura incompleta: {preview.warnings.join(' ')}</Notice>}
           </div>
           <Field label="Nome na app" htmlFor="ic-name"><input id="ic-name" maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <fieldset className="cal-fieldset">
+          {/* Com o Calendário publicado, as atividades vão sempre para os dados reais. */}
+          {!published && <fieldset className="cal-fieldset">
             <legend className="label">Onde aparecem</legend>
             <div className="radio-row">
               <label className="radio"><input type="radio" name="ic-space" checked={space === 'real'} onChange={() => setSpace('real')} /> Dados reais</label>
               <label className="radio"><input type="radio" name="ic-space" checked={space === 'teste'} onChange={() => setSpace('teste')} /> Espaço de teste</label>
             </div>
-          </fieldset>
+          </fieldset>}
           <AudienceFields idp="ic" audience={audience} setAudience={setAudience} team={team} setTeam={setTeam} teams={teams} />
           <ReminderFields idp="ic" value={rem} set={setRem} />
           <p className="faint">A importação não envia notificações. Nada é escrito no iCloud.</p>

@@ -22,8 +22,8 @@ function source(extra: Row = {}): Row {
   };
 }
 
-async function installIcloud(page: Page, start: Row[] = []) {
-  const state = { sources: start, calendar_status: 'teste', auto_sync: true };
+async function installIcloud(page: Page, start: Row[] = [], calendar_status = 'teste') {
+  const state = { sources: start, calendar_status, auto_sync: true };
   const calls: { fn: string; body: Row; auth?: string }[] = [];
   let syncFails = 0;
   await page.route('http://mock.supabase.test/rest/v1/rpc/**', async (route: Route) => {
@@ -68,6 +68,22 @@ async function installIcloud(page: Page, start: Row[] = []) {
   });
   return { state, calls, failSync: (n = 1) => { syncFails = n; } };
 }
+
+test('calendário publicado: ligações novas vão para os dados reais e avisa se uma ficou no teste', async ({ page }) => {
+  await installMock(page, leader());
+  const ic = await installIcloud(page, [source({ space: 'teste' })], 'disponivel');
+  await page.goto('/gestao/icloud');
+  await expect(page.getByText('O Calendário escutista ainda não está publicado')).toHaveCount(0);
+  await expect(page.getByText('Ligado ao espaço de teste: estas atividades não aparecem no Calendário.')).toBeVisible();
+  const add = page.getByRole('region', { name: 'Ligar um calendário do iCloud' });
+  if (!(await add.getByLabel('Link do calendário').isVisible())) await page.getByText('Ligar outro calendário').click();
+  await add.getByLabel('Link do calendário').fill(LINK);
+  await add.getByRole('button', { name: 'Verificar link' }).click();
+  await expect(add.getByLabel('Nome na app')).toBeVisible();
+  await expect(add.getByText('Onde aparecem')).toHaveCount(0);
+  await add.getByRole('button', { name: 'Confirmar e importar' }).click();
+  await expect.poll(() => ic.calls.find((c) => c.fn === 'api:create')?.body.space).toBe('real');
+});
 
 test('gestão: verificar o link, pré-visualizar e confirmar a importação', async ({ page }) => {
   await installMock(page, leader());

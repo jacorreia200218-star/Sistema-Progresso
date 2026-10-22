@@ -9,7 +9,6 @@ import { ErrorBox, Field, Loading, MoreOptions, Notice, PageTitle } from '../../
 import { useModuleCtx } from '../ModuleShell';
 import { isoToLisbon, lisbonToIso, MEETING_DEFAULT, nextSaturday } from '../common';
 import { period, REMINDER_OPTIONS, yearOf, type CalDetail } from './cal';
-import { useCalConfig } from './Overview';
 import { isReadonly, SourceNotice } from './source';
 import { DateInput, DateTimeInput, TimeInput } from '../../components/DateInput';
 import { parseTimeText } from '../../lib/dates';
@@ -110,9 +109,7 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
   // Atividade do iCloud: título, datas, local e descrição só mudam no iCloud.
   const ro = !!event && isReadonly(event);
   // Nova atividade: por omissão repete todas as semanas até ao fim do ano escutista (a reunião de sábado).
-  const cfg = useCalConfig();
-  const startMonth = cfg.data?.year_start_month ?? 9;
-  const yearEnd = f.startDay ? period('escutista', yearOf(f.startDay, 'escutista', startMonth), startMonth).to : '';
+  const yearEnd = f.startDay ? period('escutista', yearOf(f.startDay, 'escutista')).to : '';
   const [repeat, setRepeat] = useState(!event);
   const [until, setUntil] = useState('');
   const untilDay = until || yearEnd;
