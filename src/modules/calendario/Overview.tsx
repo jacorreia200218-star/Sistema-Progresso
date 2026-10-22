@@ -1,4 +1,5 @@
-// Vista principal: calendário anual (ano civil ou ano escutista) com feriados, fins de
+// Vista principal: calendário anual (ano civil ou ano escutista) ou de um mês (grelha grande
+// com as atividades nos dias e a lista do mês por baixo), com feriados, fins de
 // semana, dias com atividades e dias sem atividades registadas; por baixo (no telemóvel,
 // «O que te falta» por cima), um resumo curto: as três pendências mais próximas, as próximas
 // atividades e as datas para planear. Vista secundária: lista completa das próximas atividades.
@@ -10,7 +11,7 @@ import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
 import { Empty, ErrorBox, Loading, MoreMenu, Notice, PageTitle } from '../../components/ui';
 import { useModuleCtx } from '../ModuleShell';
-import { downloadFile, formatDay, MONTHS, todayLisbon } from '../common';
+import { downloadFile, formatDay, lisbonTime, MONTHS, todayLisbon } from '../common';
 import {
   addDays, addMonths, busyDays, coversDay, eventDays, monthOf, period, sortKey, weekday, weekdayName, yearOf,
   type CalListItem, type Period, type YearMode,
@@ -46,7 +47,7 @@ export function Overview() {
   const [mine, setMine] = useParam('minhas');
   const { can } = useModuleCtx();
   const canManage = can('calendario.gerir', true);
-  const current = view === 'lista' ? 'lista' : mode === 'civil' ? 'civil' : 'escutista';
+  const current = view === 'lista' ? 'lista' : view === 'mes' ? 'mes' : mode === 'civil' ? 'civil' : 'escutista';
   const flash = (useLocation().state as { flash?: string } | null)?.flash;
   return (
     <div className="cal-page">
@@ -61,15 +62,18 @@ export function Overview() {
       {flash && <Notice kind="success">{flash}</Notice>}
       <div className="cal-toolbar">
         <div className="tabs" role="tablist" aria-label="Vistas do calendário">
-          <button type="button" role="tab" className="tab" aria-selected={current === 'escutista'} onClick={() => setView('ano', { tipo: '', ano: '', dia: '' })}>Ano escutista</button>
-          <button type="button" role="tab" className="tab" aria-selected={current === 'civil'} onClick={() => setView('ano', { tipo: 'civil', ano: '', dia: '' })}>Ano civil</button>
-          <button type="button" role="tab" className="tab" aria-selected={current === 'lista'} onClick={() => setView('lista', { dia: '' })}>Lista</button>
+          <button type="button" role="tab" className="tab" aria-selected={current === 'escutista'} onClick={() => setView('ano', { tipo: '', ano: '', dia: '', mes: '' })}>Ano escutista</button>
+          <button type="button" role="tab" className="tab" aria-selected={current === 'mes'} onClick={() => setView('mes', { tipo: '', ano: '', dia: '' })}>Mês</button>
+          <button type="button" role="tab" className="tab" aria-selected={current === 'civil'} onClick={() => setView('ano', { tipo: 'civil', ano: '', dia: '', mes: '' })}>Ano civil</button>
+          <button type="button" role="tab" className="tab" aria-selected={current === 'lista'} onClick={() => setView('lista', { dia: '', mes: '' })}>Lista</button>
         </div>
         <label className="checkbox cal-mine">
           <input type="checkbox" checked={mine === '1'} onChange={(e) => setMine(e.target.checked ? '1' : '')} /> Só as minhas
         </label>
       </div>
-      {current === 'lista' ? <Upcoming onlyMine={mine === '1'} /> : <YearView mode={current} onlyMine={mine === '1'} />}
+      {current === 'lista' ? <Upcoming onlyMine={mine === '1'} />
+        : current === 'mes' ? <MonthView onlyMine={mine === '1'} />
+        : <YearView mode={current} onlyMine={mine === '1'} />}
     </div>
   );
 }
@@ -257,6 +261,103 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Mês: grelha grande com as atividades nos dias e a lista do mês por baixo
+// ---------------------------------------------------------------------------
+function MonthView({ onlyMine }: { onlyMine: boolean }) {
+  const today = todayLisbon();
+  const cfg = useCalConfig();
+  const [monthParam, setMonth] = useParam('mes');
+  const [day, setDay] = useParam('dia');
+  const narrow = useNarrow();
+  const ym = /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : monthOf(today);
+  const from = `${ym}-01`;
+  const to = addDays(`${addMonths(ym, 1)}-01`, -1);
+  const q = useEvents(from, to, !cfg.isLoading);
+  const shown = useMemo(() => (q.data ?? []).filter((e) => !onlyMine || e.involved).sort((a, b) => sortKey(a).localeCompare(sortKey(b))),
+    [q.data, onlyMine]);
+  const marks = useMemo(() => dayMarks(from, to, cfg.data?.special_days ?? []), [from, to, cfg.data]);
+  const busy = useMemo(() => busyDays(shown, from, to), [shown, from, to]);
+  const selected = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+  const go = (m: string) => setMonth(m === monthOf(today) ? '' : m, { dia: '' });
+  const lead = weekday(from);
+  const days: string[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) days.push(d);
+  const trail = (7 - ((lead + days.length) % 7)) % 7;
+  const active = shown.filter((e) => e.status === 'ativo');
+  return (
+    <>
+      <div className="cal-year-nav">
+        <div className="cal-year-step">
+          <button type="button" className="btn ghost icon-btn" aria-label="Mês anterior" onClick={() => go(addMonths(ym, -1))}><ChevronLeft size={20} aria-hidden="true" /></button>
+          <h2 className="cal-year-heading cal-month-heading" aria-live="polite">{monthLabel(ym)}</h2>
+          <button type="button" className="btn ghost icon-btn" aria-label="Mês seguinte" onClick={() => go(addMonths(ym, 1))}><ChevronRight size={20} aria-hidden="true" /></button>
+        </div>
+        <div className="cal-year-jump">
+          <button type="button" className="btn secondary cal-today" onClick={() => setMonth('', { dia: today })}><CalendarCheck size={16} aria-hidden="true" /> Hoje</button>
+        </div>
+      </div>
+      {cfg.error || q.error ? <ErrorBox error={cfg.error ?? q.error} retry={() => { cfg.refetch(); q.refetch(); }} /> : (
+        <>
+          <div className={`card cal-month${narrow ? ' is-narrow' : ''}`} aria-busy={q.isLoading}>
+            <div className="cal-month-grid" aria-label={monthLabel(ym)}>
+              {WD_SHORT.map((w, i) => <abbr key={w} title={WD_FULL[i]} className={`cal-month-wd${i >= 5 ? ' is-weekend' : ''}`}>{narrow ? WD[i] : w}</abbr>)}
+              {Array.from({ length: lead }, (_, i) => <span key={`b${i}`} className="cal-month-blank" aria-hidden="true" />)}
+              {days.map((d) => {
+                const m = marks.get(d) ?? [];
+                const evs = shown.filter((e) => coversDay(e, d));
+                const cls = ['cal-month-day'];
+                if (weekday(d) >= 5) cls.push('is-weekend');
+                if (isHoliday(m)) cls.push('is-holiday');
+                if (d === today) cls.push('is-today');
+                if (selected === d) cls.push('is-selected');
+                const label = dayLabel(d, m, busy.get(d) ?? 0, false, today);
+                return (
+                  <div key={d} className={cls.join(' ')}>
+                    <button type="button" className="cal-month-dn" data-day={d} aria-label={label} title={label}
+                      aria-current={d === today ? 'date' : undefined} onClick={() => setDay(d)}>
+                      {Number(d.slice(8))}
+                    </button>
+                    {narrow ? <EventMarks n={busy.get(d) ?? 0} /> : (
+                      <>
+                        {m.length > 0 && <span className="cal-month-mark">{m[0].name}</span>}
+                        <ul className="cal-month-events">
+                          {evs.slice(0, 3).map((e) => (
+                            <li key={e.id}>
+                              <Link to={`/calendario/evento/${e.id}`} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}`} title={e.title}>
+                                {!e.all_day && eventDays(e).from === d && <span className="cal-chip-time">{lisbonTime(e.starts_at!)}</span>}
+                                {e.title}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                        {evs.length > 3 && <button type="button" className="cal-chip-more" onClick={() => setDay(d)}>+{evs.length - 3}</button>}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              {Array.from({ length: trail }, (_, i) => <span key={`t${i}`} className="cal-month-blank" aria-hidden="true" />)}
+            </div>
+          </div>
+          <section className="card cal-month-group" aria-labelledby="cal-month-list-h">
+            <h2 id="cal-month-list-h" className="cal-month-title">Atividades de {MONTHS[Number(ym.slice(5, 7)) - 1]}</h2>
+            {q.isLoading ? <Loading compact rows={2} /> : shown.length ? (
+              <ul className="list">{shown.map((e) => <EventRow key={e.id} e={e} />)}</ul>
+            ) : <p className="faint">{onlyMine ? 'Não tens atividades neste mês.' : 'Sem atividades neste mês.'}</p>}
+          </section>
+          {active.length > 0 && (
+            <div className="btn-row cal-export"><ExportButton events={active} name={`atividades-${ym}`} label={`Exportar ${MONTHS[Number(ym.slice(5, 7)) - 1]} (.ics)`} /></div>
+          )}
+        </>
+      )}
+      {selected && (
+        <DayDialog day={selected} events={shown.filter((e) => coversDay(e, selected))} marks={marks.get(selected) ?? []} free={false} onClose={() => setDay('')} />
+      )}
+    </>
+  );
+}
+
 function slotDays(slots: FreeSlot[]) {
   const s = new Set<string>();
   for (const f of slots) for (let d = f.from; d <= f.to; d = addDays(d, 1)) s.add(d);
@@ -316,8 +417,11 @@ const MiniMonth = memo(function MiniMonth({ ym, today, marks, busy, free, select
   return (
     <section className={`cal-mm${monthOf(today) === ym ? ' is-current' : ''}`} aria-labelledby={id} id={`mes-${ym}`}>
       <h3 id={id} className="cal-mm-title">
-        {MONTHS[Number(ym.slice(5, 7)) - 1]}
-        <span className={showYear ? 'cal-mm-year' : 'sr-only'}> {ym.slice(0, 4)}</span>
+        {/* O nome do mês abre a vista «Mês». */}
+        <Link to={`/calendario?vista=mes&mes=${ym}`} className="cal-mm-link">
+          {MONTHS[Number(ym.slice(5, 7)) - 1]}
+          <span className={showYear ? 'cal-mm-year' : 'sr-only'}> {ym.slice(0, 4)}</span>
+        </Link>
       </h3>
       <div className="cal-mm-grid">
         {WD.map((w, i) => (

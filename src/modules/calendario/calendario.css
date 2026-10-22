@@ -253,3 +253,36 @@ button.cal-counter[aria-pressed='true'] { background: var(--amber); color: var(-
 .ev-task-title { font-weight: 700; overflow-wrap: anywhere; line-height: 1.35; }
 .ev-task-meta { font-size: var(--fs-small); overflow-wrap: anywhere; }
 .ev-task .badge { flex: none; }
+
+/* Vista «Mês»: grelha grande com as atividades nos dias; a lista do mês fica por baixo. */
+.cal-month { padding: 12px; margin-bottom: 14px; }
+.cal-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-month-wd { text-align: center; font-size: var(--fs-xs); color: var(--ink-faint); text-decoration: none; padding-bottom: 4px; }
+.cal-month-wd.is-weekend { color: var(--ink-soft); }
+.cal-month-blank { min-height: 96px; }
+.cal-month-day { min-width: 0; min-height: 96px; padding: 4px; border-radius: 10px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; }
+.cal-month-day.is-weekend { background: color-mix(in srgb, var(--neutral-tint) 70%, transparent); }
+.cal-month-day.is-selected { border-color: var(--accent); }
+.cal-month-dn { align-self: flex-start; width: 26px; height: 26px; border-radius: 50%; border: 0; background: transparent; color: var(--ink);
+  font: inherit; font-size: var(--fs-small); font-variant-numeric: tabular-nums; cursor: pointer; display: grid; place-items: center; }
+.cal-month-dn:hover { background: var(--surface-3); }
+.cal-month-dn:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+.cal-month-day.is-holiday .cal-month-dn { color: var(--danger-ink); }
+.cal-month-day.is-today .cal-month-dn { box-shadow: inset 0 0 0 1.5px var(--accent-ink); color: var(--accent-ink); font-weight: 700; }
+.cal-month-mark { font-size: var(--fs-xs); color: var(--danger-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-month-events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cal-chip { display: block; padding: 2px 6px; border-radius: 6px; background: var(--accent-tint); color: var(--accent-ink); font-size: var(--fs-xs);
+  line-height: 1.4; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-chip:hover { filter: brightness(0.97); text-decoration: underline; }
+.cal-chip.is-cancelled { background: var(--surface-3); color: var(--ink-faint); text-decoration: line-through; }
+.cal-chip-time { font-weight: 700; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.cal-chip-more { align-self: flex-start; border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; padding: 0 4px; }
+/* Telemóvel: só o número e os pontos; as atividades estão na lista por baixo. */
+.cal-month.is-narrow { padding: 8px; }
+.cal-month.is-narrow .cal-month-grid { gap: 2px; }
+.cal-month.is-narrow .cal-month-blank, .cal-month.is-narrow .cal-month-day { min-height: 48px; }
+.cal-month.is-narrow .cal-month-day { border: 0; align-items: center; padding: 3px 0; }
+.cal-month.is-narrow .cal-month-dn { align-self: center; width: 32px; height: 32px; font-size: var(--fs-body); }
+.cal-mm-link { color: inherit; text-decoration: none; }
+.cal-mm-link:hover { color: var(--accent-ink); text-decoration: underline; }
+.cal-mm-link::first-letter { text-transform: uppercase; }
