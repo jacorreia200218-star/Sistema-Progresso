@@ -22,3 +22,14 @@
 .icloud-preview ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-small); }
 .icloud-reminders { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 @media (max-width: 480px) { .icloud-facts { grid-template-columns: 1fr; } .icloud-facts dt { margin-top: 4px; } }
+
+/* Por rever */
+.icloud-review-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.icloud-review-row { padding: 12px 0; border-top: 1px solid var(--line); }
+.icloud-review-row:first-child { border-top: 0; }
+.icloud-review-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.icloud-review-when { font-size: var(--fs-small); color: var(--ink-soft); }
+.icloud-review-title { flex-basis: 100%; overflow-wrap: anywhere; }
+.icloud-review-before { flex-basis: 100%; }
+.icloud-review-actions { margin-top: 8px; }
+.icloud-review-edit { margin-top: 10px; }

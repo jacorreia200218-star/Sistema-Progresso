@@ -13,6 +13,7 @@ import { Badge, ConfirmButton, ErrorBox, Field, Loading, MoreOptions, Notice } f
 import { formatDay, formatLisbon } from '../common';
 import { REMINDER_OPTIONS, reminderLabel } from './cal';
 import { icloudRequest, statsLabel, type IcloudOverview, type IcloudPreview, type IcloudSource, type SyncStats } from './icloudApi';
+import { IcloudReview } from './IcloudReview';
 import './icloud.css';
 
 const STATUS: Record<IcloudSource['status'], { label: string; tone: 'ok' | 'attention' | 'muted' }> = {
@@ -38,6 +39,7 @@ export function AdminIcloud() {
         <Cloud size={14} aria-hidden="true" /> Sincronização automática:{' '}
         {d.auto_sync ? 'de hora a hora.' : 'por ativar (pg_cron no Supabase). Entretanto, usa «Sincronizar agora».'}
       </p>
+      <IcloudReview />
       {d.sources.map((s) => <SourceCard key={s.id} s={s} teams={active} published={d.calendar_status === 'disponivel'} />)}
       <AddSource teams={active} first={!d.sources.some((s) => s.status !== 'arquivada')} published={d.calendar_status === 'disponivel'} />
     </div>
@@ -70,6 +72,7 @@ function SourceCard({ s, teams, published }: { s: IcloudSource; teams: Team[]; p
         <dt>Para</dt><dd>{s.audience === 'equipa' ? `Equipa ${s.team_name ?? '—'}` : 'Toda a secção'}</dd>
         <dt>Lembretes</dt><dd>{s.reminder_minutes.length ? `${s.reminder_minutes.map(reminderLabel).join(', ')} antes` : 'nenhum'}</dd>
         <dt>Atividades</dt><dd>{s.event_count} · {range(s.range_from, s.range_to)}{s.removed_count > 0 && ` · ${s.removed_count} removidas no iCloud`}</dd>
+        {s.review && <><dt>Por rever</dt><dd>{s.pending_review}</dd></>}
         <dt>Última sincronização</dt>
         <dd>{s.last_success_at ? `${formatLisbon(s.last_success_at)} · ${statsLabel(s.last_stats)}` : 'ainda não'}</dd>
       </dl>
@@ -178,6 +181,11 @@ function EditSource({ s, teams }: { s: IcloudSource; teams: Team[] }) {
       <Field label="Nome" htmlFor={`nm-${s.id}`}><input id={`nm-${s.id}`} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></Field>
       <AudienceFields idp={`ed-${s.id}`} audience={audience} setAudience={setAudience} team={team} setTeam={setTeam} teams={teams} />
       <ReminderFields idp={`ed-${s.id}`} value={rem} set={setRem} />
+      <label className="checkbox">
+        <input type="checkbox" checked={s.review} disabled={action.busy}
+          onChange={(e) => action.run(() => call('cal_source_set_review', { p_section: section, p_source: s.id, p_on: e.target.checked }),
+            e.target.checked ? 'As mudanças passam a esperar revisão.' : 'As mudanças passam direto para o Calendário.')} /> Rever antes de publicar
+      </label>
       <ErrorBox error={action.error} />
       {action.success && <Notice kind="success">{action.success}</Notice>}
       <div className="btn-row">
@@ -217,7 +225,8 @@ function AddSource({ teams, first, published }: { teams: Team[]; first: boolean;
       action: 'create', section_id: section, url, name, space: published ? 'real' : space, audience, team_id: audience === 'equipa' ? team : null, reminder_minutes: rem,
     }));
     if (r.ok) {
-      setDone(`Ligado. ${r.value?.stats.criadas ?? 0} atividades importadas.`);
+      const st = r.value?.stats;
+      setDone(st?.por_rever != null ? `Ligado. ${st.por_rever} atividades por rever.` : `Ligado. ${st?.criadas ?? 0} atividades importadas.`);
       reset();
     }
   };
