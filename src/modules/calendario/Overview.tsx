@@ -314,11 +314,23 @@ function MonthView({ onlyMine }: { onlyMine: boolean }) {
                 const label = dayLabel(d, m, busy.get(d) ?? 0, false, today);
                 return (
                   <div key={d} className={cls.join(' ')}>
-                    <button type="button" className="cal-month-dn" data-day={d} aria-label={label} title={label}
-                      aria-current={d === today ? 'date' : undefined} onClick={() => setDay(d)}>
-                      {Number(d.slice(8))}
-                    </button>
-                    {narrow ? <EventMarks n={busy.get(d) ?? 0} /> : (
+                    {narrow ? (
+                      // Telemóvel: o dia inteiro é o botão (abre o dia); dentro, os nomes das atividades
+                      <button type="button" className="cal-month-cell" data-day={d} aria-label={label} title={label}
+                        aria-current={d === today ? 'date' : undefined} onClick={() => setDay(d)}>
+                        <span className="cal-month-dn">{Number(d.slice(8))}</span>
+                        {evs.slice(0, 3).map((e) => (
+                          <span key={e.id} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}`} aria-hidden="true">{e.title}</span>
+                        ))}
+                        {evs.length > 3 && <span className="cal-chip-more" aria-hidden="true">+{evs.length - 3}</span>}
+                      </button>
+                    ) : (
+                      <button type="button" className="cal-month-dn" data-day={d} aria-label={label} title={label}
+                        aria-current={d === today ? 'date' : undefined} onClick={() => setDay(d)}>
+                        {Number(d.slice(8))}
+                      </button>
+                    )}
+                    {!narrow && (
                       <>
                         {m.length > 0 && <span className="cal-month-mark">{m[0].name}</span>}
                         <ul className="cal-month-events">

@@ -369,8 +369,8 @@ test('vista «Mês»: o mês aberto com as atividades nos dias e a lista por bai
   const list = main.getByRole('region', { name: new RegExp(`Atividades de ${name}`) });
   await expect(list.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
   const cell = main.locator('.cal-month-day', { has: page.locator(`[data-day="${evDay}"]`) });
-  if (mobile) await expect(cell.locator('.cal-dots')).toBeVisible();
-  else await expect(cell.locator('.cal-chip', { hasText: 'Raid de outono' })).toBeVisible();
+  await expect(cell.locator('.cal-chip', { hasText: 'Raid de outono' })).toBeVisible();
+  if (mobile) expect((await cell.boundingBox())!.height).toBeGreaterThanOrEqual(90);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: `test-results/calendario-mes-${info.project.name}.png`, fullPage: true });
   // Mês seguinte e voltar
