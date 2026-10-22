@@ -2,7 +2,7 @@ import { Suspense, useEffect, useLayoutEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import rosaUrl from '../assets/rosa-dos-ventos.svg';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, ClipboardCheck, Compass, Ellipsis, Home, ListTree, Route as RouteIcon, Settings, User, Users } from 'lucide-react';
+import { Bell, Compass, Ellipsis, Home, ListTree, Route as RouteIcon, Settings, UserCheck, Users } from 'lucide-react';
 import { FUTURE_AREAS } from '../lib/futuras';
 import { moduleTag, useMyModules } from '../modules/common';
 import { useSection } from '../lib/session';
@@ -93,13 +93,25 @@ function PageLoading() {
 }
 
 type NavItem = {
-  to: string; label: string; short: string; icon: typeof Home; end?: boolean; show: boolean;
-  count?: number; countLabel?: string; desktopOnly?: boolean; mobilePriority?: number;
+  key: string; to: string; label: string; short: string; icon: typeof Home; end?: boolean;
+  count?: number; countLabel?: string; tag?: string | null; also?: string[];
 };
 
-/** Destinos da navegação. No telemóvel cabem quatro na barra; os restantes ficam em «Mais». */
+/** Destinos de cada papel na barra de baixo do telemóvel (além do Início e de «Mais»). */
+const MOBILE_BAR: Record<'dirigente' | 'guia' | 'pioneiro' | 'outro', string[]> = {
+  dirigente: ['acompanhamento', 'presencas', 'calendario'],
+  guia: ['progresso', 'equipa', 'calendario'],
+  pioneiro: ['progresso', 'calendario', 'trilhos'],
+  outro: ['calendario', 'trilhos', 'gestao'],
+};
+
+/**
+ * Destinos da navegação: Início, depois tudo por ordem alfabética (progresso e módulos
+ * juntos) e, à parte, a Gestão. No telemóvel cabem quatro na barra; o resto fica em «Mais».
+ */
 export function useNavItems() {
   const s = useSection();
+  const modules = useMyModules();
   const counts = useQuery({
     queryKey: ['pending-counts', s.membership?.section_id],
     queryFn: () => fetchPendingCounts(s.membership!.section_id),
@@ -107,28 +119,58 @@ export function useNavItems() {
     refetchInterval: 60_000,
   });
   const c = counts.data ?? {};
-  const items = ([
-    { to: '/', label: 'Início', short: 'Início', icon: Home, end: true, show: true, mobilePriority: 0 },
-    { to: '/meu-progresso', label: 'Meu progresso', short: 'Progresso', icon: Compass, show: s.isMember, count: c.pedidos, countLabel: 'pedidos precisam de ti', mobilePriority: 1 },
-    { to: '/caminho', label: 'Caminho da secção', short: 'Caminho', icon: RouteIcon, show: true, mobilePriority: 6 },
-    { to: '/trilhos', label: 'Trilhos', short: 'Trilhos', icon: ListTree, show: true, mobilePriority: 7 },
-    { to: '/equipa', label: 'Equipa', short: 'Equipa', icon: Users, show: s.isGuia, count: c.equipa, countLabel: 'para a reunião de Equipa', mobilePriority: 2 },
-    { to: '/meu-progresso', label: 'Progresso dos pioneiros', short: 'Progressos', icon: Compass, show: s.isDirigente && !s.isMember, mobilePriority: 3 },
-    { to: '/acompanhamento', label: 'Acompanhamento', short: 'Acompanhar', icon: ClipboardCheck, show: s.isDirigente, count: c.acompanhamento, countLabel: 'pendentes', mobilePriority: 4 },
-    { to: '/gestao', label: 'Gestão', short: 'Gestão', icon: Settings, show: s.isAdmin, count: c.gestao, countLabel: 'pedidos de entrada', mobilePriority: 5 },
-    { to: '/perfil', label: 'Perfil', short: 'Perfil', icon: User, show: true, desktopOnly: true },
-  ] as NavItem[]).filter((i) => i.show);
+  const home: NavItem = { key: 'inicio', to: '/', label: 'Início', short: 'Início', icon: Home, end: true };
+  const main = ([
+    s.isMember && { key: 'progresso', to: '/meu-progresso', label: 'Meu progresso', short: 'Progresso', icon: Compass, count: c.pedidos, countLabel: 'pedidos precisam de ti' },
+    // Dirigentes veem o caminho e os pioneiros dentro do Acompanhamento.
+    !s.isDirigente && { key: 'caminho', to: '/caminho', label: 'Caminho da secção', short: 'Caminho', icon: RouteIcon },
+    { key: 'trilhos', to: '/trilhos', label: 'Trilhos', short: 'Trilhos', icon: ListTree },
+    s.isGuia && { key: 'equipa', to: '/equipa', label: 'Equipa', short: 'Equipa', icon: Users, count: c.equipa, countLabel: 'para a reunião de Equipa' },
+    s.isDirigente && {
+      key: 'acompanhamento', to: '/acompanhamento', label: 'Acompanhamento', short: 'Acompanhar', icon: UserCheck,
+      count: c.acompanhamento, countLabel: 'pendentes', also: s.isMember ? ['/caminho', '/membros'] : ['/caminho', '/meu-progresso', '/membros'],
+    },
+    ...FUTURE_AREAS.map((a) => ({ key: a.key, to: a.to, label: a.name, short: a.short, icon: a.icon, tag: moduleTag(modules.data?.find((m) => m.module === a.key)) })),
+  ].filter(Boolean) as NavItem[]).sort((x, y) => x.label.localeCompare(y.label, 'pt', { sensitivity: 'base' }));
+  const admin: NavItem[] = s.isAdmin ? [{ key: 'gestao', to: '/gestao', label: 'Gestão', short: 'Gestão', icon: Settings, count: c.gestao, countLabel: 'pedidos de entrada' }] : [];
+  const items = [home, ...main];
 
-  // Telemóvel: os quatro destinos mais importantes para esta pessoa, pela ordem do menu, e «Mais».
-  const candidates = items.filter((i) => !i.desktopOnly);
-  const keep = new Set([...candidates].sort((a, b) => (a.mobilePriority ?? 9) - (b.mobilePriority ?? 9)).slice(0, 4));
-  const mobileItems = candidates.filter((i) => keep.has(i));
-  const overflow = candidates.filter((i) => !keep.has(i));
+  // Telemóvel: Início, três destinos do papel da pessoa e «Mais».
+  const role = s.isDirigente ? 'dirigente' : s.isGuia ? 'guia' : s.isMember ? 'pioneiro' : 'outro';
+  const all = [...main, ...admin];
+  const picked = MOBILE_BAR[role].map((k) => all.find((i) => i.key === k)).filter(Boolean) as NavItem[];
+  for (const i of main) if (picked.length < 3 && !picked.includes(i)) picked.push(i);
+  const overflow = all.filter((i) => !picked.includes(i));
   const more: NavItem = {
-    to: '/mais', label: 'Mais', short: 'Mais', icon: Ellipsis, show: true,
+    key: 'mais', to: '/mais', label: 'Mais', short: 'Mais', icon: Ellipsis,
     count: overflow.reduce((n, i) => n + (i.count ?? 0), 0), countLabel: 'pendentes noutras secções',
   };
-  return { items, mobileItems: [...mobileItems, more], overflow };
+  return { items, admin, mobileItems: [home, ...picked, more], overflow };
+}
+
+/** NavLink que também fica ativo nas páginas que pertencem ao destino (ex.: Caminho no Acompanhamento). */
+function useActiveAlso(i: NavItem) {
+  const { pathname } = useLocation();
+  return !!i.also?.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+function NavEntry({ i, compact }: { i: NavItem; compact: boolean }) {
+  const also = useActiveAlso(i);
+  const cls = `nav-link${!compact && i.tag !== undefined ? ' nav-future' : ''}`;
+  const body = (
+    <>
+      <span className="nav-icon">
+        <i.icon size={22} aria-hidden="true" />
+        {!!i.count && <span className="nav-count" aria-hidden="true">{i.count > 99 ? '99+' : i.count}</span>}
+      </span>
+      <span>{compact ? i.short : i.label}</span>
+      {!!i.count && <span className="sr-only">, {i.count} {i.countLabel}</span>}
+      {!compact && i.tag && <span className={`nav-tag${i.tag === 'Em teste' ? ' nav-tag-test' : ''}`}><span className="sr-only">, </span>{i.tag}</span>}
+    </>
+  );
+  return also
+    ? <Link to={i.to} className={cls} aria-current="page">{body}</Link>
+    : <NavLink to={i.to} end={i.end} className={cls}>{body}</NavLink>;
 }
 
 export default function Layout() {
@@ -137,19 +179,7 @@ export default function Layout() {
   useScrollRestoration();
   const notes = useQuery({ queryKey: ['notifications'], queryFn: fetchNotifications, refetchInterval: 60_000 });
   const unread = notes.data?.filter((n) => !n.read_at).length ?? 0;
-  const { items, mobileItems } = useNavItems();
-  const modules = useMyModules();
-
-  const link = (i: NavItem, compact: boolean) => (
-    <NavLink key={i.to} to={i.to} end={i.end} className="nav-link">
-      <span className="nav-icon">
-        <i.icon size={22} aria-hidden="true" />
-        {!!i.count && <span className="nav-count" aria-hidden="true">{i.count > 99 ? '99+' : i.count}</span>}
-      </span>
-      <span>{compact ? i.short : i.label}</span>
-      {!!i.count && <span className="sr-only">, {i.count} {i.countLabel}</span>}
-    </NavLink>
-  );
+  const { items, admin, mobileItems } = useNavItems();
 
   return (
     <div className="app">
@@ -172,20 +202,12 @@ export default function Layout() {
       </header>
       <div className="layout">
         <nav className="side-nav" aria-label="Navegação principal">
-          {items.map((i) => link(i, false))}
-          <div className="nav-group" role="group" aria-labelledby="nav-futuras">
-            <span id="nav-futuras" className="nav-group-title">Módulos</span>
-            {FUTURE_AREAS.map((a) => {
-              const tag = moduleTag(modules.data?.find((m) => m.module === a.key));
-              return (
-                <NavLink key={a.key} to={a.to} className="nav-link nav-future">
-                  <span className="nav-icon"><a.icon size={20} aria-hidden="true" /></span>
-                  <span>{a.name}</span>
-                  {tag && <span className={`nav-tag${tag === 'Em teste' ? ' nav-tag-test' : ''}`}><span className="sr-only">, </span>{tag}</span>}
-                </NavLink>
-              );
-            })}
-          </div>
+          {items.map((i) => <NavEntry key={i.key} i={i} compact={false} />)}
+          {admin.length > 0 && (
+            <div className="nav-group">
+              {admin.map((i) => <NavEntry key={i.key} i={i} compact={false} />)}
+            </div>
+          )}
         </nav>
         <main id="conteudo" className="main" tabIndex={-1}>
           <RouteBoundary resetKey={location.pathname}>
@@ -198,7 +220,7 @@ export default function Layout() {
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Navegação principal">
-        {mobileItems.map((i) => link(i, true))}
+        {mobileItems.map((i) => <NavEntry key={i.key} i={i} compact />)}
       </nav>
     </div>
   );

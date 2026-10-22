@@ -16,6 +16,7 @@ import { PessoasGrid } from '../components/meu/PessoasGrid';
 import { trailCategory } from '../lib/meuprogresso';
 import { ErrorBox, Loading, PageTitle } from '../components/ui';
 import { Crumbs, type Crumb } from '../components/nav';
+import { LeadersHeader } from '../components/LeadersHeader';
 
 const VIEWS = [
   { key: 'areas', label: 'Áreas FACEIS' },
@@ -54,8 +55,13 @@ export default function MeuProgresso() {
 
   return (
     <>
-      <Crumbs items={crumbs} />
-      <PageTitle title={area ? area.name : vista === 'areas' || vista === 'pessoas' ? title : viewLabel(vista)} />
+      {/* Dirigentes: a grelha de pioneiros é um separador do Acompanhamento. */}
+      {showGrid && subject.isDirigente && !subject.isMember ? <LeadersHeader current="pioneiros" /> : (
+        <>
+          <Crumbs items={crumbs} />
+          <PageTitle title={area ? area.name : vista === 'areas' || vista === 'pessoas' ? title : viewLabel(vista)} />
+        </>
+      )}
       <ConsultHeader subject={subject} />
 
       {vista === 'pessoas' ? (

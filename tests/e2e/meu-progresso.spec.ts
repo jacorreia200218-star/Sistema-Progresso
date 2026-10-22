@@ -205,7 +205,9 @@ test('revisão: os dirigentes confirmam o trilho validado pelos guias', async ({
 test('dirigente: grelha de pioneiros, consulta e volta com os filtros', async ({ page }, info) => {
   await installMock(page, leader());
   await page.goto('/meu-progresso');
-  await expect(page.getByRole('heading', { name: 'Progresso dos pioneiros' })).toBeVisible();
+  // A grelha é o separador «Pioneiros» do Acompanhamento.
+  await expect(page.getByRole('heading', { name: 'Acompanhamento', level: 1 })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Secções do acompanhamento' }).getByRole('link', { name: 'Pioneiros' })).toHaveAttribute('aria-current', 'page');
   const grid = page.locator('.people-grid');
   await expect(grid.locator('.person-card').first()).toBeVisible();
   // Ordem alfabética

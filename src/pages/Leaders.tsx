@@ -1,4 +1,5 @@
-// Acompanhamento da secção pela Equipa de Animação, em três separadores:
+// Acompanhamento da secção pela Equipa de Animação. Separadores (LeadersHeader): Secção,
+// Pioneiros (/meu-progresso) e Caminho (/caminho) mantêm os seus endereços; aqui ficam:
 //   Secção  — pessoas por equipa, pesquisa e filtros, mérito e exportação secundários;
 //   Pedidos — uma caixa de entrada comum (negociação, trilhos, progresso anterior),
 //             cada pedido com a sua lógica, permissões e ações;
@@ -12,7 +13,7 @@ import { ChevronDown, Download, Flag, Handshake, History, ListChecks, Search } f
 import { useActiveSection } from '../lib/session';
 import { useMembers, useTeams } from '../lib/hooks';
 import {
-  call, fetchMeritStatus, fetchPendingCounts, fetchSectionChoices, fetchSectionPath, fetchSectionRequests, fetchSectionStagePaths, fetchSectionStageRequests,
+  call, fetchMeritStatus, fetchSectionChoices, fetchSectionPath, fetchSectionRequests, fetchSectionStagePaths, fetchSectionStageRequests,
   type MemberRow, type PathMember,
 } from '../lib/api';
 import { useAction } from '../lib/useAction';
@@ -20,40 +21,24 @@ import { MILESTONES, milestoneByKey, STATE_LABEL, type MilestoneKey, type Positi
 import { formatDate, functionLabel, requestStatusLabel, stageRequestLabel, todayIso, type Tone } from '../lib/labels';
 import type { StageChoice, StageRequest, TrailRequest } from '../lib/types';
 import { isAwaiting } from '../lib/progress';
-import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice, PageTitle } from '../components/ui';
+import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice } from '../components/ui';
 import { RequestList } from '../components/RequestList';
 import { stageName } from '../components/StagePanel';
 import { proposalRef } from '../lib/labels';
 import { DateInput } from '../components/DateInput';
 import { RegisterPrevious } from '../components/RegisterPrevious';
-
-const TABS = [
-  ['seccao', 'Secção'],
-  ['pedidos', 'Pedidos'],
-  ['etapas', 'Etapas'],
-] as const;
+import { LeadersHeader, type LeadersTab } from '../components/LeadersHeader';
 
 export default function Leaders({ tab: forced }: { tab?: string }) {
   const params = useParams();
   const tab = forced ?? params.tab ?? 'seccao';
   const { membership } = useActiveSection();
   const members = useMembers(membership.section_id);
-  const counts = useQuery({ queryKey: ['pending-counts', membership.section_id], queryFn: () => fetchPendingCounts(membership.section_id) });
   const progressMembers = (members.data ?? []).filter((m) => m.status === 'ativo' && (m.function === 'pioneiro' || m.function === 'guia'));
-  const c = counts.data ?? {};
-  const pending: Record<string, number> = { pedidos: (c.negociacao ?? 0) + (c.trilhos ?? 0) + (c.anterior ?? 0), etapas: c.etapas ?? 0 };
 
   return (
     <>
-      <PageTitle title="Acompanhamento" subtitle="Acompanhamento da secção pela Equipa de Animação." />
-      <nav className="tabs" aria-label="Secções do acompanhamento">
-        {TABS.map(([k, label]) => (
-          <Link key={k} to={`/acompanhamento/${k}`} className="tab" aria-current={tab === k ? 'page' : undefined}>
-            {label}
-            {!!pending[k] && <span className="count" aria-label={`${pending[k]} pendentes`}>{pending[k]}</span>}
-          </Link>
-        ))}
-      </nav>
+      <LeadersHeader current={tab as LeadersTab} />
       {members.isLoading ? <Loading /> : members.error ? <ErrorBox error={members.error} retry={members.refetch} /> : (
         <>
           {tab === 'seccao' && <SectionOverview members={progressMembers} />}

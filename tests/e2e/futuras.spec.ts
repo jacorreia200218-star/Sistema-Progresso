@@ -10,25 +10,31 @@ async function noHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-test('módulos em desenvolvimento: no menu, separados, só apresentação', async ({ page }, info) => {
+test('menu: Início, depois por ordem alfabética, Gestão no fim; módulos em desenvolvimento só apresentação', async ({ page }, info) => {
   await installMock(page, leader());
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Olá/ })).toBeVisible();
   if (isMobile(page)) {
-    // Barra de baixo com quatro destinos e «Mais»
-    const bottom = page.getByRole('navigation', { name: 'Navegação principal' });
-    await expect(bottom.getByRole('link')).toHaveCount(5);
+    // Dirigente: Início, Acompanhar, Presenças, Calendário e «Mais»
+    const bottom = page.getByRole('navigation', { name: 'Navegação principal' }).filter({ visible: true });
+    await expect(bottom.getByRole('link')).toHaveText([/Início/, /Acompanhar/, /Presenças/, /Calendário/, /Mais/]);
     await bottom.getByRole('link', { name: /Mais/ }).click();
-    const list = page.getByRole('navigation', { name: 'Módulos' });
-    for (const a of AREAS) await expect(list.getByRole('link', { name: new RegExp(a) })).toContainText('Em desenvolvimento');
-    await expect(page.getByRole('navigation', { name: 'Outras secções' })).toContainText('Caminho da secção');
+    const list = page.getByRole('navigation', { name: 'Outras secções' });
+    await expect(list.getByRole('link')).toHaveText([/Atas e tarefas/, /Equipas e cargos/, /Inventário/, /Tesouraria/, /Trilhos/]);
+    await expect(list.getByRole('link', { name: /Tesouraria/ })).toContainText('Em desenvolvimento');
+    await expect(page.getByRole('navigation', { name: 'Gestão' }).getByRole('link')).toHaveText([/Gestão/]);
     await noHorizontalScroll(page);
     await page.screenshot({ path: `test-results/mais-${info.project.name}.png`, fullPage: true });
     await list.getByRole('link', { name: /Tesouraria/ }).click();
   } else {
-    const group = page.getByRole('group', { name: 'Módulos' });
-    for (const a of AREAS) await expect(group.getByRole('link', { name: new RegExp(`${a}.*Em desenvolvimento`) })).toBeVisible();
-    await group.getByRole('link', { name: /Tesouraria/ }).click();
+    const side = page.locator('.side-nav');
+    await expect(side.locator('.nav-link > span:nth-child(2)')).toHaveText([
+      'Início', 'Acompanhamento', 'Atas e tarefas', 'Calendário escutista', 'Equipas e cargos', 'Inventário', 'Presenças', 'Tesouraria', 'Trilhos', 'Gestão',
+    ]);
+    await expect(side.getByText('Módulos')).toHaveCount(0);
+    await expect(side.getByRole('link', { name: 'Perfil' })).toHaveCount(0);
+    for (const a of AREAS) await expect(side.getByRole('link', { name: new RegExp(`${a}.*Em desenvolvimento`) })).toBeVisible();
+    await side.getByRole('link', { name: /Tesouraria/ }).click();
   }
   await expect(page).toHaveURL(/\/tesouraria$/);
   const main = page.locator('main');

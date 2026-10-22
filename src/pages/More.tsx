@@ -1,25 +1,25 @@
-// «Mais» (telemóvel): destinos que não cabem na barra de baixo e as áreas em desenvolvimento.
+// «Mais» (telemóvel): os destinos que não cabem na barra de baixo, por ordem alfabética,
+// e a Gestão no fim.
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import { FUTURE_AREAS } from '../lib/futuras';
 import { PageTitle } from '../components/ui';
 import { useNavItems } from '../components/Layout';
-import { moduleTag, useMyModules } from '../modules/common';
 
 export default function More() {
   const { overflow } = useNavItems();
-  const modules = useMyModules();
+  const groups = [overflow.filter((i) => i.key !== 'gestao'), overflow.filter((i) => i.key === 'gestao')].filter((g) => g.length);
   return (
     <>
       <PageTitle title="Mais" />
-      {overflow.length > 0 && (
-        <nav className="card more-list" aria-label="Outras secções">
+      {groups.map((g, n) => (
+        <nav key={n} className="card more-list" aria-label={n === 0 ? 'Outras secções' : 'Gestão'}>
           <ul className="list">
-            {overflow.map((i) => (
-              <li key={i.to}>
+            {g.map((i) => (
+              <li key={i.key}>
                 <Link to={i.to} className="list-item">
                   <i.icon size={20} aria-hidden="true" />
                   <span className="grow">{i.label}</span>
+                  {i.tag && <span className={`badge ${i.tag === 'Em teste' ? 'tone-progress' : 'tone-muted'}`}>{i.tag}</span>}
                   {!!i.count && <span className="nav-count-inline">{i.count}<span className="sr-only"> {i.countLabel}</span></span>}
                   <ChevronRight size={18} aria-hidden="true" />
                 </Link>
@@ -27,24 +27,7 @@ export default function More() {
             ))}
           </ul>
         </nav>
-      )}
-      <h2 className="section-title">Módulos</h2>
-      <nav className="card more-list" aria-label="Módulos">
-        <ul className="list">
-          {FUTURE_AREAS.map((a) => {
-            const tag = moduleTag(modules.data?.find((m) => m.module === a.key));
-            return (
-              <li key={a.key}>
-                <Link to={a.to} className="list-item">
-                  <a.icon size={20} aria-hidden="true" />
-                  <span className="grow">{a.name}</span>
-                  {tag && <span className={`badge ${tag === 'Em teste' ? 'tone-progress' : 'tone-muted'}`}>{tag}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      ))}
     </>
   );
 }
