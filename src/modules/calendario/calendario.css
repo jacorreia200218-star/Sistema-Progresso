@@ -277,12 +277,26 @@ button.cal-counter[aria-pressed='true'] { background: var(--amber); color: var(-
 .cal-chip.is-cancelled { background: var(--surface-3); color: var(--ink-faint); text-decoration: line-through; }
 .cal-chip-time { font-weight: 700; margin-right: 4px; font-variant-numeric: tabular-nums; }
 .cal-chip-more { align-self: flex-start; border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--fs-xs); font-weight: 700; cursor: pointer; padding: 0 4px; }
-/* Telemóvel: só o número e os pontos; as atividades estão na lista por baixo. */
-.cal-month.is-narrow { padding: 8px; }
-.cal-month.is-narrow .cal-month-grid { gap: 2px; }
-.cal-month.is-narrow .cal-month-blank, .cal-month.is-narrow .cal-month-day { min-height: 48px; }
-.cal-month.is-narrow .cal-month-day { border: 0; align-items: center; padding: 3px 0; }
-.cal-month.is-narrow .cal-month-dn { align-self: center; width: 32px; height: 32px; font-size: var(--fs-body); }
+/* Telemóvel, como no calendário do iPhone: linhas altas separadas por um traço,
+   o número em cima e os nomes das atividades dentro do dia. */
+.cal-month.is-narrow { padding: 6px 4px; }
+.cal-month.is-narrow .cal-month-grid { gap: 0; }
+.cal-month.is-narrow .cal-month-wd { padding-bottom: 8px; }
+.cal-month.is-narrow .cal-month-blank, .cal-month.is-narrow .cal-month-day { min-height: 92px; border-top: 1px solid var(--line); }
+.cal-month.is-narrow .cal-month-day { border-left: 0; border-right: 0; border-bottom: 0; border-radius: 0; padding: 0; }
+.cal-month.is-narrow .cal-month-day.is-weekend { background: transparent; }
+.cal-month-cell { flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; width: 100%;
+  padding: 4px 1px 6px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cal-month-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 6px; }
+.cal-month.is-narrow .cal-month-dn { align-self: center; display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: 2px;
+  font-size: var(--fs-small); }
+.cal-month.is-narrow .cal-month-day.is-weekend .cal-month-dn { color: var(--ink-soft); }
+.cal-month.is-narrow .cal-month-day.is-holiday .cal-month-dn { color: var(--danger-ink); }
+.cal-month.is-narrow .cal-month-day.is-today .cal-month-dn { box-shadow: none; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.cal-month.is-narrow .cal-month-day.is-selected .cal-month-cell { background: var(--surface-3); border-radius: 6px; }
+.cal-month.is-narrow .cal-chip { padding: 1px 3px; border-radius: 4px; font-size: 10px; line-height: 1.3; white-space: normal; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.cal-month.is-narrow .cal-chip-more { padding: 0 3px; font-size: 10px; }
 .cal-mm-link { color: inherit; text-decoration: none; }
 .cal-mm-link:hover { color: var(--accent-ink); text-decoration: underline; }
 .cal-mm-link::first-letter { text-transform: uppercase; }
