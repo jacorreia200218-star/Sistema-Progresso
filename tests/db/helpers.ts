@@ -159,6 +159,11 @@ export async function validateTrail(w: World, who: string, trail: string, record
   return req;
 }
 
+/** Pedido de validação da etapa em curso (criado sozinho quando a etapa fica pronta). */
+export async function openStageRequest(stagePath: string): Promise<string | undefined> {
+  return (await admin(`select id from public.stage_requests where stage_path_id = $1 and status in ('submetido', 'decidido_conselho')`, [stagePath]))[0]?.id;
+}
+
 /** Módulos: estado, testers e permissões (como a administração, Ana). */
 export async function setupModule(
   w: World, module: string, status: 'desenvolvimento' | 'teste' | 'disponivel',
