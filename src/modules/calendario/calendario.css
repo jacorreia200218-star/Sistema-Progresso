@@ -76,52 +76,18 @@ button.cal-counter[aria-pressed='true'] { background: var(--amber); color: var(-
 .cal-pending-tools select.cal-horizon { font-size: var(--fs-body); min-height: 38px; }
 .cal-page > .cal-counters { margin-bottom: 12px; }
 
-/* Três ou quatro meses por linha no computador (nunca mais de quatro). */
-.cal-year { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(max(206px, calc((100% - 36px) / 4)), 1fr)); }
-.cal-mm { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 10px 8px; min-width: 0; scroll-margin-top: 110px;
-  container-type: inline-size; }
-.cal-mm.is-current { border-color: color-mix(in srgb, var(--accent-ink) 45%, var(--line)); }
-.cal-mm-title { font-size: var(--fs-body) !important; margin: 0 0 6px !important; text-align: center; font-weight: 700; color: var(--ink); }
-.cal-mm-title::first-letter { text-transform: uppercase; }
-.cal-mm-year { font-weight: 400; color: var(--ink-faint); }
-.cal-mm-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px 1px; }
-.cal-mm-wd { text-align: center; font-size: var(--fs-xs); color: var(--ink-faint); text-decoration: none; padding: 0 0 2px; cursor: default; white-space: nowrap; overflow: hidden; }
-.cal-mm-wd.is-weekend { color: var(--ink-soft); }
-/* «Seg, Ter…» quando há espaço; só a inicial nos meses estreitos. */
-.cal-mm-wd .wd-short { display: none; }
-@container (max-width: 170px) { .cal-mm-wd .wd-long { display: none; } .cal-mm-wd .wd-short { display: inline; } }
-.cal-mm-blank { height: 34px; }
-.cal-d { position: relative; min-width: 0; height: 34px; padding: 3px 0 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink);
-  font: inherit; font-size: var(--fs-small); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px;
-  font-variant-numeric: tabular-nums; }
-.cal-d:hover { background: var(--surface-3); }
-.cal-d:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
-.cal-dn { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; line-height: 1; }
-/* Fim de semana: tonalidade suave */
-.cal-d.is-weekend { background: color-mix(in srgb, var(--neutral-tint) 70%, transparent); color: var(--ink-soft); }
-.cal-d.is-weekend:hover { background: var(--surface-3); }
-/* Feriado: número na cor do feriado e um ponto discreto no canto */
-.cal-d.is-holiday { color: var(--danger-ink); }
-.cal-d.is-holiday::before { content: ''; position: absolute; top: 3px; left: calc(50% + 8px); width: 5px; height: 5px; border-radius: 99px; background: var(--danger-ink); opacity: 0.75; }
-.cal-d.is-relevant::before { content: ''; position: absolute; top: 3px; left: calc(50% + 8px); width: 5px; height: 5px; border-radius: 99px; border: 1px solid var(--amber); }
-/* Hoje: pequeno círculo à volta do número */
-.cal-d.is-today .cal-dn { box-shadow: inset 0 0 0 1.5px var(--accent-ink); color: var(--accent-ink); font-weight: 700; }
-.cal-d.is-selected .cal-dn { background: var(--accent); color: var(--on-accent); box-shadow: none; }
-/* Atividades: pontos curtos por baixo do número (até dois) ou «•+N» */
-.cal-dots { display: flex; align-items: center; justify-content: center; gap: 2px; height: 7px; }
-.cal-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-ink); }
-.cal-more { font-size: 9px; line-height: 1; font-weight: 700; color: var(--accent-ink); letter-spacing: -0.02em; }
-.cal-year.show-free .cal-d.is-free { background: var(--green-tint); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 50%, transparent); }
+/* Atalhos para os meses: o ano é uma coluna de meses abertos. */
+.cal-month-jump { display: flex; gap: 4px; overflow-x: auto; position: sticky; top: 0; z-index: 4; background: var(--ivory);
+  margin: 0 0 10px; padding: 6px 0; scrollbar-width: none; }
+.cal-month-jump::-webkit-scrollbar { display: none; }
+.cal-jump { flex: none; padding: 6px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); color: var(--ink-soft);
+  text-decoration: none; font-size: var(--fs-small); min-height: 34px; display: inline-flex; align-items: center; }
+.cal-jump.is-current { border-color: var(--accent-ink); color: var(--accent-ink); }
+@media (max-width: 640px) {
+  .cal-month-jump { top: 52px; margin: 0 -16px 10px; padding: 6px 16px; }
+}
 
-/* Atalhos para os meses (telemóvel) */
-.cal-month-jump { display: none; }
-
-/* Legenda: uma linha curta, com as mesmas marcas das células */
-.cal-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; margin-top: 14px; padding: 0 2px; }
-.cal-legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--fs-small); color: var(--ink-soft); }
-.cal-legend li { display: inline-flex; align-items: center; gap: 6px; }
-.cal-legend .checkbox { margin: 0; font-size: var(--fs-small); min-height: 32px; align-items: center; }
-.cal-legend .checkbox input { margin-top: 0; }
+/* Marcas da lista de feriados e dias relevantes */
 .cal-key { position: relative; flex: none; display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
 .cal-key.key-event::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--accent-ink); }
 .cal-key.key-holiday::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--danger-ink); opacity: 0.75; }
@@ -203,21 +169,6 @@ button.cal-counter[aria-pressed='true'] { background: var(--amber); color: var(-
 @media (max-width: 640px) {
   .cal-actions { margin-left: 0; width: 100%; }
   .cal-actions .btn { flex: 1 1 auto; justify-content: center; }
-  .cal-year { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .cal-mm { padding: 12px 10px 10px; }
-  .cal-d, .cal-mm-blank { height: 44px; }
-  .cal-mm-blank.is-trail { display: none; }
-  .cal-d.is-holiday::before, .cal-d.is-relevant::before { top: 4px; left: calc(50% + 11px); }
-  .cal-d { font-size: var(--fs-body); padding-top: 5px; gap: 3px; }
-  .cal-dn { width: 28px; height: 28px; }
-  .cal-dots i { width: 6px; height: 6px; }
-  .cal-more { font-size: 11px; }
-  .cal-month-jump { display: flex; gap: 4px; overflow-x: auto; position: sticky; top: 52px; z-index: 4; background: var(--ivory);
-    margin: 0 -16px 10px; padding: 6px 16px; scrollbar-width: none; }
-  .cal-month-jump::-webkit-scrollbar { display: none; }
-  .cal-jump { flex: none; padding: 6px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--card); color: var(--ink-soft);
-    text-decoration: none; font-size: var(--fs-small); min-height: 34px; display: inline-flex; align-items: center; }
-  .cal-jump.is-current { border-color: var(--accent-ink); color: var(--accent-ink); }
   .cal-dialog-backdrop { align-items: end; padding: 0; }
   .cal-dialog { width: 100%; max-height: 85vh; border-radius: var(--radius) var(--radius) 0 0; }
   .cal-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -303,5 +254,6 @@ button.cal-counter[aria-pressed='true'] { background: var(--amber); color: var(-
 /* Ano no telemóvel: os meses abertos em coluna (mesma grelha da vista «Mês»). */
 .cal-year-open { display: grid; gap: 18px; }
 .cal-year-month { scroll-margin-top: 110px; }
+.cal-year-month-title::first-letter { text-transform: uppercase; }
 .cal-year-month-title { font-size: var(--fs-section) !important; margin: 0 0 8px 4px !important; font-weight: 700; color: var(--ink); }
 .cal-year-month .cal-month { margin-bottom: 0; }
