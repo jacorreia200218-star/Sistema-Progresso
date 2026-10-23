@@ -30,3 +30,13 @@ test('acesso direto, navegação interna e voltar/avançar', async ({ page }) =>
   await page.goForward();
   await expect(page.getByRole('heading', { name: /Olá/ })).toBeVisible();
 });
+
+test('barra superior: ícone do tema e sino alinhados e do mesmo tamanho', async ({ page }) => {
+  await installMock(page, leader());
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /Olá/ })).toBeVisible();
+  const theme = await page.locator('.topbar').getByRole('button', { name: /^Tema/ }).locator('svg').boundingBox();
+  const bell = await page.locator('.topbar').getByRole('link', { name: /^Notificações/ }).locator('svg').boundingBox();
+  expect(Math.abs(theme!.y + theme!.height / 2 - (bell!.y + bell!.height / 2))).toBeLessThan(1);
+  expect(Math.abs(theme!.height - bell!.height)).toBeLessThan(1);
+});

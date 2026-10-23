@@ -36,7 +36,7 @@ export function ThemeToggle() {
   return (
     <button type="button" className="btn ghost icon-btn" onClick={() => setChoice(next)}
       aria-label={`Tema: ${label}. Mudar para ${OPTIONS.find((o) => o.value === next)!.label}`} title={`Tema: ${label}`}>
-      <Icon size={20} aria-hidden="true" />
+      <Icon size={22} aria-hidden="true" />
     </button>
   );
 }

@@ -311,7 +311,7 @@ input[type='file']::file-selector-button:hover { background: var(--surface-3); }
 .tab { white-space: nowrap; padding: 8px 14px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); text-decoration: none; color: var(--ink); min-height: 40px; display: inline-flex; align-items: center; gap: 6px; font: inherit; cursor: pointer; }
 .tab[aria-selected='true'], .tab[aria-current='page'] { background: var(--ink); color: var(--ivory); border-color: var(--ink); }
 .count { background: var(--accent); color: var(--on-accent); border-radius: 99px; font-size: var(--fs-xs); padding: 0 7px; font-weight: 700; }
-.notice-dot { position: relative; }
+.notice-dot { position: relative; display: inline-flex; }
 .notice-dot[data-count]::after { content: attr(data-count); position: absolute; top: -6px; right: -10px; background: var(--accent); color: var(--on-accent); font-size: var(--fs-xs); border-radius: 99px; padding: 0 5px; font-weight: 700; }
 .hero { padding: 40px 0 24px; }
 .hero h1 { font-size: var(--fs-hero); }
