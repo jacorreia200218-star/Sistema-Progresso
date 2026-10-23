@@ -108,8 +108,10 @@ test('início do dirigente: cartões com ligações filtradas, marcos e atividad
   await expect(stats.getByRole('link', { name: /Pioneiros/ })).toHaveAttribute('href', '/caminho');
   await expect(stats.getByRole('link', { name: /Pedidos pendentes/ })).toHaveAttribute('href', '/acompanhamento/pedidos');
   await expect(stats.getByRole('link', { name: /Etapas por validar/ })).toHaveAttribute('href', '/acompanhamento/etapas');
-  await page.getByRole('list', { name: 'Pessoas por marco do caminho' }).getByRole('link', { name: /Conhecimento/ }).click();
-  await expect(page.getByRole('dialog', { name: /Conhecimento · 4/ })).toBeVisible();
+  // «Onde estão» é o mapa do caminho: tocar numa pessoa abre o percurso no Caminho da secção
+  await page.getByRole('region', { name: 'Onde estão' }).getByRole('button', { name: /^Carla/ }).click();
+  await expect(page).toHaveURL(/\/caminho\?pessoa=/);
+  await expect(page.getByRole('dialog', { name: /Percurso/ })).toBeVisible();
   await page.goto('/');
   await expect(page.locator('#h-act').locator('..').locator('..').locator('.list-item')).toHaveCount(2);
   await page.getByRole('link', { name: 'Ver atividade' }).click();

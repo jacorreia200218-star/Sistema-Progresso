@@ -11,7 +11,7 @@ import { fetchSectionPath, type PathMember } from '../lib/api';
 import { MILESTONES, milestoneByKey, type MilestoneKey } from '../lib/caminho';
 import { Avatar, Empty, ErrorBox, Loading, PageTitle } from '../components/ui';
 import { SidePanel } from '../components/nav';
-import { PeopleRow, shortNames, Track, type TrackStep } from '../components/caminho/Track';
+import { SectionMap } from '../components/caminho/SectionMap';
 import { PersonPanelBody } from '../components/caminho/PersonPanel';
 import { TeamView } from '../components/caminho/TeamView';
 import { MilestoneInfo } from '../components/caminho/Shared';
@@ -20,7 +20,6 @@ const KEYS = MILESTONES.map((m) => m.key);
 const isKey = (v: string | null): v is MilestoneKey => !!v && (KEYS as string[]).includes(v);
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const byName = (a: PathMember, b: PathMember) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' });
-const MAX_AVATARS = 5;
 
 export default function Caminho() {
   const s = useActiveSection();
@@ -60,27 +59,6 @@ export default function Caminho() {
   if (path.error) return <ErrorBox error={path.error} retry={path.refetch} />;
   const total = path.data?.total ?? 0;
   const counts = path.data?.counts ?? {};
-
-  const names = shortNames(visible);
-  const steps = {} as Record<MilestoneKey, TrackStep>;
-  for (const m of MILESTONES) {
-    if (!m.tracked) {
-      steps[m.key] = { status: 'info', caption: m.key === 'passagem' ? 'Idade e maturidade' : 'Antes de entrar' };
-      continue;
-    }
-    const people = filtered.filter((x) => x.milestone === m.key);
-    const known = visible.filter((x) => x.milestone === m.key).length;
-    const hidden = filtering ? 0 : Math.max(0, (counts[m.key] ?? 0) - known);
-    const n = filtering ? people.length : counts[m.key] ?? 0;
-    steps[m.key] = {
-      status: n ? 'ocupado' : 'neutro',
-      caption: n ? `${n} ${n === 1 ? 'pessoa' : 'pessoas'}` : 'Ninguém',
-      content: (
-        <PeopleRow people={people} max={MAX_AVATARS} hidden={hidden} teamName={teamName} names={names}
-          onPick={(id) => set({ pessoa: id, marco: null })} onMore={() => set({ marco: m.key, pessoa: null })} />
-      ),
-    };
-  }
 
   const person = personId ? visible.find((m) => m.membership_id === personId) : undefined;
   const listPeople = openList ? filtered.filter((x) => x.milestone === openList) : [];
@@ -140,7 +118,8 @@ export default function Caminho() {
             {filtering && !filtered.length && <p className="faint" role="status">Ninguém corresponde à pesquisa.</p>}
             {vista === 'mapa' ? (
               <section className="card map-card" aria-label="Mapa do caminho da secção">
-                <Track steps={steps} label="Marcos do caminho e quem está em cada um" />
+                <SectionMap visible={visible} shown={filtered} counts={counts} filtering={filtering} teamName={teamName}
+                  onPick={(id) => set({ pessoa: id, marco: null })} onMore={(k) => set({ marco: k, pessoa: null })} />
               </section>
             ) : (
               <TeamView people={filtered} catalog={catalog} areaCode={areaCode} teamName={teamName} sectionId={membership.section_id}

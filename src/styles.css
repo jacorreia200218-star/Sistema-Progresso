@@ -408,12 +408,6 @@ ul.tight li { margin-bottom: 4px; }
 .where-icon { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-tint); color: var(--accent-ink); flex: none; }
 .where-title { font-size: var(--fs-strong); }
 .caminho-shortcut { border: 2px solid var(--accent-ink); background-image: radial-gradient(circle at 92% 20%, var(--accent-tint), transparent 55%); }
-.dist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-@media (min-width: 640px) { .dist { grid-template-columns: repeat(6, 1fr); } }
-.dist a { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; border-radius: 12px; background: var(--surface-2); text-decoration: none; color: var(--ink); min-height: 72px; }
-.dist a:hover { background: var(--surface-3); }
-.dist-n { font-size: var(--fs-stat); font-weight: 700; }
-.dist-l { font-size: var(--fs-small); color: var(--ink-soft); text-align: center; }
 /* ---------- Compacto e fluido ---------- */
 .avatar.lg { width: 64px; height: 64px; font-size: 18px; }
 .area-code { width: 30px; height: 30px; border-radius: 8px; font-size: var(--fs-small); }
@@ -427,7 +421,7 @@ ul.tight li { margin-bottom: 4px; }
 .hero h1 { font-size: var(--fs-hero); }
 .public { max-width: 460px; }
 .card-title h2 { font-size: var(--fs-section); }
-.nav-link, .list-item, .person, .slot, .dist a, .where-card, .caminho-shortcut, .area-card {
+.nav-link, .list-item, .person, .slot, .where-card, .caminho-shortcut, .area-card {
   transition: background-color 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease), box-shadow 160ms var(--ease);
 }
 /* Entrada suave de cada página (sem saltos de layout) */
@@ -608,6 +602,7 @@ a.ck-row:hover { background: var(--surface-2); }
 
 /* Mapa do caminho: marcos numa grelha normal; o trilho é desenhado pelas posições medidas */
 .map-card { padding: 8px; overflow: hidden; }
+.map-card > .row.between { padding: 8px 8px 0; }
 .trail-map { position: relative; padding: 30px 0 58px; }
 .map-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .map-path-bg { fill: none; stroke: var(--surface-3); stroke-width: 20px; stroke-linecap: round; stroke-linejoin: round; }
@@ -706,11 +701,6 @@ details.more-inner > summary { font-weight: 400; color: var(--ink); }
 .trail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .page-links { margin: 6px 0 0 -8px; gap: 4px 8px; }
 .next-step { background: var(--accent-tint); border-color: transparent; }
-/* Distribuição por marcos: números simples, sem caixas dentro do cartão */
-.dist { gap: 0; margin-top: 6px; }
-.dist a { background: transparent; border-radius: 8px; min-height: 60px; padding: 6px 4px; }
-.dist a:hover { background: var(--surface-2); }
-.dist-n { font-size: var(--fs-stat); }
 .avatar { background: var(--accent-tint); color: var(--accent-ink); }
 /* Frases curtas (objetivos oficiais, estados, próximos passos) não se justificam: evita espaços largos no telemóvel. */
 @media (min-width: 760px) {
