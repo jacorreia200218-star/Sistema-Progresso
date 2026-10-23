@@ -104,6 +104,7 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
   const id = (k: string) => `fin-${mode}-${k}`;
   // Com uma só conta ou caixa ativa, fica escolhida (menos um passo no telemóvel).
   const only = accounts.filter((a) => !a.archived);
+  const oneAccount = only.length === 1 && accounts.length === 1 && v.account === only[0].id && !errors.account;
   useEffect(() => {
     if (!v.account && only.length === 1) set('account', only[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,8 +156,8 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
             </span>
           )}
         </Field>
-        <Field label="Valor (€)" htmlFor={id('amount')} hint="Em euros, com vírgula: 12,30">
-          <input type="text" id={id('amount')} inputMode="decimal" autoComplete="off" value={v.amount} disabled={locked} onChange={(e) => set('amount', e.target.value)} aria-invalid={!!errors.amount} />
+        <Field label="Valor (€)" htmlFor={id('amount')}>
+          <input type="text" id={id('amount')} inputMode="decimal" autoComplete="off" placeholder="0,00" value={v.amount} disabled={locked} onChange={(e) => set('amount', e.target.value)} aria-invalid={!!errors.amount} />
           {fe('amount')}
         </Field>
       </div>
@@ -164,20 +165,23 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
         <input type="text" id={id('description')} maxLength={200} value={v.description} onChange={(e) => set('description', e.target.value)} aria-invalid={!!errors.description} />
         {fe('description')}
       </Field>
-      <div className="grid-2">
+      <div className={oneAccount ? undefined : 'grid-2'}>
         <Field label="Categoria" htmlFor={id('category')}>
           <input type="text" id={id('category')} list={id('categories')} maxLength={60} value={v.category} onChange={(e) => set('category', e.target.value)} aria-invalid={!!errors.category} />
           <datalist id={id('categories')}>{(opts.data?.categories ?? []).map((c) => <option key={c} value={c} />)}</datalist>
           {fe('category')}
         </Field>
-        <Field label="Conta ou caixa" htmlFor={id('account')}>
-          <select id={id('account')} value={v.account} disabled={locked} onChange={(e) => set('account', e.target.value)} aria-invalid={!!errors.account}>
-            <option value="">Escolhe…</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.archived ? ' (arquivada)' : ''}</option>)}
-          </select>
-          {!opts.isLoading && !accounts.length && <span className="hint">Ainda não há contas. <Link to="/tesouraria/contas">Criar conta ou caixa</Link>.</span>}
-          {fe('account')}
-        </Field>
+        {/* Com uma só caixa (o normal), não se pergunta a conta. */}
+        {!oneAccount && (
+          <Field label="Conta ou caixa" htmlFor={id('account')}>
+            <select id={id('account')} value={v.account} disabled={locked} onChange={(e) => set('account', e.target.value)} aria-invalid={!!errors.account}>
+              <option value="">Escolhe…</option>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.archived ? ' (arquivada)' : ''}</option>)}
+            </select>
+            {!opts.isLoading && !accounts.length && <span className="hint">Ainda não há contas. <Link to="/tesouraria/contas">Criar conta ou caixa</Link>.</span>}
+            {fe('account')}
+          </Field>
+        )}
       </div>
       <Field label="Atividade (opcional)" htmlFor={id('activity')}>
         <EventSelect id={id('activity')} value={v.activity} onChange={(val) => set('activity', val)} events={activityChoices(acts.data)}
@@ -193,14 +197,12 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
                 <label key={k} className="segment"><input type="radio" name={id('state')} checked={v.state === k} onChange={() => set('state', k)} /> <span>{STATE_LABEL[k]}</span></label>
               ))}
             </div>
-            <span className="hint prose">Só os efetivos contam no saldo. Pendente: aguarda confirmação; previsto: ainda vai acontecer.</span>
           </fieldset>
           <Field label="Membro (pagamento individual, opcional)" htmlFor={id('member')}>
             <select id={id('member')} value={v.member} disabled={locked} onChange={(e) => set('member', e.target.value)}>
               <option value="">Nenhum</option>
               {(members.data ?? []).map((m) => <option key={m.profile_id} value={m.profile_id}>{m.full_name}</option>)}
             </select>
-            <span className="hint">O nome nunca aparece a quem só consulta a tesouraria.</span>
           </Field>
         </div>
       </details>
@@ -208,7 +210,7 @@ function MovementForm({ initial, mode, locked, onSubmit, busy, submitLabel }: {
         <textarea id={id('notes')} rows={2} maxLength={1000} value={v.notes} onChange={(e) => set('notes', e.target.value)} />
       </Field>
       {mode === 'novo' && (
-        <Field label="Comprovativo (opcional)" htmlFor={id('file')} hint="PDF ou imagem; só quem gere a tesouraria o vê.">
+        <Field label="Comprovativo (opcional)" htmlFor={id('file')}>
           <input id={id('file')} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           {fe('file')}
         </Field>

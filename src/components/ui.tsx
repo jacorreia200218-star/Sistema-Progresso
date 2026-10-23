@@ -205,12 +205,13 @@ export function Field({ label, hint, children, htmlFor }: { label: string; hint?
   return (
     <div className="field">
       <label htmlFor={htmlFor}>{label}</label>
+      {children}
+      {/* A ajuda fica por baixo do campo: assim os campos lado a lado ficam sempre alinhados. */}
       {hint && (
         <span className="hint prose" id={`${htmlFor}-hint`}>
           {hint}
         </span>
       )}
-      {children}
     </div>
   );
 }

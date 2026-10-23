@@ -225,7 +225,8 @@ function DashboardBody({ d, f, qs, canManage }: { d: D; f: Filters; qs: string; 
         </section>
       )}
 
-      {!noAccounts && (
+      {/* Com uma só caixa, o saldo por conta repetia o saldo total. */}
+      {d.accounts.length > 1 && (
         <section className="card" aria-labelledby="fin-contas">
           <h2 id="fin-contas" className="card-title">Saldo por conta ou caixa</h2>
           <ul className="list fin-accounts">
