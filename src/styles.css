@@ -49,6 +49,7 @@
   --fs-body: 14px;     /* texto principal */
   --fs-small: 13px;    /* texto auxiliar: datas e informação secundária */
   --fs-xs: 12px;       /* etiquetas mínimas (contadores, legenda da barra) */
+  --fs-tiny: 10px;     /* só dentro de células pequenas (dias do calendário no telemóvel, eixos dos gráficos) */
   --fs-stat: 23px;     /* indicadores numéricos */
   font-size: var(--fs-body);
   line-height: 1.5;
@@ -751,7 +752,7 @@ details.more-inner > summary { font-weight: 400; color: var(--ink); }
 .route-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 40; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: route-progress 1s linear infinite; }
 @keyframes route-progress { from { background-position: -50% 0; } to { background-position: 150% 0; } }
 /* Convites */
-.invite-code { font-family: ui-monospace, 'Courier New', monospace; font-size: var(--fs-strong); font-weight: 700; letter-spacing: 0.08em; }
+.invite-code { font-variant-numeric: tabular-nums; font-size: var(--fs-strong); font-weight: 700; letter-spacing: 0.08em; }
 .invite-item { padding: 10px 2px; }
 .invite-item + .invite-item { border-top: 1px solid var(--line); }
 .invite-share { margin-top: 8px; }
@@ -995,7 +996,8 @@ dl.summary-list .quote { margin-top: 0; }
 /* Áreas em desenvolvimento */
 .nav-group { display: flex; flex-direction: column; gap: 2px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .nav-group-title { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .04em; padding: 0 12px 6px; }
-.side-nav .nav-future { color: var(--ink-soft); font-size: var(--fs-small); min-height: 34px; }
+/* Mesmo tipo e tamanho de letra que as outras entradas; só a cor é mais suave. */
+.side-nav .nav-future { color: var(--ink-soft); }
 .future-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .future-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 14px; background: var(--accent-tint); color: var(--accent-ink); }
 .future-badge { gap: 6px; }

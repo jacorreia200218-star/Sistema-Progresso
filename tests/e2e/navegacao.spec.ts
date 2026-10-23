@@ -40,3 +40,14 @@ test('barra superior: ícone do tema e sino alinhados e do mesmo tamanho', async
   expect(Math.abs(theme!.y + theme!.height / 2 - (bell!.y + bell!.height / 2))).toBeLessThan(1);
   expect(Math.abs(theme!.height - bell!.height)).toBeLessThan(1);
 });
+
+test('menu lateral: todas as entradas com o mesmo tipo e tamanho de letra', async ({ page }, info) => {
+  test.skip(info.project.name === 'telemovel', 'O menu lateral só aparece no computador.');
+  await installMock(page, leader());
+  await page.goto('/');
+  const links = page.getByRole('navigation', { name: 'Navegação principal' }).filter({ visible: true }).locator('.nav-link');
+  await expect(links.first()).toBeVisible();
+  const fonts = await links.evaluateAll((els) => els.map((el) => { const s = getComputedStyle(el); return `${s.fontFamily}|${s.fontSize}`; }));
+  expect(new Set(fonts).size).toBe(1);
+  await page.locator('.side-nav').screenshot({ path: `test-results/menu-lateral-${info.project.name}.png` });
+});
