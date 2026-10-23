@@ -89,15 +89,14 @@ for (const theme of ['light', 'dark'] as const) {
   });
 }
 
-test('grupos grandes: alguns avatares e «+N» com a lista completa', async ({ page }) => {
+test('grupos grandes: todas as pessoas no mapa, sem «+N»', async ({ page }) => {
   await installMock(page, bigLeader());
   await page.goto('/caminho');
   const conhecimento = page.locator('.track-step', { hasText: 'Conhecimento' });
-  await expect(conhecimento.locator('.avatar-btn')).toHaveCount(6); // 5 pessoas + «+N»
-  await conhecimento.getByRole('button', { name: 'Ver todos (13)' }).click();
-  const list = page.getByRole('dialog', { name: /Conhecimento · 13/ });
-  await expect(list.locator('.person')).toHaveCount(13);
-  await list.getByRole('button', { name: /Zé Extra C/ }).click();
+  await expect(conhecimento.locator('.avatar-btn')).toHaveCount(13);
+  await expect(conhecimento.getByRole('button', { name: /Ver todos/ })).toHaveCount(0);
+  await noHorizontalScroll(page);
+  await conhecimento.getByRole('button', { name: /Zé Extra C/ }).click();
   await expect(page.getByRole('dialog', { name: 'Percurso' })).toContainText('Zé Extra C');
 });
 

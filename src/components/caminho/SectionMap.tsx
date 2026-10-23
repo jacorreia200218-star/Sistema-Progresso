@@ -1,9 +1,8 @@
 // Mapa do caminho da secção: os marcos e quem está em cada um (Caminho da secção e Início).
+// Mostra sempre todas as pessoas, com fotografia, sem «+N».
 import { MILESTONES, type MilestoneKey } from '../../lib/caminho';
 import type { PathMember } from '../../lib/api';
 import { PeopleRow, shortNames, Track, type TrackStep } from './Track';
-
-const MAX_AVATARS = 5;
 
 export function SectionMap({ visible, shown = visible, counts, filtering = false, teamName, onPick, onMore }: {
   /** Todas as pessoas visíveis (para os nomes curtos e para contar as escondidas). */
@@ -31,7 +30,7 @@ export function SectionMap({ visible, shown = visible, counts, filtering = false
       status: n ? 'ocupado' : 'neutro',
       caption: n ? `${n} ${n === 1 ? 'pessoa' : 'pessoas'}` : 'Ninguém',
       content: (
-        <PeopleRow people={people} max={MAX_AVATARS} hidden={hidden} teamName={teamName} names={names}
+        <PeopleRow people={people} max={Infinity} hidden={hidden} teamName={teamName} names={names}
           onPick={onPick} onMore={() => onMore(m.key)} />
       ),
     };
