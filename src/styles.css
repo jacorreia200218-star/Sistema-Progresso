@@ -247,7 +247,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px
 .checkbox { display: flex; gap: 10px; align-items: flex-start; min-height: 40px; font-size: var(--fs-body); }
 .checkbox input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
 fieldset { border: 0; padding: 0; margin: 0 0 14px; }
-legend { font-weight: 700; margin-bottom: 6px; }
+legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
+/* Botão do ficheiro igual aos outros botões secundários */
+input[type='file'] { font: inherit; font-size: var(--fs-body); color: var(--ink-soft); max-width: 100%; }
+input[type='file']::file-selector-button { font: inherit; font-weight: 700; color: var(--ink); background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 14px; margin-right: 10px; cursor: pointer; }
+input[type='file']::file-selector-button:hover { background: var(--surface-3); }
 .radio-cards { display: grid; gap: 8px; }
 .radio-card { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: var(--fs-body); transition: border-color 160ms var(--ease), background-color 160ms var(--ease); }
 .radio-card input { accent-color: var(--accent); }

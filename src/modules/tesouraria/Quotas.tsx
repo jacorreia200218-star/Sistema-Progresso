@@ -179,7 +179,11 @@ function ChargeRow({ charge: c, quotaActive }: { charge: Charge; quotaActive: bo
   const [open, setOpen] = useState<'none' | 'pay' | 'waive'>('none');
   const [on, setOn] = useState(todayLisbon());
   const [amount, setAmount] = useState(eurosInput(Math.max(c.em_falta - c.pendente, 0) || c.em_falta));
-  const [account, setAccount] = useState('');
+  const active = (opts.data?.accounts ?? []).filter((a) => !a.archived);
+  // Com uma só caixa (o normal), fica escolhida e não se pergunta.
+  const only = active.length === 1 ? active[0].id : '';
+  const [picked, setAccount] = useState('');
+  const account = picked || only;
   const [state, setState] = useState<MovState>('efetivo');
   const [excess, setExcess] = useState(false);
   const [reason, setReason] = useState('');
@@ -225,13 +229,15 @@ function ChargeRow({ charge: c, quotaActive }: { charge: Charge; quotaActive: bo
           <div className="grid-2">
             <Field label="Data" htmlFor={`${id}-on`}><DateInput id={`${id}-on`} value={on} onChange={(e) => setOn(e.target.value)} /></Field>
             <Field label="Valor (€)" htmlFor={`${id}-amount`}><input type="text" id={`${id}-amount`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
-            <Field label="Conta ou caixa" htmlFor={`${id}-acc`}>
-              <select id={`${id}-acc`} value={account} onChange={(e) => setAccount(e.target.value)}>
-                <option value="">Escolhe…</option>
-                {(opts.data?.accounts ?? []).filter((a) => !a.archived).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-              {!opts.isLoading && !opts.data?.accounts.length && <span className="hint"><Link to="/tesouraria/contas">Criar conta ou caixa</Link></span>}
-            </Field>
+            {!only && (
+              <Field label="Conta ou caixa" htmlFor={`${id}-acc`}>
+                <select id={`${id}-acc`} value={account} onChange={(e) => setAccount(e.target.value)}>
+                  <option value="">Escolhe…</option>
+                  {active.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                {!opts.isLoading && !opts.data?.accounts.length && <span className="hint"><Link to="/tesouraria/contas">Criar conta ou caixa</Link></span>}
+              </Field>
+            )}
             <Field label="Estado" htmlFor={`${id}-state`}>
               <select id={`${id}-state`} value={state} onChange={(e) => setState(e.target.value as MovState)}>
                 <option value="efetivo">Efetivo (recebido)</option>

@@ -314,11 +314,15 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await expect(page.getByText('Escreve uma descrição.')).toBeVisible();
   await expect(page.getByText(/Indica um valor superior a zero/)).toBeVisible();
   expect(calls.some((c) => c.fn === 'fin_create_movement')).toBe(false);
-  // Uma só caixa: já escolhida
-  await expect(page.getByLabel('Conta ou caixa')).toHaveValue('acc1');
+  // Uma só caixa: já escolhida e sem campo
+  await expect(page.getByLabel('Conta ou caixa')).toHaveCount(0); // uma só caixa: não se pergunta (vai acc1, ver abaixo)
   await page.getByLabel('Descrição').fill('Venda de bolos');
   await page.getByLabel('Valor (€)').fill('45,50');
   await page.getByLabel('Categoria').fill('Angariação de fundos');
+  // Campos lado a lado alinhados (Data e Valor começam à mesma altura)
+  const [d, v] = [await page.getByLabel('Data').boundingBox(), await page.getByLabel('Valor (€)').boundingBox()];
+  if (info.project.name === 'computador') expect(Math.abs(d!.y - v!.y)).toBeLessThan(2);
+  await page.screenshot({ path: `test-results/tesouraria-novo-${info.project.name}.png`, fullPage: true });
   // Data anterior ao saldo inicial: aviso de que não soma de novo
   await page.getByLabel('Data').fill('2026-08-15');
   await expect(page.getByText(/Data anterior ao saldo inicial \(01\/09\/2026\)/)).toBeVisible();
