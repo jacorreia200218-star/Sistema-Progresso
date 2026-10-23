@@ -156,7 +156,7 @@ function useActiveAlso(i: NavItem) {
 
 function NavEntry({ i, compact }: { i: NavItem; compact: boolean }) {
   const also = useActiveAlso(i);
-  const cls = `nav-link${!compact && i.tag !== undefined ? ' nav-future' : ''}`;
+  const cls = `nav-link${!compact && i.tag ? ' nav-future' : ''}`;
   const body = (
     <>
       <span className="nav-icon">

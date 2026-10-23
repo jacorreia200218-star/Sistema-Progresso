@@ -14,7 +14,7 @@
 .icloud-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
 .icloud-head h3 { margin: 0; font-size: var(--fs-body); }
 .icloud-badges { display: flex; flex-wrap: wrap; gap: 6px; }
-.icloud-mask { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--fs-xs); color: var(--ink-faint); overflow-wrap: anywhere; margin: 4px 0 8px; }
+.icloud-mask { font-size: var(--fs-xs); color: var(--ink-faint); overflow-wrap: anywhere; margin: 4px 0 8px; }
 .icloud-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0 0 8px; font-size: var(--fs-small); }
 .icloud-facts dt { color: var(--ink-faint); }
 .icloud-facts dd { margin: 0; overflow-wrap: anywhere; }

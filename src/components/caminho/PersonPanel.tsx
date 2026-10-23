@@ -20,7 +20,7 @@ export function PersonPanelBody({ member, catalog, teamName, role }: { member: P
       <div className="row">
         <Avatar name={member.full_name} photoPath={member.photo_path} size="lg" />
         <div className="grow">
-          <strong style={{ fontSize: '1.05rem' }}>{member.full_name}{self ? ' (tu)' : ''}</strong>
+          <strong style={{ fontSize: 'var(--fs-strong)' }}>{member.full_name}{self ? ' (tu)' : ''}</strong>
           <br />
           <span className="faint">{teamName(member.team_id)}{member.function === 'guia' ? ' · Guia' : ''}{member.totem ? ` · ${member.totem}` : ''}</span>
         </div>

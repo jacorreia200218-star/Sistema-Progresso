@@ -25,12 +25,12 @@
 .fin-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 0; }
 @media (min-width: 760px) { .fin-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; } }
 .fin-stats .stat { min-height: 104px; padding: 10px 6px; gap: 2px; }
-.fin-stats .stat-value { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fin-stats .stat-value { font-size: var(--fs-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fin-stats .stat-label { font-size: var(--fs-small); }
 .fin-stats .stat-hint { font-size: var(--fs-xs); color: var(--ink-soft); }
 @media (min-width: 760px) {
   .fin-stats .stat { min-height: 116px; }
-  .fin-stats .stat-value { font-size: 21px; }
+  .fin-stats .stat-value { font-size: var(--fs-page); }
   .fin-stats .stat-label { font-size: var(--fs-body); }
 }
 .fin-stats .stat:hover { border-color: var(--tone-line); }
@@ -74,7 +74,7 @@ a.fin-row:focus-visible { outline: 3px solid var(--focus); outline-offset: -2px;
 /* Listas simples com valor à direita (contas, saldo inicial, orçamento) */
 .fin-amount { font-weight: 400; }
 .fin-accounts .fin-amount, .fin-opening-row .fin-amount { color: var(--ink); }
-.fin-big { font-size: 22px; font-weight: 700; }
+.fin-big { font-size: var(--fs-stat); font-weight: 700; }
 .fin-amount.fin-big.pos { color: var(--ink); }
 
 /* Tabelas: números à direita com algarismos tabulares */
@@ -131,7 +131,7 @@ a.fin-row:focus-visible { outline: 3px solid var(--focus); outline-offset: -2px;
 .fin-chart-line { fill: none; stroke: var(--accent-ink); stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
 .fin-chart-area { fill: var(--accent-ink); opacity: 0.06; stroke: none; }
 .fin-chart-dot { fill: var(--card); stroke: var(--accent-ink); stroke-width: 1.5; }
-.fin-chart-label { fill: var(--ink-faint); font-size: 11px; font-family: Arial, Helvetica, sans-serif; font-variant-numeric: tabular-nums; }
+.fin-chart-label { fill: var(--ink-faint); font-size: var(--fs-tiny); font-variant-numeric: tabular-nums; }
 .fin-chart-table { margin-top: 6px; }
 
 /* Filtro de atividade (seletor comum EventSelect) */
