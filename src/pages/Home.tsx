@@ -1,11 +1,11 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, CheckCircle2, ClipboardList, Flag, MessageSquare, Route as RouteIcon, RotateCcw, Send, Users, UsersRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useActiveSection } from '../lib/session';
 import { useProgress, useTeams } from '../lib/hooks';
 import { fetchActivity, fetchPendingCounts, fetchSectionChoices, fetchSectionPath, fetchSectionRequests, fetchSectionStageRequests, type ActivityItem } from '../lib/api';
-import { memberPosition, MILESTONES, milestoneByKey, STATE_LABEL } from '../lib/caminho';
+import { memberPosition, milestoneByKey, STATE_LABEL } from '../lib/caminho';
 import { nextAction } from '../lib/progress';
 import { progressCounts } from '../lib/meuprogresso';
 import { decisionLabel, formatDate } from '../lib/labels';
@@ -13,6 +13,7 @@ import type { TrailDecision } from '../lib/types';
 import { Empty, ErrorBox, Loading, PageTitle } from '../components/ui';
 import { StatCards } from '../components/nav';
 import { MeritCard } from '../components/StagePanel';
+import { SectionMap } from '../components/caminho/SectionMap';
 
 function MemberHome() {
   const { membership, catalog, isGuia } = useActiveSection();
@@ -122,6 +123,7 @@ function LeaderHome() {
   const { membership } = s;
   const path = useQuery({ queryKey: ['section-path', membership.section_id], queryFn: () => fetchSectionPath(membership.section_id) });
   const teams = useTeams(membership.section_id);
+  const navigate = useNavigate();
   const ids = (path.data?.members ?? []).map((m) => m.membership_id);
   const reqs = useQuery({ queryKey: ['section-requests', membership.section_id, 'pendentes'], queryFn: () => fetchSectionRequests(membership.section_id, ['submetido', 'em_revisao', 'validado_guias']) });
   const choices = useQuery({ queryKey: ['choices', ids, 'proposta'], queryFn: () => fetchSectionChoices(ids, 'proposta'), enabled: ids.length > 0 });
@@ -133,6 +135,8 @@ function LeaderHome() {
   if (path.error) return <ErrorBox error={path.error} retry={path.refetch} />;
   const total = path.data?.total ?? 0;
   const activeTeams = (teams.data ?? []).filter((t) => !t.archived_at).length;
+  const members = [...(path.data?.members ?? [])].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' }));
+  const teamName = (id: string | null) => teams.data?.find((t) => t.id === id)?.name ?? 'Sem equipa';
   // Cada pedido conta uma vez (negociação, trilhos e progresso anterior), como na caixa de entrada.
   const c = counts.data ?? {};
   const pendingReqs = counts.data ? (c.negociacao ?? 0) + (c.trilhos ?? 0) + (c.anterior ?? 0) : (reqs.data?.length ?? 0) + (choices.data?.length ?? 0);
@@ -165,21 +169,13 @@ function LeaderHome() {
         { label: 'Etapas por validar', value: openStages, to: '/acompanhamento/etapas', tone: 'lilas', icon: Flag },
       ]} />
 
-      <section className="card" aria-labelledby="h-dist">
+      <section className="card map-card" aria-labelledby="h-dist">
         <div className="row between">
           <h2 id="h-dist" style={{ margin: 0 }}>Onde estão</h2>
           <Link to="/caminho" className="btn ghost">Caminho da secção</Link>
         </div>
-        <ul className="dist" aria-label="Pessoas por marco do caminho">
-          {MILESTONES.filter((m) => m.tracked).map((m) => (
-            <li key={m.key}>
-              <Link to={`/caminho?marco=${m.key}`}>
-                <span className="dist-n">{path.data?.counts[m.key] ?? 0}</span>
-                <span className="dist-l">{m.short}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <SectionMap visible={members} counts={path.data?.counts ?? {}} teamName={teamName}
+          onPick={(id) => navigate(`/caminho?pessoa=${id}`)} onMore={(k) => navigate(`/caminho?marco=${k}`)} />
       </section>
 
       {others.length > 0 ? (
