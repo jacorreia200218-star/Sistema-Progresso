@@ -3,7 +3,7 @@
 // semana, dias com atividades e dias sem atividades registadas; por baixo (no telemóvel,
 // «O que te falta» por cima), um resumo curto: as três pendências mais próximas, as próximas
 // atividades e as datas para planear. Vista secundária: lista completa das próximas atividades.
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck, ChevronLeft, ChevronRight, Download, Plus, Settings, X } from 'lucide-react';
@@ -149,7 +149,6 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const cfg = useCalConfig();
   const [yearParam, setYear] = useParam('ano');
   const [day, setDay] = useParam('dia');
-  const [highlight, setHighlight] = useParam('livres');
   const [range, setRange] = useParam('livres_de');
   const narrow = useNarrow();
   const pending = usePendingSummary();
@@ -168,7 +167,6 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const freeFrom = futureOnly ? today : p.from;
   const free = useMemo(() => freeSlots(freeFrom, p.to, busyAll, marks), [freeFrom, p.to, busyAll, marks]);
   const freeAll = useMemo(() => (freeFrom === p.from ? free : freeSlots(p.from, p.to, busyAll, marks)), [free, freeFrom, p.from, p.to, busyAll, marks]);
-  const freeDays = useMemo(() => slotDays(free), [free]);
   const freeAllDays = useMemo(() => slotDays(freeAll), [freeAll]);
   const selected = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
   const ready = !cfg.isLoading && !q.isLoading;
@@ -176,28 +174,10 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   pickRef.current = setDay;
   const pick = useCallback((d: string) => pickRef.current(d), []);
 
-  // Navegação por teclado: um só ponto de paragem (Tab) na grelha; setas mudam de dia.
-  const [focusDay, setFocusDay] = useState<string | null>(null);
-  const inPeriod = (d: string | null): d is string => !!d && d >= p.from && d <= p.to;
-  const tabStop = inPeriod(focusDay) ? focusDay : inPeriod(selected) ? selected : inPeriod(today) ? today : p.from;
-  const onGridKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    const d = (e.target as HTMLElement).closest<HTMLElement>('[data-day]')?.dataset.day;
-    if (!d) return;
-    const n = keyTarget(d, e.key);
-    if (!n) return;
-    e.preventDefault();
-    if (!inPeriod(n)) return;
-    setFocusDay(n);
-    const el = document.querySelector<HTMLElement>(`button[data-day="${n}"]`);
-    el?.focus({ preventScroll: true });
-    el?.scrollIntoView({ block: 'nearest' });
-  };
-
   // «Hoje» abre o dia de hoje; «Ir para o mês atual» desloca até ao mês atual. Ambos mantêm a vista anual.
   const toMonth = useRef(false);
   const scrollToCurrent = () => {
     document.getElementById(`mes-${monthOf(today)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setFocusDay(today);
     document.querySelector<HTMLElement>(`button[data-day="${today}"]`)?.focus({ preventScroll: true });
   };
   useEffect(() => {
@@ -231,31 +211,19 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
           {!narrow && <PendingStrip s={pending} />}
           <div className="cal-year-main">
             <MonthJump months={p.months} today={today} />
-            <p id="cal-keys" className="sr-only">Usa as setas para mudar de dia e Page Up ou Page Down para mudar de mês.</p>
-            {narrow ? (
-              // Telemóvel: os meses abertos, um por baixo do outro, como na vista «Mês».
-              <div className="cal-year-open" aria-busy={!ready}>
-                {p.months.map((ym) => (
-                  <section key={ym} id={`mes-${ym}`} className="cal-year-month" aria-labelledby={`cal-om-${ym}`}>
-                    <h3 id={`cal-om-${ym}`} className="cal-year-month-title">
-                      <Link to={`/calendario?vista=mes&mes=${ym}`} className="cal-mm-link">{monthLabel(ym)}</Link>
-                    </h3>
-                    <MonthGrid ym={ym} events={shown.filter((e) => { const r = eventDays(e); return r.from <= `${ym}-31` && r.to >= `${ym}-01`; })}
-                      marks={marks} busy={busyShown} today={today} selected={selected && monthOf(selected) === ym ? selected : null}
-                      onPick={pick} narrow busyState={!ready} />
-                  </section>
-                ))}
-              </div>
-            ) : (
-            <div className={`cal-year${highlight === '1' ? ' show-free' : ''}`} aria-busy={!ready} onKeyDown={onGridKey}>
+            {/* Os meses abertos, um por baixo do outro, como na vista «Mês». */}
+            <div className="cal-year-open" aria-busy={!ready}>
               {p.months.map((ym) => (
-                <MiniMonth key={ym} ym={ym} today={today} marks={marks} busy={busyShown} free={freeDays} selected={selected && monthOf(selected) === ym ? selected : null} onPick={pick}
-                  tabStop={monthOf(tabStop) === ym ? tabStop : null} onFocusDay={setFocusDay}
-                  showYear={p.from.slice(0, 4) !== p.to.slice(0, 4) && (ym === p.months[0] || ym.endsWith('-01'))} />
+                <section key={ym} id={`mes-${ym}`} className="cal-year-month" aria-labelledby={`cal-om-${ym}`}>
+                  <h3 id={`cal-om-${ym}`} className="cal-year-month-title">
+                    <Link to={`/calendario?vista=mes&mes=${ym}`} className="cal-mm-link">{monthLabel(ym)}</Link>
+                  </h3>
+                  <MonthGrid ym={ym} events={shown.filter((e) => { const r = eventDays(e); return r.from <= `${ym}-31` && r.to >= `${ym}-01`; })}
+                    marks={marks} busy={busyShown} today={today} selected={selected && monthOf(selected) === ym ? selected : null}
+                    onPick={pick} narrow={narrow} busyState={!ready} />
+                </section>
               ))}
             </div>
-            )}
-            {!narrow && <Legend highlight={highlight === '1'} setHighlight={(on) => setHighlight(on ? '1' : '')} />}
           </div>
           <div className="cal-summary" role="region" aria-label="Resumo">
             <PendingCard s={pending} counters={narrow} />
@@ -404,20 +372,6 @@ function slotDays(slots: FreeSlot[]) {
   return s;
 }
 
-/** Dia de destino de uma tecla na grelha (setas, Home/End na semana, Page Up/Down no mês). */
-function keyTarget(d: string, key: string): string | null {
-  const steps: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
-  if (key in steps) return addDays(d, steps[key]);
-  if (key === 'Home') return addDays(d, -weekday(d));
-  if (key === 'End') return addDays(d, 6 - weekday(d));
-  if (key === 'PageUp' || key === 'PageDown') {
-    const ym = addMonths(monthOf(d), key === 'PageUp' ? -1 : 1);
-    const last = Number(addDays(`${addMonths(ym, 1)}-01`, -1).slice(8));
-    return `${ym}-${String(Math.min(Number(d.slice(8)), last)).padStart(2, '0')}`;
-  }
-  return null;
-}
-
 const WD = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 const WD_SHORT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const WD_FULL = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -432,72 +386,6 @@ function dayLabel(d: string, marks: DayMark[], n: number, free: boolean, today: 
   return parts.join(', ');
 }
 
-/** Marcas das atividades dentro da célula: um ponto por atividade (até duas) ou «•+N». */
-function EventMarks({ n }: { n: number }) {
-  if (!n) return null;
-  return (
-    <span className="cal-dots" aria-hidden="true">
-      <i />{n === 2 && <i />}{n > 2 && <span className="cal-more">+{n - 1}</span>}
-    </span>
-  );
-}
-
-const MiniMonth = memo(function MiniMonth({ ym, today, marks, busy, free, selected, onPick, showYear, tabStop, onFocusDay }: {
-  ym: string; today: string; marks: Map<string, DayMark[]>; busy: Map<string, number>; free: Set<string>;
-  selected: string | null; onPick: (d: string) => void; showYear: boolean; tabStop: string | null; onFocusDay: (d: string) => void;
-}) {
-  const first = `${ym}-01`;
-  const last = addDays(`${addMonths(ym, 1)}-01`, -1);
-  const lead = weekday(first);
-  const days: string[] = [];
-  for (let d = first; d <= last; d = addDays(d, 1)) days.push(d);
-  // Seis semanas em todos os meses: todos os cartões têm a mesma altura.
-  const trail = 42 - lead - days.length;
-  const id = `cal-mm-${ym}`;
-  return (
-    <section className={`cal-mm${monthOf(today) === ym ? ' is-current' : ''}`} aria-labelledby={id} id={`mes-${ym}`}>
-      <h3 id={id} className="cal-mm-title">
-        {/* O nome do mês abre a vista «Mês». */}
-        <Link to={`/calendario?vista=mes&mes=${ym}`} className="cal-mm-link">
-          {MONTHS[Number(ym.slice(5, 7)) - 1]}
-          <span className={showYear ? 'cal-mm-year' : 'sr-only'}> {ym.slice(0, 4)}</span>
-        </Link>
-      </h3>
-      <div className="cal-mm-grid">
-        {WD.map((w, i) => (
-          <abbr key={i} title={WD_FULL[i]} className={`cal-mm-wd${i >= 5 ? ' is-weekend' : ''}`}>
-            <span className="wd-long">{WD_SHORT[i]}</span><span className="wd-short" aria-hidden="true">{w}</span>
-          </abbr>
-        ))}
-        {Array.from({ length: lead }, (_, i) => <span key={`b${i}`} className="cal-mm-blank" aria-hidden="true" />)}
-        {days.map((d) => {
-          const m = marks.get(d) ?? [];
-          const n = busy.get(d) ?? 0;
-          const isFree = free.has(d);
-          const label = dayLabel(d, m, n, isFree, today);
-          const cls = ['cal-d'];
-          if (weekday(d) >= 5) cls.push('is-weekend');
-          if (isHoliday(m)) cls.push('is-holiday');
-          else if (m.length) cls.push('is-relevant');
-          if (d === today) cls.push('is-today');
-          if (n) cls.push('has-events');
-          if (isFree) cls.push('is-free');
-          if (selected === d) cls.push('is-selected');
-          return (
-            <button key={d} type="button" data-day={d} className={cls.join(' ')} aria-label={label} title={label}
-              aria-current={d === today ? 'date' : undefined} aria-describedby="cal-keys" tabIndex={d === tabStop ? 0 : -1}
-              onFocus={() => onFocusDay(d)} onClick={() => onPick(d)}>
-              <span className="cal-dn">{Number(d.slice(8))}</span>
-              <EventMarks n={n} />
-            </button>
-          );
-        })}
-        {Array.from({ length: trail }, (_, i) => <span key={`t${i}`} className="cal-mm-blank is-trail" aria-hidden="true" />)}
-      </div>
-    </section>
-  );
-});
-
 /** Telemóvel: atalhos para cada mês (os meses ficam em coluna, com os dias em tamanho confortável). */
 function MonthJump({ months, today }: { months: string[]; today: string }) {
   return (
@@ -509,21 +397,6 @@ function MonthJump({ months, today }: { months: string[]; today: string }) {
         </a>
       ))}
     </nav>
-  );
-}
-
-function Legend({ highlight, setHighlight }: { highlight: boolean; setHighlight: (on: boolean) => void }) {
-  return (
-    <div className="cal-legend" role="group" aria-label="Legenda">
-      <ul>
-        <li><span className="cal-key key-event" aria-hidden="true" /> Atividade</li>
-        <li><span className="cal-key key-holiday" aria-hidden="true" /> Feriado</li>
-        <li><span className="cal-key key-relevant" aria-hidden="true" /> Dia relevante</li>
-        <li><span className="cal-key key-today" aria-hidden="true" /> Hoje</li>
-        <li><span className="cal-key key-weekend" aria-hidden="true" /> Fim de semana</li>
-      </ul>
-      <label className="checkbox"><input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} /> Destacar fins de semana e feriados sem atividades</label>
-    </div>
   );
 }
 

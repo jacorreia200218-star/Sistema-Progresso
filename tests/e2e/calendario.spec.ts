@@ -171,13 +171,13 @@ async function noHorizontalScroll(page: Page) {
 const todayDay = () => lisbonDay(new Date().toISOString());
 const fmt = (day: string) => day.split('-').reverse().join('/');
 const dayButton = (page: Page, day: string) => page.locator(`button[data-day="${day}"]`);
-// No computador, o ano são os meses pequenos; no telemóvel, os meses abertos (como na vista «Mês»).
-const yearMonths = (page: Page) => page.locator('main').locator('.cal-mm, .cal-year-month');
-const yearMonthTitles = (page: Page) => page.locator('main').locator('.cal-mm-title, .cal-year-month-title');
-const yearGrid = (page: Page) => page.locator('main').locator('.cal-year, .cal-year-open');
+// O ano mostra os meses abertos, como na vista «Mês».
+const yearMonths = (page: Page) => page.locator('main').locator('.cal-year-month');
+const yearMonthTitles = (page: Page) => page.locator('main').locator('.cal-year-month-title');
+const yearGrid = (page: Page) => page.locator('main').locator('.cal-year-open');
 
-test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades', async ({ page }, info) => {
-  test.skip(info.project.name === 'telemovel', 'No telemóvel o ano mostra os meses abertos: ver «ano no telemóvel».');
+test('calendário anual: 12 meses abertos, fins de semana, feriados, hoje e atividades', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
   await installMock(page, leader());
   await installCalendar(page, 'ana');
   await page.goto('/calendario?tipo=civil');
@@ -186,43 +186,33 @@ test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades',
   await expect(main.locator('h1 .page-tag')).toContainText('Em teste');
   const year = todayDay().slice(0, 4);
   await expect(main.getByRole('heading', { name: `Ano ${year}`, level: 2 })).toBeVisible();
-  await expect(main.locator('.cal-mm')).toHaveCount(12);
-  await expect(main.locator('.cal-mm-title').first()).toHaveText(`janeiro ${year}`);
-  // Hoje e a atividade (3 dias depois)
+  // Os meses abertos, como na vista «Mês», um por baixo do outro
+  await expect(yearMonths(page)).toHaveCount(12);
+  await expect(main.locator('.cal-mm')).toHaveCount(0);
+  await expect(yearMonthTitles(page).first()).toHaveText(`janeiro de ${year}`);
+  const m1 = await yearMonths(page).nth(0).boundingBox();
+  const m2 = await yearMonths(page).nth(1).boundingBox();
+  expect(Math.abs(m1!.x - m2!.x)).toBeLessThan(2);
+  expect(m2!.y).toBeGreaterThan(m1!.y + m1!.height - 1);
+  // Hoje e a atividade (3 dias depois), com o nome dentro do dia
   await expect(dayButton(page, todayDay())).toHaveAttribute('aria-current', 'date');
+  const cell = (d: string) => main.locator('.cal-month-day', { has: page.locator(`[data-day="${d}"]`) });
   const evDay = lisbonDay(isoIn(3 * D));
   if (evDay.slice(0, 4) === year) {
-    await expect(dayButton(page, evDay)).toHaveClass(/has-events/);
+    await expect(cell(evDay).locator('.cal-chip', { hasText: 'Raid de outono' })).toBeVisible();
     await expect(dayButton(page, evDay)).toHaveAttribute('aria-label', /1 atividade/);
   }
-  // Feriado fixo com nome e fim de semana com fundo suave
-  await expect(dayButton(page, `${year}-12-25`)).toHaveClass(/is-holiday/);
+  // Feriado fixo com nome e fim de semana
+  await expect(cell(`${year}-12-25`)).toHaveClass(/is-holiday/);
   await expect(dayButton(page, `${year}-12-25`)).toHaveAttribute('title', /feriado nacional: Natal/);
   const sat = [...Array(7)].map((_, i) => `${year}-03-0${i + 1}`).find((d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 6)!;
-  await expect(dayButton(page, sat)).toHaveClass(/is-weekend/);
-  const bg = await dayButton(page, sat).evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).not.toBe('rgba(0, 0, 0, 0)');
-  // Cabeçalhos dos dias da semana por extenso curto quando há espaço
-  const wd = main.locator('.cal-mm').first().locator('.cal-mm-wd');
-  await expect(wd.nth(0).locator('.wd-long')).toBeVisible();
-  await expect(wd.nth(0).locator('.wd-long')).toHaveText('Seg');
-  await expect(wd.nth(5).locator('.wd-long')).toHaveText('Sáb');
-  // Próximas atividades sempre por baixo do calendário (nunca numa coluna ao lado)
+  await expect(cell(sat)).toHaveClass(/is-weekend/);
+  // Próximas atividades sempre por baixo do calendário
   const next = main.getByRole('region', { name: 'Próximas atividades' });
   await expect(next.getByRole('link', { name: /Raid de outono/ })).toBeVisible();
-  const box = (i: number) => main.locator('.cal-mm').nth(i).boundingBox();
-  const [m1, m2, m4, m5] = [await box(0), await box(1), await box(3), await box(4)];
-  const side = await next.boundingBox();
-  const grid = await main.locator('.cal-year').boundingBox();
-  expect(side!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
-  if (info.project.name === 'telemovel') {
-    expect(Math.abs(m1!.x - m2!.x)).toBeLessThan(2); // meses em coluna
-    expect(m2!.y).toBeGreaterThan(m1!.y + m1!.height - 1);
-  } else {
-    expect(Math.abs(m1!.y - m4!.y)).toBeLessThan(2); // quatro meses por linha
-    expect(m5!.y).toBeGreaterThan(m1!.y + m1!.height - 1);
-    expect(grid!.width).toBeGreaterThan(900); // o calendário ocupa a largura toda
-  }
+  const grid = await yearGrid(page).boundingBox();
+  expect((await next.boundingBox())!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
+  if (info.project.name !== 'telemovel') expect(grid!.width).toBeGreaterThan(900);
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/calendario-ano-${info.project.name}.png`, fullPage: true });
 
@@ -234,8 +224,7 @@ test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades',
     await expect(dayButton(page, '2027-03-28')).toHaveAttribute('aria-label', /domingo, 28\/03\/2027, feriado nacional: Páscoa/);
     await expect(dayButton(page, '2027-03-26')).toHaveAttribute('aria-label', /Sexta-feira Santa/);
     await expect(dayButton(page, '2027-05-27')).toHaveAttribute('aria-label', /Corpo de Deus/);
-    await expect(dayButton(page, '2027-02-09')).toHaveClass(/is-relevant/);
-    await expect(dayButton(page, '2027-02-09')).not.toHaveClass(/is-holiday/);
+    await expect(cell('2027-02-09')).not.toHaveClass(/is-holiday/);
     await expect(dayButton(page, '2027-02-09')).toHaveAttribute('aria-label', /Carnaval \(tolerância facultativa\)/);
   }
   const marks = main.locator('.cal-marks');
@@ -248,10 +237,6 @@ test('calendário anual: 12 meses, fins de semana, feriados, hoje e atividades',
   await expect(free).toContainText(`De 01/01/${y1} a 31/12/${y1}`);
   await expect(free).toContainText('não confirma a disponibilidade');
   await expect(free.getByLabel('Período considerado')).toHaveCount(0); // ano futuro: todo o período
-  await main.getByLabel('Destacar fins de semana e feriados sem atividades').click();
-  await expect(main.getByLabel('Destacar fins de semana e feriados sem atividades')).toBeChecked();
-  await expect(page).toHaveURL(/livres=1/);
-  await expect(main.locator('.cal-year.show-free .cal-d.is-free').first()).toBeVisible();
   await noHorizontalScroll(page);
 });
 
@@ -350,7 +335,7 @@ test('ano escutista (outubro a agosto) por omissão e dias especiais', async ({ 
   await noHorizontalScroll(page);
 
   await page.goto(`/calendario?ano=${sy}`);
-  await expect(page.locator(`main .is-holiday:has(> [data-day="${sy + 1}-06-24"]), main button.is-holiday[data-day="${sy + 1}-06-24"]`)).toHaveCount(1);
+  await expect(page.locator(`main .cal-month-day.is-holiday:has([data-day="${sy + 1}-06-24"])`)).toHaveCount(1);
   await expect(dayButton(page, `${sy + 1}-06-24`)).toHaveAttribute('aria-label', /feriado municipal: São João/);
 });
 
@@ -387,9 +372,8 @@ test('vista «Mês»: o mês aberto com as atividades nos dias e a lista por bai
   await expect(page.getByRole('dialog').getByRole('link', { name: /Raid de outono/ })).toBeVisible();
 });
 
-test('ano no telemóvel: os meses abertos, com as atividades dentro dos dias', async ({ page }, info) => {
-  test.skip(info.project.name !== 'telemovel', 'Só no telemóvel.');
-  await page.setViewportSize({ width: 390, height: 844 });
+test('ano escutista: os meses abertos, com as atividades dentro dos dias', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
   await installMock(page, leader());
   await installCalendar(page, 'ana');
   await page.goto('/calendario');
@@ -721,31 +705,14 @@ test('sem pendências próximas: uma linha curta, sem cartão grande', async ({ 
   await expect(page.locator('main .cal-pending-row')).toHaveCount(1);
 });
 
-test('teclado, «Hoje» e «Ir para o mês atual» mantêm a vista anual', async ({ page }, info) => {
-  test.skip(info.project.name === 'telemovel', 'Navegação por setas na grelha dos meses pequenos (computador).');
+test('«Hoje» e «Ir para o mês atual» mantêm a vista anual', async ({ page }, info) => {
+  if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
   await installMock(page, leader());
   await installCalendar(page, 'ana');
   await page.goto('/calendario?tipo=civil');
   const main = page.locator('main');
   const today = todayDay();
   const year = today.slice(0, 4);
-  // Um só ponto de paragem na grelha (o dia de hoje); as setas mudam de dia
-  await expect(main.locator('.cal-year button[tabindex="0"]')).toHaveCount(1);
-  await expect(dayButton(page, today)).toHaveAttribute('tabindex', '0');
-  await dayButton(page, today).focus();
-  const add = (d: string, n: number) => new Date(Date.parse(`${d}T12:00:00Z`) + n * D).toISOString().slice(0, 10);
-  let target = today;
-  for (const [key, n] of [['ArrowRight', 1], ['ArrowDown', 7], ['ArrowLeft', -1], ['ArrowUp', -7]] as const) {
-    const t = add(target, n);
-    if (t.slice(0, 4) !== year) continue;
-    await page.keyboard.press(key);
-    target = t;
-    await expect(dayButton(page, target)).toBeFocused();
-  }
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog').getByRole('heading', { name: new RegExp(fmt(target)) })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dayButton(page, target)).toBeFocused();
 
   // Noutro ano: «Ir para o mês atual» volta ao ano atual e ao mês de hoje
   await main.getByRole('button', { name: 'Ano seguinte' }).click();
@@ -754,15 +721,15 @@ test('teclado, «Hoje» e «Ir para o mês atual» mantêm a vista anual', async
   await main.getByRole('button', { name: 'Ir para o mês atual' }).click();
   await expect(page).not.toHaveURL(/ano=/);
   await expect(main.getByRole('heading', { name: `Ano ${year}`, level: 2 })).toBeVisible();
-  await expect(dayButton(page, today)).toBeFocused();
-  await expect(main.locator('.cal-mm')).toHaveCount(12);
+  await expect.poll(async () => (await main.locator(`#mes-${today.slice(0, 7)}`).boundingBox())!.y).toBeLessThan(300);
+  await expect(yearMonths(page)).toHaveCount(12);
   // «Hoje» abre o dia de hoje, por cima da vista anual
   await main.getByRole('button', { name: 'Ano anterior' }).click();
   await expect(main.getByRole('heading', { name: `Ano ${Number(year) - 1}`, level: 2 })).toBeVisible();
   await main.getByRole('button', { name: 'Hoje', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: new RegExp(fmt(today)) })).toBeVisible();
   await expect(page).not.toHaveURL(/ano=/);
-  await expect(main.locator('.cal-mm')).toHaveCount(12);
+  await expect(yearMonths(page)).toHaveCount(12);
   await page.keyboard.press('Escape');
 
   // Datas sem atividades: por omissão a partir de hoje; pode considerar o ano todo
