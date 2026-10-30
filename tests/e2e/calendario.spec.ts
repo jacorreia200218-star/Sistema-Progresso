@@ -175,6 +175,15 @@ const dayButton = (page: Page, day: string) => page.locator(`button[data-day="${
 const yearMonths = (page: Page) => page.locator('main').locator('.cal-year-month');
 const yearMonthTitles = (page: Page) => page.locator('main').locator('.cal-year-month-title');
 const yearGrid = (page: Page) => page.locator('main').locator('.cal-year-open');
+// No ano atual só aparecem o mês em que estamos e os seguintes.
+const thisMonth = () => Number(todayDay().slice(5, 7));
+const civilVisible = () => 13 - thisMonth();
+const scoutVisible = () => { const m = thisMonth(); return m === 9 ? 11 : m >= 10 ? 21 - m : 9 - m; };
+const MONTH_NAMES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+async function showPastMonths(page: Page) {
+  const btn = page.locator('main').getByRole('button', { name: /^Ver meses anteriores/ });
+  if (await btn.count()) await btn.click();
+}
 
 test('calendário anual: 12 meses abertos, fins de semana, feriados, hoje e atividades', async ({ page }, info) => {
   if (info.project.name === 'telemovel') await page.setViewportSize({ width: 390, height: 844 });
@@ -187,8 +196,18 @@ test('calendário anual: 12 meses abertos, fins de semana, feriados, hoje e ativ
   const year = todayDay().slice(0, 4);
   await expect(main.getByRole('heading', { name: `Ano ${year}`, level: 2 })).toBeVisible();
   // Os meses abertos, como na vista «Mês», um por baixo do outro
-  await expect(yearMonths(page)).toHaveCount(12);
+  await expect(yearMonths(page)).toHaveCount(civilVisible());
   await expect(main.locator('.cal-mm')).toHaveCount(0);
+  await expect(yearMonthTitles(page).first()).toHaveText(`${MONTH_NAMES[thisMonth() - 1]} de ${year}`);
+  // Os meses que já passaram ficam escondidos, mas podem abrir-se
+  if (thisMonth() > 1) {
+    const toggle = main.getByRole('button', { name: `Ver meses anteriores (${thisMonth() - 1})` });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(page).toHaveURL(/anteriores=1/);
+    await expect(main.getByRole('button', { name: 'Esconder meses anteriores' })).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(yearMonths(page)).toHaveCount(12);
   await expect(yearMonthTitles(page).first()).toHaveText(`janeiro de ${year}`);
   const m1 = await yearMonths(page).nth(0).boundingBox();
   const m2 = await yearMonths(page).nth(1).boundingBox();
@@ -306,6 +325,8 @@ test('ano escutista (outubro a agosto) por omissão e dias especiais', async ({ 
   // Setembro já conta para o ano escutista seguinte.
   const sy = Number(t.slice(5, 7)) >= 9 ? Number(t.slice(0, 4)) : Number(t.slice(0, 4)) - 1;
   await expect(main.getByRole('heading', { name: `Ano escutista ${sy}/${String((sy + 1) % 100).padStart(2, '0')}`, level: 2 })).toBeVisible();
+  await expect(yearMonths(page)).toHaveCount(scoutVisible());
+  await showPastMonths(page);
   await expect(yearMonths(page)).toHaveCount(11);
   await expect(yearMonthTitles(page).first()).toHaveText(new RegExp(`^outubro (de )?${sy}$`));
   await expect(yearMonthTitles(page).last()).toHaveText(new RegExp(`^agosto (de )?${sy + 1}$`));
@@ -314,7 +335,7 @@ test('ano escutista (outubro a agosto) por omissão e dias especiais', async ({ 
   await expect(main.getByRole('heading', { name: `Ano escutista ${sy - 1}/${String(sy % 100).padStart(2, '0')}`, level: 2 })).toBeVisible();
   await main.getByRole('tab', { name: 'Ano civil' }).click();
   await expect(page).toHaveURL(/tipo=civil/);
-  await expect(yearMonths(page)).toHaveCount(12);
+  await expect(yearMonths(page)).toHaveCount(civilVisible());
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/calendario-escutista-${info.project.name}.png`, fullPage: true });
 
@@ -378,7 +399,7 @@ test('ano escutista: os meses abertos, com as atividades dentro dos dias', async
   await installCalendar(page, 'ana');
   await page.goto('/calendario');
   const main = page.locator('main');
-  await expect(main.locator('.cal-year-month')).toHaveCount(11);
+  await expect(main.locator('.cal-year-month')).toHaveCount(scoutVisible());
   await expect(main.locator('.cal-mm')).toHaveCount(0);
   const evDay = lisbonDay(isoIn(3 * D));
   const cell = main.locator('.cal-month-day', { has: page.locator(`[data-day="${evDay}"]`) });
@@ -685,7 +706,7 @@ test('o que te falta: três mais próximas, horizonte configurável e «Ver toda
   await expect(main.locator('.cal-pending-row')).toHaveCount(1);
   await main.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(/\/calendario(\?|$)/);
-  await expect(yearMonths(page)).toHaveCount(11);
+  await expect(yearMonths(page)).toHaveCount(scoutVisible());
 });
 
 test('sem pendências próximas: uma linha curta, sem cartão grande', async ({ page }) => {
@@ -722,14 +743,14 @@ test('«Hoje» e «Ir para o mês atual» mantêm a vista anual', async ({ page 
   await expect(page).not.toHaveURL(/ano=/);
   await expect(main.getByRole('heading', { name: `Ano ${year}`, level: 2 })).toBeVisible();
   await expect.poll(async () => (await main.locator(`#mes-${today.slice(0, 7)}`).boundingBox())!.y).toBeLessThan(300);
-  await expect(yearMonths(page)).toHaveCount(12);
+  await expect(yearMonths(page)).toHaveCount(civilVisible());
   // «Hoje» abre o dia de hoje, por cima da vista anual
   await main.getByRole('button', { name: 'Ano anterior' }).click();
   await expect(main.getByRole('heading', { name: `Ano ${Number(year) - 1}`, level: 2 })).toBeVisible();
   await main.getByRole('button', { name: 'Hoje', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: new RegExp(fmt(today)) })).toBeVisible();
   await expect(page).not.toHaveURL(/ano=/);
-  await expect(yearMonths(page)).toHaveCount(12);
+  await expect(yearMonths(page)).toHaveCount(civilVisible());
   await page.keyboard.press('Escape');
 
   // Datas sem atividades: por omissão a partir de hoje; pode considerar o ano todo
@@ -752,7 +773,7 @@ test('carregamento: o calendário aparece logo, com o estado de carregamento', a
   });
   await page.goto('/calendario');
   await expect(yearGrid(page).and(page.locator('[aria-busy="true"]'))).toBeVisible();
-  await expect(yearMonths(page)).toHaveCount(11);
+  await expect(yearMonths(page)).toHaveCount(scoutVisible());
   await expect(yearGrid(page).and(page.locator('[aria-busy="false"]'))).toBeVisible();
 });
 
