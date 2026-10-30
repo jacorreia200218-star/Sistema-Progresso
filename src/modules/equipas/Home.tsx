@@ -30,7 +30,7 @@ export default function Home() {
         actions={newRole}
         info={(
           <>
-            <p>Quem está em cada equipa e que cargos tem, por ano escutista (de setembro a agosto). O ano atual é {o.year}.</p>
+            <p>Quem está em cada equipa e que cargos tem, por ano escutista (de 1 de setembro a 31 de agosto). O ano atual é {o.year}.</p>
             <p>Os cargos são responsabilidades dentro da equipa. Um cargo não dá permissões na aplicação (administração, tesouraria ou documentos): essas são atribuídas à parte, pela administração.</p>
             {!o.can_manage && <p>Só os dirigentes e quem tem essa permissão alteram equipas e cargos.</p>}
           </>
@@ -87,8 +87,8 @@ function Teams({ o }: { o: EqOverview }) {
                 </div>
                 <ChevronRight size={18} className="row-arrow" aria-hidden="true" />
               </div>
-              <div className="eq-team-line"><span className="faint">Guia</span> {holders('guia') || '—'}</div>
-              <div className="eq-team-line"><span className="faint">Subguia</span> {holders('subguia') || '—'}</div>
+              <div className="eq-team-line"><span className="faint">Guia</span> {holders('guia') || <span className="faint">Sem guia atribuído</span>}</div>
+              <div className="eq-team-line"><span className="faint">Subguia</span> {holders('subguia') || <span className="faint">Sem subguia atribuído</span>}</div>
               <div className="eq-team-members">
                 <div className="faint">{members.length} {members.length === 1 ? 'membro' : 'membros'}{t.archived_at ? ' · arquivada' : ''}</div>
                 {shown && <div className="eq-team-names">{shown}</div>}

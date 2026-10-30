@@ -1,18 +1,15 @@
 // Presenças: períodos (ano escutista de setembro a agosto, mês ou datas livres) e
 // formatação da taxa de assiduidade. Funções puras (testadas em period.test.ts).
 import { formatDay, MONTHS } from '../common';
+import { SCOUT_MONTH_ORDER, scoutMonth, scoutYearBounds, scoutYearLabel, scoutYearOf } from '../../lib/anoEscutista';
 
 export interface RateInput { presencas: number; contadas: number; taxa: number | string | null }
 
 // ---------------------------------------------------------------------------
 // Períodos: ano escutista (1 de setembro a 31 de agosto), mês ou datas livres.
 // ---------------------------------------------------------------------------
-/** Ano escutista (ano de início) de um dia AAAA-MM-DD: setembro a agosto. */
-export function scoutYearOf(day: string): number {
-  const [y, m] = day.split('-').map(Number);
-  return m >= 9 ? y : y - 1;
-}
-export const scoutYearLabel = (start: number) => `${start}/${String((start + 1) % 100).padStart(2, '0')}`;
+/** Ano escutista (setembro a agosto): mesma definição em toda a app (lib/anoEscutista). */
+export { scoutYearOf, scoutYearLabel };
 
 export interface Period { from: string; to: string; label: string; year: number; month: string }
 
@@ -34,13 +31,14 @@ export function periodFrom(params: URLSearchParams, today: string): Period {
   const month = /^(0[1-9]|1[0-2])$/.test(params.get('mes') ?? '') ? params.get('mes')! : '';
   if (month) {
     const m = Number(month);
-    const y = m >= 9 ? year : year + 1;
+    const y = Number(scoutMonth(year, m).slice(0, 4));
     return {
       from: `${y}-${month}-01`, to: `${y}-${month}-${String(lastDay(y, m)).padStart(2, '0')}`,
       label: `${MONTHS[m - 1]} de ${y}`, year, month,
     };
   }
-  return { from: `${year}-09-01`, to: `${year + 1}-08-31`, label: `ano escutista ${scoutYearLabel(year)}`, year, month: '' };
+  const b = scoutYearBounds(year);
+  return { from: b.from, to: b.to, label: `ano escutista ${scoutYearLabel(year)}`, year, month: '' };
 }
 
 
@@ -53,7 +51,7 @@ export function yearOptions(today: string): number[] {
 }
 
 /** Meses do ano escutista, pela ordem: setembro … agosto. */
-export const SCOUT_MONTHS = ['09', '10', '11', '12', '01', '02', '03', '04', '05', '06', '07', '08'];
+export const SCOUT_MONTHS = SCOUT_MONTH_ORDER;
 
 /** «66,7 %», «100 %» ou «—» quando não há registos contados (nunca 0 % por omissão). */
 export function formatRate(taxa: number | string | null | undefined): string {

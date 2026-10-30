@@ -129,7 +129,8 @@ export function AbbrLegend() {
       {(Object.keys(ABBR) as Abbr[]).map((k) => (
         <span key={k} className="pres-legend-item"><strong>{k}</strong> {ABBR[k].toLowerCase()}</span>
       ))}
-      <span className="pres-legend-item">Taxa = P ÷ (P + FJ + FI)</span>
+      <span className="pres-legend-item">Taxa = P ÷ (P + FJ + FI) × 100</span>
+      <span className="pres-legend-item">PR não conta como falta nem entra na taxa</span>
     </span>
   );
 }

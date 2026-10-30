@@ -192,7 +192,10 @@ export function PeopleRow({ people, max, hidden, onPick, onMore, teamName, names
     <ul className="people-row">
       {shown.map((p) => (
         <li key={p.membership_id}>
+          {/* Nome curto por baixo (desambiguado); o nome completo no rato (title), no teclado e
+              nos leitores de ecrã (aria-label) e, ao tocar, na ficha da pessoa. */}
           <button type="button" className="avatar-btn" onClick={() => onPick(p.membership_id)}
+            title={`${p.full_name} · ${teamName(p.team_id)}`}
             aria-label={`${p.full_name}${p.is_me ? ' (tu)' : ''}, ${teamName(p.team_id)}`}>
             <Avatar name={p.full_name} photoPath={p.photo_path} />
             <span className="avatar-name" aria-hidden="true">{p.is_me ? 'Tu' : names.get(p.membership_id) ?? p.full_name}</span>

@@ -43,7 +43,18 @@ export function AtaList() {
       {list.isLoading && <Loading />}
       <ErrorBox error={list.error} retry={() => list.refetch()} />
       {data && data.atas.length === 0 && (
-        <div className="card"><Empty title={q ? 'Nenhuma ata corresponde à pesquisa.' : 'Ainda não há atas.'} /></div>
+        <div className="card">
+          {q ? <Empty title="Nenhuma ata corresponde à pesquisa." /> : (
+            <Empty title="Ainda não há atas.">
+              {data.can_write ? (
+                <>
+                  <p className="faint sec-center-text">Cada ata fica ligada a um evento do calendário.</p>
+                  <Link to={`${BASE}/nova`} className="btn"><Plus size={16} aria-hidden="true" /> Escrever a primeira ata</Link>
+                </>
+              ) : <p className="faint sec-center-text">As atas partilhadas contigo aparecem aqui.</p>}
+            </Empty>
+          )}
+        </div>
       )}
       {data && data.atas.length > 0 && (
         <ul className="list card sec-list" aria-label="Atas">

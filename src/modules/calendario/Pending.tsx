@@ -77,14 +77,14 @@ function PendingRow({ p }: { p: MyPending }) {
   );
 }
 
-/** Ids das pendências mostradas no resumo (para não as repetir nas próximas atividades). */
+/** Resumo das pendências: período escolhido, as que caem nele e as três mais próximas. */
 export function usePendingSummary() {
   const q = useMyPending();
   const [weeks, setWeeks] = useHorizon();
   const today = todayLisbon();
   const split = useMemo(() => splitPending(q.data ?? [], today, weeks), [q.data, today, weeks]);
   const top = split.soon.slice(0, 3);
-  return { q, weeks, setWeeks, split, top, shownIds: new Set(top.map((p) => p.id)) };
+  return { q, weeks, setWeeks, split, top };
 }
 
 export type PendingSummary = ReturnType<typeof usePendingSummary>;
@@ -107,10 +107,15 @@ export function PendingCard({ s, counters = true }: { s: PendingSummary; counter
         <p className="faint cal-todo-none">Nada pendente até {formatDay(horizonEnd(todayLisbon(), weeks))}.</p>
       )}
       <div className="cal-card-foot">
-        {split.later.length > 0 && <span className="faint">{split.later.length} mais tarde</span>}
+        {/* Contadores com âmbito explícito: dentro do período escolhido e depois dele. */}
+        {split.later.length > 0 && (
+          <span className="faint" data-testid="pendencias-depois">
+            {split.later.length === 1 ? 'Mais 1 pendência' : `Mais ${split.later.length} pendências`} depois de {formatDay(horizonEnd(todayLisbon(), weeks))}
+          </span>
+        )}
         {(total > top.length || split.later.length > 0) && (
           <Link to={allLink(total > top.length ? weeks : null)} className="btn ghost cal-see-all">
-            Ver todas{total > top.length ? ` (${total})` : ''}
+            {total > top.length ? `Ver as ${total} das próximas ${weeks} semanas` : `Ver todas (${total + split.later.length})`}
           </Link>
         )}
       </div>

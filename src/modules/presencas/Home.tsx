@@ -249,11 +249,12 @@ function SessionList({ d }: { d: Board }) {
   );
 }
 
-/** Lista de pessoas com contagens (sem ordenação por taxa). */
+/** Lista de pessoas com contagens (sem ordenação por taxa), com a legenda das siglas. */
 function PeopleList({ d }: { d: Board }) {
   if (d.members.length === 0) return <NoMembers />;
   const q = periodQuery();
   return (
+    <>
     <ul className="list card pres-list" aria-label="Pessoas">
       {d.members.map((m) => (
         <li key={m.membership_id}>
@@ -270,6 +271,8 @@ function PeopleList({ d }: { d: Board }) {
         </li>
       ))}
     </ul>
+    <p className="pres-legend pres-legend-plain"><AbbrLegend /></p>
+    </>
   );
 }
 

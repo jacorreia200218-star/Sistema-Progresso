@@ -155,6 +155,68 @@ describe('tarefas', () => {
   });
 });
 
+describe('tarefas com título, participantes e responsável', () => {
+  const saveTask = (args: Record<string, unknown>) => rpc<string>(w.users.Rui, 'ata_task_save', {
+    p_section: S(), p_task: null, p_ata: null, p_due: null, p_status: 'por_fazer', ...args,
+  });
+  let t3: string;
+
+  it('cria com título e participantes; o responsável não fica como participante; todos são avisados', async () => {
+    await expectError(saveTask({ p_ata: ataSeccao, p_text: 'x', p_responsible: w.users.P1, p_title: 'x'.repeat(121) }), 'título é demasiado longo');
+    const outsider = (await admin(`select gen_random_uuid() id`))[0].id;
+    await expectError(saveTask({ p_ata: ataSeccao, p_text: 'x', p_responsible: w.users.P1, p_participants: [outsider] }), 'membros ativos');
+    t3 = await saveTask({
+      p_ata: ataSeccao, p_title: 'Material do raid', p_text: 'Separar mapas e bússolas e deixar na sede.',
+      p_responsible: w.users.P1, p_due: inDays(3), p_participants: [w.users.P2, w.users.P1, w.users.P2],
+    });
+    const t = (await get('Rui', ataSeccao)).tasks.find((x: any) => x.id === t3);
+    expect(t).toMatchObject({ title: 'Material do raid', text: 'Separar mapas e bússolas e deixar na sede.', responsible_id: w.users.P1 });
+    expect(t.participants.map((p: any) => p.id)).toEqual([w.users.P2]);
+    expect(t.participants[0].team_name).toBe('Equipa A');
+    const n = await asUser(w.users.P2, `select body from public.notifications where kind = 'sec_tarefa'`);
+    expect(n.map((x) => x.body).join()).toContain('Material do raid');
+  });
+
+  it('aparece em «As minhas tarefas» do responsável e dos participantes, com o papel de cada um', async () => {
+    const p1 = (await rpc<any[]>(w.users.P1, 'ata_my_tasks', { p_section: S() })).find((x) => x.id === t3);
+    const p2 = (await rpc<any[]>(w.users.P2, 'ata_my_tasks', { p_section: S() })).find((x) => x.id === t3);
+    expect(p1.my_role).toBe('responsavel');
+    expect(p2.my_role).toBe('participante');
+    // Participar não muda o estado: só o responsável ou quem gere.
+    await expectDenied(rpc(w.users.P2, 'ata_task_status', { p_section: S(), p_task: t3, p_status: 'concluida' }), 'Só o responsável');
+  });
+
+  it('editar sem lista mantém os participantes; com lista substitui-os e fica no histórico', async () => {
+    await saveTask({ p_task: t3, p_title: 'Material do raid', p_text: 'Separar mapas.', p_responsible: w.users.P1 });
+    let t = (await get('Rui', ataSeccao)).tasks.find((x: any) => x.id === t3);
+    expect(t.participants.map((p: any) => p.id)).toEqual([w.users.P2]);
+    // O participante passa a responsável: deixa de ser participante.
+    await saveTask({ p_task: t3, p_title: 'Material do raid', p_text: 'Separar mapas.', p_responsible: w.users.P2, p_participants: [w.users.P2, w.users.P3] });
+    t = (await get('Rui', ataSeccao)).tasks.find((x: any) => x.id === t3);
+    expect(t.responsible_id).toBe(w.users.P2);
+    expect(t.participants.map((p: any) => p.id)).toEqual([w.users.P3]);
+    const h = await admin(`select field from public.sec_item_history where item_id = $1 order by changed_at`, [t3]);
+    expect(h.map((x) => x.field)).toContain('participantes');
+    expect((await rpc<any[]>(w.users.P1, 'ata_my_tasks', { p_section: S() })).map((x) => x.id)).not.toContain(t3);
+  });
+
+  it('participar não dá acesso a uma ata reservada', async () => {
+    const t4 = await saveTask({ p_ata: ataReservada, p_title: 'Contactar a junta', p_text: 'Pedir a sala.', p_responsible: w.users.Rui, p_participants: [w.users.P1] });
+    const mine = (await rpc<any[]>(w.users.P1, 'ata_my_tasks', { p_section: S() })).find((x) => x.id === t4);
+    expect(mine).toMatchObject({ title: 'Contactar a junta', ata_id: null, my_role: 'participante' });
+    await expectError(get('P1', ataReservada), 'não encontrad');
+    expect((await rpc<any>(w.users.P1, 'ata_tasks', { p_section: S(), p_filter: 'todas' })).tasks.map((x: any) => x.id)).not.toContain(t4);
+  });
+
+  it('as tarefas antigas continuam sem título e guardam-se sem o exigir', async () => {
+    const t = (await get('Rui', ataSeccao)).tasks.find((x: any) => x.id === task);
+    expect(t).toMatchObject({ title: null, participants: [] });
+    await saveTask({ p_task: task, p_text: 'Comprar gás', p_responsible: w.users.P1, p_status: 'concluida' });
+    expect((await get('Rui', ataSeccao)).tasks.find((x: any) => x.id === task).title).toBeNull();
+    await expect(asUser(w.users.Rui, `select * from public.sec_item_participants`)).rejects.toThrow();
+  });
+});
+
 describe('equipas e cargos para todos', () => {
   it('todos veem as equipas e os membros de todas as equipas; só quem gere altera', async () => {
     const o = await rpc<any>(w.users.P3, 'eq_overview', { p_section: S() });

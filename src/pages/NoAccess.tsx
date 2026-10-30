@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, LogOut } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { signOut } from '../lib/signOut';
 import { useSection } from '../lib/session';
 import { call } from '../lib/api';
 import { clearInviteCode, normalizeInviteCode, readInviteCode } from '../lib/invite';
@@ -46,6 +46,7 @@ interface InvitePreview { ok: boolean; error?: string; section?: string; group?:
 /** Ecrã para quem tem conta mas ainda não tem acesso ativo a uma secção. */
 export default function NoAccess() {
   const s = useSection();
+  const queryClient = useQueryClient();
   const [code, setCode] = useState(readInviteCode);
   const action = useAction();
   const suspended = s.memberships.filter((m) => m.status === 'suspenso');
@@ -134,7 +135,7 @@ export default function NoAccess() {
           )}
         </div>
       )}
-      <button type="button" className="btn ghost" onClick={() => supabase.auth.signOut()}>
+      <button type="button" className="btn ghost" onClick={() => signOut(queryClient)}>
         <LogOut size={18} aria-hidden="true" /> Sair
       </button>
     </PublicShell>

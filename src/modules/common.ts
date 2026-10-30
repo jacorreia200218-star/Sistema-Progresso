@@ -4,7 +4,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { call } from '../lib/api';
 import { useActiveSection } from '../lib/session';
-import { DATE_TIME_SEP } from '../lib/dates';
+import { DATE_SEP, DATE_TIME_SEP } from '../lib/dates';
 
 export type ModuleKey = 'calendario' | 'inventario' | 'tesouraria' | 'equipas' | 'secretaria' | 'presencas';
 export type ModuleStatus = 'desenvolvimento' | 'teste' | 'disponivel';
@@ -101,14 +101,14 @@ export function nextSaturday(day = todayLisbon()): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Data sem hora «AAAA-MM-DD» → «DD/MM/AAAA». Para um instante, usar formatLisbonDay. */
+/** Data sem hora «AAAA-MM-DD» → «DD-MM-AAAA». Para um instante, usar formatLisbonDay. */
 export function formatDay(day: string) {
   const [y, m, d] = day.slice(0, 10).split('-');
-  return `${d}/${m}/${y}`;
+  return [d, m, y].join(DATE_SEP);
 }
-/** Instante → dia em Lisboa, «DD/MM/AAAA» (nunca cortar o ISO: o dia UTC pode ser outro). */
+/** Instante → dia em Lisboa, «DD-MM-AAAA» (nunca cortar o ISO: o dia UTC pode ser outro). */
 export const formatLisbonDay = (iso: string) => formatDay(lisbonDay(iso));
-/** Instante → «DD/MM/AAAA · HH:MM» em hora de Lisboa. */
+/** Instante → «DD-MM-AAAA · HH:MM» em hora de Lisboa. */
 export const formatLisbon = (iso: string) => `${formatDay(lisbonDay(iso))}${DATE_TIME_SEP}${lisbonTime(iso)}`;
 
 export const WEEKDAYS = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'];
@@ -126,12 +126,17 @@ export function parseEuros(text: string): number | null {
   return m[1] ? -cents : cents;
 }
 
+const NBSP = '\u00a0';
+/**
+ * Cêntimos → «1 234,56 €» (formato português: vírgula decimal, espaço nos milhares e antes do
+ * símbolo). Os espaços são inquebráveis, para o valor nunca se partir em duas linhas.
+ */
 export function formatEuros(cents: number | null | undefined): string {
   if (cents == null) return '—';
   const neg = cents < 0;
   const abs = Math.abs(Math.trunc(cents));
-  const euros = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return `${neg ? '−' : ''}${euros},${String(abs % 100).padStart(2, '0')} €`;
+  const euros = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  return `${neg ? '−' : ''}${euros},${String(abs % 100).padStart(2, '0')}${NBSP}€`;
 }
 
 /** Valor para preencher um campo (sem símbolo). */

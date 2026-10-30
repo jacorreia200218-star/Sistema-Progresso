@@ -5,7 +5,7 @@ import { CAPTURAS, THEMES, shoot } from './capturas-util';
 import { installMock, leader, pioneer } from './mock-api';
 
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
-const fmt = (d: string) => d.split('-').reverse().join('/');
+const fmt = (d: string) => d.split('-').reverse().join('-');
 const addDays = (d: string, n: number) => new Date(Date.parse(d + 'T12:00:00Z') + n * 86400e3).toISOString().slice(0, 10);
 const scoutYear = (d: string) => { const y = +d.slice(0, 4); const s = +d.slice(5, 7) >= 9 ? y : y - 1; return `${s}/${String((s + 1) % 100).padStart(2, '0')}`; };
 

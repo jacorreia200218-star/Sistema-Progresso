@@ -87,6 +87,10 @@ function DashboardBody({ d, f, qs, canManage }: { d: D; f: Filters; qs: string; 
   const period = periodLabel(f);
   const saldoHint = noOpening ? (counted ? 'sem saldo inicial' : 'por configurar')
     : d.opening.reference_date ? `desde ${formatDay(d.opening.reference_date)}` : '';
+  // Saldo atual = saldo inicial + receitas − despesas efetivas desde a data do saldo inicial.
+  // Não depende dos filtros (que só mudam os valores do período).
+  const formula = noOpening ? null
+    : `Saldo inicial ${formatEuros(d.current.saldo_inicial)} + receitas ${formatEuros(d.current.receitas)} − despesas ${formatEuros(d.current.despesas)}`;
 
   return (
     <>
@@ -116,6 +120,7 @@ function DashboardBody({ d, f, qs, canManage }: { d: D; f: Filters; qs: string; 
               <span className="stat-label">Saldo atual</span>
               {saldoHint && <span className="stat-hint" data-testid="saldo-hint">{saldoHint}</span>}</div></li>
           </ul>
+          {formula && <p className="faint fin-note fin-formula" data-testid="saldo-formula">{formula} · não depende dos filtros</p>}
         </div>
         <div className="fin-kpi-group">
           <h2 className="fin-kpi-cap">Período · <span data-testid="periodo">{period}</span></h2>

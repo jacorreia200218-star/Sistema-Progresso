@@ -169,7 +169,7 @@ async function noHorizontalScroll(page: Page) {
 }
 
 const todayDay = () => lisbonDay(new Date().toISOString());
-const fmt = (day: string) => day.split('-').reverse().join('/');
+const fmt = (day: string) => day.split('-').reverse().join('-');
 const dayButton = (page: Page, day: string) => page.locator(`button[data-day="${day}"]`);
 // O ano mostra os meses abertos, como na vista «Mês».
 const yearMonths = (page: Page) => page.locator('main').locator('.cal-year-month');
@@ -221,7 +221,7 @@ test('calendário anual: 12 meses abertos, fins de semana, feriados, hoje e ativ
   const y1 = String(Number(year) + 1);
   await expect(page).toHaveURL(new RegExp(`ano=${y1}`));
   if (y1 === '2027') {
-    await expect(dayButton(page, '2027-03-28')).toHaveAttribute('aria-label', /domingo, 28\/03\/2027, feriado nacional: Páscoa/);
+    await expect(dayButton(page, '2027-03-28')).toHaveAttribute('aria-label', /domingo, 28-03-2027, feriado nacional: Páscoa/);
     await expect(dayButton(page, '2027-03-26')).toHaveAttribute('aria-label', /Sexta-feira Santa/);
     await expect(dayButton(page, '2027-05-27')).toHaveAttribute('aria-label', /Corpo de Deus/);
     await expect(cell('2027-02-09')).not.toHaveClass(/is-holiday/);
@@ -234,7 +234,7 @@ test('calendário anual: 12 meses abertos, fins de semana, feriados, hoje e ativ
   // Datas sem atividades registadas (período indicado; não é disponibilidade confirmada)
   const free = main.getByRole('region', { name: 'Sem atividades registadas' });
   await expect(free).toContainText('Fins de semana');
-  await expect(free).toContainText(`De 01/01/${y1} a 31/12/${y1}`);
+  await expect(free).toContainText(`De 01-01-${y1} a 31-12-${y1}`);
   await expect(free).toContainText('não confirma a disponibilidade');
   await expect(free.getByLabel('Período considerado')).toHaveCount(0); // ano futuro: todo o período
   await noHorizontalScroll(page);
@@ -305,13 +305,13 @@ test('ano escutista (outubro a agosto) por omissão e dias especiais', async ({ 
   const t = todayDay();
   // Setembro já conta para o ano escutista seguinte.
   const sy = Number(t.slice(5, 7)) >= 9 ? Number(t.slice(0, 4)) : Number(t.slice(0, 4)) - 1;
-  await expect(main.getByRole('heading', { name: `Ano escutista ${sy}/${sy + 1}`, level: 2 })).toBeVisible();
+  await expect(main.getByRole('heading', { name: `Ano escutista ${sy}/${String((sy + 1) % 100).padStart(2, '0')}`, level: 2 })).toBeVisible();
   await expect(yearMonths(page)).toHaveCount(11);
   await expect(yearMonthTitles(page).first()).toHaveText(new RegExp(`^outubro (de )?${sy}$`));
   await expect(yearMonthTitles(page).last()).toHaveText(new RegExp(`^agosto (de )?${sy + 1}$`));
   await main.getByRole('button', { name: 'Ano anterior' }).click();
   await expect(page).toHaveURL(new RegExp(`ano=${sy - 1}`));
-  await expect(main.getByRole('heading', { name: `Ano escutista ${sy - 1}/${sy}`, level: 2 })).toBeVisible();
+  await expect(main.getByRole('heading', { name: `Ano escutista ${sy - 1}/${String(sy % 100).padStart(2, '0')}`, level: 2 })).toBeVisible();
   await main.getByRole('tab', { name: 'Ano civil' }).click();
   await expect(page).toHaveURL(/tipo=civil/);
   await expect(yearMonths(page)).toHaveCount(12);
@@ -331,7 +331,7 @@ test('ano escutista (outubro a agosto) por omissão e dias especiais', async ({ 
   await page.getByRole('button', { name: 'Acrescentar' }).click();
   await expect(page.getByText('Dia acrescentado.')).toBeVisible();
   expect(cal.config.special_days).toEqual([{ id: 'sd1', day: '2026-06-24', name: 'São João', kind: 'municipal', recurring: true }]);
-  await expect(main.locator('.cal-sd-list')).toContainText('Todos os anos a 24/06');
+  await expect(main.locator('.cal-sd-list')).toContainText('Todos os anos a 24-06');
   await noHorizontalScroll(page);
 
   await page.goto(`/calendario?ano=${sy}`);
@@ -398,7 +398,7 @@ test('lista completa das próximas atividades', async ({ page }) => {
   await installMock(page, leader());
   await installCalendar(page, 'ana');
   await page.goto('/calendario');
-  await page.locator('main').getByRole('link', { name: 'Ver todas' }).click();
+  await page.locator('main').getByRole('link', { name: /Ver todas as próximas atividades/ }).click();
   await expect(page).toHaveURL(/vista=lista/);
   await expect(page.locator('main').getByRole('tab', { name: 'Lista' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('main .cal-month-group')).toContainText('Raid de outono');
@@ -413,12 +413,12 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Nova atividade', level: 1 })).toBeVisible();
   // Por omissão: «Reunião» no próximo sábado
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
-  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(/^\d{2}\/\d{2}\/\d{4}$/);
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(/^\d{2}-\d{2}-\d{4}$/);
   await page.getByLabel('Evento', { exact: true }).fill('');
   await page.getByRole('button', { name: 'Criar atividade' }).click();
   await expect(page.getByText('Indica o nome do evento.')).toBeVisible();
   await page.getByLabel('Evento', { exact: true }).fill('Fogo de conselho (teste)');
-  await page.getByLabel('Data', { exact: true }).fill('25/10/2026');
+  await page.getByLabel('Data', { exact: true }).fill('25-10-2026');
   await page.getByLabel('Notas (opcional)').fill('Trazer lenha.');
   await expect(page.getByLabel('Repetir todas as semanas até')).toBeChecked();
   await page.getByLabel('Repetir todas as semanas até').uncheck();
@@ -436,10 +436,10 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await expect(page.getByText('Atividade criada. Os envolvidos foram avisados.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Fogo de conselho (teste)', level: 1 })).toBeVisible();
   const body = cal.calls.find((c) => c.fn === 'cal_create_event')!.body;
-  // 25/10/2026 já é hora de inverno (UTC+0)
+  // 25-10-2026 já é hora de inverno (UTC+0)
   expect(body.p_data).toMatchObject({ description: 'Trazer lenha.', all_day: false, starts_at: '2026-10-25T10:00:00.000Z', ends_at: '2026-10-25T12:00:00.000Z', needs_authorization: true, reminder_minutes: [1440, 60] });
-  await expect(page.locator('main .cal-facts')).toContainText('Início25/10/2026 · 10:00');
-  await expect(page.locator('main .cal-facts')).toContainText('Fim25/10/2026 · 12:00');
+  await expect(page.locator('main .cal-facts')).toContainText('Início25-10-2026 · 10:00');
+  await expect(page.locator('main .cal-facts')).toContainText('Fim25-10-2026 · 12:00');
 });
 
 test('pioneiro responde, vê o que lhe falta e exporta para o calendário', async ({ page }, info) => {
@@ -500,14 +500,14 @@ test('nova atividade semanal: a reunião de sábado repete-se até ao fim do ano
   const cal = await installCalendar(page, 'ana');
   await page.goto('/calendario/nova?dia=2026-10-17');
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
-  await expect(page.getByLabel('Data', { exact: true })).toHaveValue('17/10/2026');
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue('17-10-2026');
   await expect(page.getByLabel('Repetir todas as semanas até')).toBeChecked();
-  await expect(page.getByLabel('Repetir até')).toHaveValue('31/08/2027');
-  await page.getByLabel('Repetir até').fill('07/11/2026');
+  await expect(page.getByLabel('Repetir até')).toHaveValue('31-08-2027');
+  await page.getByLabel('Repetir até').fill('07-11-2026');
   await page.getByRole('button', { name: 'Criar atividade' }).click();
   await expect(page.getByText('4 atividades criadas, uma por semana. Os envolvidos foram avisados.')).toBeVisible();
   const body = cal.calls.find((c) => c.fn === 'cal_create_weekly')!.body;
-  // 17/10/2026 ainda é hora de verão (UTC+1): 14:30 → 13:30Z
+  // 17-10-2026 ainda é hora de verão (UTC+1): 14:30 → 13:30Z
   expect(body).toMatchObject({ p_until: '2026-11-07', p_data: { title: 'Reunião', all_day: false, starts_at: '2026-10-17T13:30:00.000Z', ends_at: '2026-10-17T15:00:00.000Z' } });
   expect(cal.calls.some((c) => c.fn === 'cal_create_event')).toBe(false);
 });
@@ -555,7 +555,7 @@ test('evento como ponto de ligação: separadores, teclado e «Registar presenç
   await tabs.getByRole('tab', { name: /Ata e tarefas/ }).click();
   await expect(main.getByRole('link', { name: 'Escrever ata' })).toHaveAttribute('href', '/atas-e-tarefas/nova?evento=ev1');
   const t1 = main.locator('.ev-task', { hasText: 'junta de freguesia' });
-  await expect(t1).toContainText('Pedro Teste · até 10/10/2026');
+  await expect(t1).toContainText('Pedro Teste · até 10-10-2026');
   await expect(t1).toContainText('Em atraso');
   await expect(t1).toHaveAttribute('href', '/atas-e-tarefas/atas/ata1');
   await expect(main.locator('.ev-task', { hasText: 'Levar mapas' })).toContainText('Guia Teste · sem prazo');
@@ -648,12 +648,12 @@ test('o que te falta: três mais próximas, horizonte configurável e «Ver toda
   if (info.project.name !== 'telemovel') expect((await main.locator('.cal-strip').boundingBox())!.y).toBeLessThan(grid!.y);
   // O calendário vem primeiro; o que falta fica por baixo
   expect((await todo.boundingBox())!.y).toBeGreaterThan(grid!.y + grid!.height - 1);
-  await expect(todo).toContainText('16 mais tarde');
-  // A mesma reunião não se repete nas próximas atividades
+  await expect(todo.getByTestId('pendencias-depois')).toContainText('Mais 16 pendências depois de');
+  // Próximas atividades por ordem cronológica, mesmo as que também têm pendências (sem buracos)
   const next = main.getByRole('region', { name: 'Próximas atividades' });
-  await expect(next).not.toContainText('Raid de outono');
-  await expect(next).not.toContainText('Reunião semanal 1 ');
-  await expect(next).toContainText('Reunião semanal 3 (teste)');
+  await expect(next.locator('.cal-event-title').first()).toContainText('Raid de outono');
+  await expect(next).toContainText('Reunião semanal 1 ');
+  await expect(next.getByRole('link', { name: /Ver todas as próximas atividades \(\d+ nos próximos 12 meses\)/ })).toBeVisible();
   await noHorizontalScroll(page);
 
   // Horizonte de 2 semanas, guardado para a próxima visita
@@ -699,8 +699,8 @@ test('sem pendências próximas: uma linha curta, sem cartão grande', async ({ 
   await page.goto('/calendario');
   const todo = page.locator('main').getByRole('region', { name: 'O que te falta' });
   await expect(todo).toContainText('Nada pendente até');
-  await expect(todo).toContainText('1 mais tarde');
-  await todo.getByRole('link', { name: 'Ver todas' }).click();
+  await expect(todo).toContainText('Mais 1 pendência depois de');
+  await todo.getByRole('link', { name: 'Ver todas (1)' }).click();
   await expect(page).toHaveURL(/semanas=todas/);
   await expect(page.locator('main .cal-pending-row')).toHaveCount(1);
 });
@@ -735,10 +735,10 @@ test('«Hoje» e «Ir para o mês atual» mantêm a vista anual', async ({ page 
   // Datas sem atividades: por omissão a partir de hoje; pode considerar o ano todo
   const free = main.getByRole('region', { name: 'Sem atividades registadas' });
   if (today !== `${year}-01-01`) {
-    await expect(free).toContainText(`De ${fmt(today)} a 31/12/${year}`);
+    await expect(free).toContainText(`De ${fmt(today)} a 31-12-${year}`);
     await free.getByLabel('Período considerado').selectOption({ label: 'Todo o período' });
     await expect(page).toHaveURL(/livres_de=inicio/);
-    await expect(free).toContainText(`De 01/01/${year} a 31/12/${year}`);
+    await expect(free).toContainText(`De 01-01-${year} a 31-12-${year}`);
   }
   await noHorizontalScroll(page);
 });

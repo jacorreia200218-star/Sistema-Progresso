@@ -570,8 +570,8 @@ test('reservar e comprar para uma atividade com o seletor comum (data · nome, h
   await main.getByRole('button', { name: 'Reservar', exact: true }).click();
   const form = main.getByRole('form', { name: 'Reservar material' });
   const ev = form.getByLabel('Atividade do calendário');
-  await expect(ev.locator('option')).toHaveText(['Sem atividade', '20/11/2026 · Dia do Patrono', '14/11/2026 · Acampamento · 09:00', '14/11/2026 · Acampamento · 15:00']);
-  await ev.selectOption({ label: '14/11/2026 · Acampamento · 15:00' });
+  await expect(ev.locator('option')).toHaveText(['Sem atividade', '20-11-2026 · Dia do Patrono', '14-11-2026 · Acampamento · 09:00', '14-11-2026 · Acampamento · 15:00']);
+  await ev.selectOption({ label: '14-11-2026 · Acampamento · 15:00' });
   await expect(form.getByLabel(/Usar o período da atividade/)).toBeChecked();
   await form.getByLabel(/Quantidade/).fill('2');
   await form.getByRole('button', { name: 'Reservar' }).click();
@@ -582,7 +582,7 @@ test('reservar e comprar para uma atividade com o seletor comum (data · nome, h
   await main.locator('.page-head').getByRole('button', { name: 'Mais ações' }).click();
   await main.getByRole('button', { name: 'Pôr na lista «A comprar»' }).click();
   const buy = main.getByRole('form', { name: 'Nova compra' });
-  await buy.getByLabel('Atividade do calendário (opcional)').selectOption({ label: '20/11/2026 · Dia do Patrono' });
+  await buy.getByLabel('Atividade do calendário (opcional)').selectOption({ label: '20-11-2026 · Dia do Patrono' });
   await buy.getByRole('button', { name: 'Acrescentar à lista' }).click();
   await expect(main.getByText('Acrescentado à lista «A comprar».')).toBeVisible();
   expect(m.calls.find((c) => c.fn === 'inv_purchase_save')!.body).toMatchObject({ p_item: 'i1', p_event: 'e3' });

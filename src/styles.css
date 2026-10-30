@@ -1070,7 +1070,7 @@ dl.summary-list .quote { margin-top: 0; }
   .filters-body > select, .filters-body > label, .filters-body > .field-inline { flex-basis: 100%; }
 }
 
-/* Campos de data DD/MM/AAAA com botão do seletor nativo por cima do ícone */
+/* Campos de data DD-MM-AAAA com botão do seletor nativo por cima do ícone */
 .date-input { position: relative; display: flex; align-items: stretch; width: 100%; min-width: 0; }
 .date-input > input[type='text'] { padding-right: 44px; font-variant-numeric: tabular-nums; }
 .date-input-btn { position: absolute; top: 1px; right: 1px; bottom: 1px; width: 40px; display: grid; place-items: center; color: var(--ink-soft);
@@ -1126,3 +1126,20 @@ dl.summary-list .quote { margin-top: 0; }
 .push-meta { margin-bottom: 8px; }
 .push-steps { margin: 4px 0 10px; padding-left: 22px; color: var(--ink-soft); font-size: var(--fs-small); line-height: 1.5; }
 .push-steps li + li { margin-top: 2px; }
+
+/* Escolha de várias pessoas: etiquetas removíveis por cima da pesquisa e «Juntar uma equipa» */
+.multi-select { display: flex; flex-direction: column; gap: 8px; }
+.multi-select-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.multi-select-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line); font-size: var(--fs-small); max-width: 100%; }
+.multi-select-tag > span { overflow-wrap: anywhere; }
+.multi-select-remove { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0;
+  border-radius: 999px; background: none; color: var(--ink-soft); cursor: pointer; flex: none; }
+.multi-select-remove:hover { background: var(--surface-3); color: var(--ink); }
+.multi-select-list li { flex-direction: row; align-items: flex-start; gap: 8px; }
+.multi-select-list li.is-disabled { cursor: default; opacity: .6; }
+.multi-select-check { width: 18px; height: 18px; flex: none; margin-top: 2px; border: 1.5px solid var(--line-strong, var(--line)); border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--accent-ink); }
+.multi-select-list li[aria-selected='true'] .multi-select-check { border-color: var(--accent-ink); }
+.multi-select-text { display: flex; flex-direction: column; min-width: 0; }
+.multi-select-team select { width: 100%; }

@@ -155,12 +155,16 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const thisYear = yearOf(today, mode);
   const year = /^\d{4}$/.test(yearParam) ? Number(yearParam) : thisYear;
   const p = period(mode, year);
-  const q = useEvents(p.from, p.to, !cfg.isLoading);
+  // Lê o ano escutista completo (desde 1 de setembro): setembro só aparece se tiver atividades.
+  const q = useEvents(p.yearFrom, p.to, !cfg.isLoading);
   const all = useMemo(() => [...(q.data ?? [])].sort((a, b) => sortKey(a).localeCompare(sortKey(b))), [q.data]);
   const shown = useMemo(() => (onlyMine ? all.filter((e) => e.involved) : all), [all, onlyMine]);
-  const marks = useMemo(() => dayMarks(p.from, p.to, cfg.data?.special_days ?? []), [p.from, p.to, cfg.data]);
-  const busyAll = useMemo(() => busyDays(all, p.from, p.to), [all, p.from, p.to]);
-  const busyShown = useMemo(() => (onlyMine ? busyDays(shown, p.from, p.to) : busyAll), [onlyMine, shown, busyAll, p.from, p.to]);
+  const withSeptember = p.yearFrom < p.from && all.some((e) => eventDays(e).from < p.from);
+  const months = withSeptember ? [p.yearFrom.slice(0, 7), ...p.months] : p.months;
+  const viewFrom = withSeptember ? p.yearFrom : p.from;
+  const marks = useMemo(() => dayMarks(viewFrom, p.to, cfg.data?.special_days ?? []), [viewFrom, p.to, cfg.data]);
+  const busyAll = useMemo(() => busyDays(all, viewFrom, p.to), [all, viewFrom, p.to]);
+  const busyShown = useMemo(() => (onlyMine ? busyDays(shown, viewFrom, p.to) : busyAll), [onlyMine, shown, busyAll, viewFrom, p.to]);
   // Datas sem atividades: por omissão só a partir de hoje (se o período já começou e ainda não acabou).
   const canFuture = p.from < today && today <= p.to;
   const futureOnly = canFuture && range !== 'inicio';
@@ -204,16 +208,18 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
         </div>
       </div>
       {mode === 'escutista' && (
-        <p className="faint cal-period-hint">De {formatDay(p.from)} a {formatDay(p.to)}</p>
+        <p className="faint cal-period-hint" data-testid="periodo-atividades">
+          Período de atividades: {formatDay(p.from)} a {formatDay(p.to)} · o ano escutista começa a {formatDay(p.yearFrom)}
+        </p>
       )}
       {cfg.error || q.error ? <ErrorBox error={cfg.error ?? q.error} retry={() => { cfg.refetch(); q.refetch(); }} /> : (
         <div className="cal-year-layout">
           {!narrow && <PendingStrip s={pending} />}
           <div className="cal-year-main">
-            <MonthJump months={p.months} today={today} />
+            <MonthJump months={months} today={today} />
             {/* Os meses abertos, um por baixo do outro, como na vista «Mês». */}
             <div className="cal-year-open" aria-busy={!ready}>
-              {p.months.map((ym) => (
+              {months.map((ym) => (
                 <section key={ym} id={`mes-${ym}`} className="cal-year-month" aria-labelledby={`cal-om-${ym}`}>
                   <h3 id={`cal-om-${ym}`} className="cal-year-month-title">
                     <Link to={`/calendario?vista=mes&mes=${ym}`} className="cal-mm-link">{monthLabel(ym)}</Link>
@@ -227,7 +233,7 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
           </div>
           <div className="cal-summary" role="region" aria-label="Resumo">
             <PendingCard s={pending} counters={narrow} />
-            <NextEvents onlyMine={onlyMine} exclude={pending.shownIds} />
+            <NextEvents onlyMine={onlyMine} />
             <FreeCard free={free} p={p} from={freeFrom} canFuture={canFuture} futureOnly={futureOnly}
               setFutureOnly={(on) => setRange(on ? '' : 'inicio')} onPick={(d) => setDay(d)} />
           </div>
@@ -323,11 +329,13 @@ function MonthGrid({ ym, events, marks, busy, today, selected, onPick, narrow, b
           if (d === today) cls.push('is-today');
           if (selected === d) cls.push('is-selected');
           const label = dayLabel(d, m, busy.get(d) ?? 0, false, today);
+          // No telemóvel os nomes ficam cortados: o nome completo vai no rótulo do dia.
+          const full = evs.length ? `${label}: ${evs.map(chipTitle).join('; ')}` : label;
           return (
             <div key={d} className={cls.join(' ')}>
               {narrow ? (
                 // Telemóvel: o dia inteiro é o botão (abre o dia); dentro, os nomes das atividades
-                <button type="button" className="cal-month-cell" data-day={d} aria-label={label} title={label}
+                <button type="button" className="cal-month-cell" data-day={d} aria-label={full} title={full}
                   aria-current={d === today ? 'date' : undefined} onClick={() => onPick(d)}>
                   <span className="cal-month-dn">{Number(d.slice(8))}</span>
                   {evs.slice(0, 3).map((e) => (
@@ -347,14 +355,19 @@ function MonthGrid({ ym, events, marks, busy, today, selected, onPick, narrow, b
                   <ul className="cal-month-events">
                     {evs.slice(0, 3).map((e) => (
                       <li key={e.id}>
-                        <Link to={`/calendario/evento/${e.id}`} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}`} title={e.title}>
+                        <Link to={`/calendario/evento/${e.id}`} className={`cal-chip${e.status === 'cancelado' ? ' is-cancelled' : ''}${e.source ? ' is-icloud' : ''}`}
+                          title={chipTitle(e)} aria-label={chipTitle(e)}>
                           {!e.all_day && eventDays(e).from === d && <span className="cal-chip-time">{lisbonTime(e.starts_at!)}</span>}
                           {e.title}
                         </Link>
                       </li>
                     ))}
                   </ul>
-                  {evs.length > 3 && <button type="button" className="cal-chip-more" onClick={() => onPick(d)}>+{evs.length - 3}</button>}
+                  {evs.length > 3 && (
+                    <button type="button" className="cal-chip-more" onClick={() => onPick(d)}>
+                      +{evs.length - 3} {evs.length - 3 === 1 ? 'atividade' : 'atividades'}
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -365,6 +378,10 @@ function MonthGrid({ ym, events, marks, busy, today, selected, onPick, narrow, b
     </div>
   );
 }
+
+/** Nome completo do chip, com o estado e a origem (rato, teclado e leitores de ecrã). */
+const chipTitle = (e: CalListItem) =>
+  `${e.title}${e.status === 'cancelado' ? ' (cancelada)' : ''}${e.source ? ' · iCloud' : ''}`;
 
 function slotDays(slots: FreeSlot[]) {
   const s = new Set<string>();
@@ -420,21 +437,27 @@ function MarksList({ p, marks, busy, onPick }: { p: Period; marks: Map<string, D
   );
 }
 
-/** Próximas atividades (até três), sem repetir as que já aparecem em «O que te falta». */
-function NextEvents({ onlyMine, exclude }: { onlyMine: boolean; exclude: Set<string> }) {
+/**
+ * Próximas atividades: as três primeiras por ordem cronológica, mesmo as que também estão em
+ * «O que te falta» (cada linha mostra o que falta), para a sequência nunca parecer ter buracos.
+ */
+function NextEvents({ onlyMine }: { onlyMine: boolean }) {
   const today = todayLisbon();
   const q = useEvents(today, addDays(today, 365));
-  const next = (q.data ?? []).filter((e) => e.status === 'ativo' && (!onlyMine || e.involved) && !exclude.has(e.id))
-    .sort((a, b) => sortKey(a).localeCompare(sortKey(b))).slice(0, 3);
+  const all = (q.data ?? []).filter((e) => e.status === 'ativo' && (!onlyMine || e.involved))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const next = all.slice(0, 3);
   return (
     <section className="card cal-next" aria-labelledby="cal-next-h">
       <h2 id="cal-next-h">Próximas atividades</h2>
       {q.isLoading ? <Loading compact rows={2} /> : q.error ? <ErrorBox error={q.error} retry={() => q.refetch()} /> : next.length ? (
         <>
           <ul className="list">{next.map((e) => <EventRow key={e.id} e={e} />)}</ul>
-          <Link to="/calendario?vista=lista" className="btn ghost cal-see-all">Ver todas</Link>
+          <Link to="/calendario?vista=lista" className="btn ghost cal-see-all" aria-label={`Ver todas as próximas atividades (${all.length} nos próximos 12 meses)`}>
+            Ver todas as próximas ({all.length})
+          </Link>
         </>
-      ) : <p className="faint">{exclude.size ? 'Sem outras atividades marcadas.' : onlyMine ? 'Não tens atividades marcadas.' : 'Ainda não há atividades marcadas.'}</p>}
+      ) : <p className="faint">{onlyMine ? 'Não tens atividades marcadas.' : 'Ainda não há atividades marcadas.'}</p>}
     </section>
   );
 }

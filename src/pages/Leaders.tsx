@@ -153,7 +153,7 @@ function SectionOverview({ members }: { members: MemberRow[] }) {
                       <br />
                       <span className="faint">
                         {pm ? milestoneByKey[pm.milestone as MilestoneKey]?.short : '—'}
-                        {pm && STATE_LABEL[pm.state as PositionState] ? ` · ${STATE_LABEL[pm.state as PositionState].label}` : ''} · {validated(m.id)} de {catalog.trailById.size} trilhos
+                        {pm && STATE_LABEL[pm.state as PositionState] ? ` · ${STATE_LABEL[pm.state as PositionState].label}` : ''} · {validated(m.id)} de {catalog.trailById.size} trilhos validados (em todas as etapas)
                       </span>
                     </span>
                     <span className="faint nowrap">Ver percurso</span>
@@ -181,7 +181,7 @@ function MeritRow({ m }: { m: MemberRow }) {
         <span className="grow">
           <strong>{m.profiles?.full_name}</strong>
           <br />
-          <span className="faint">{q.data ? `${q.data.validated} de ${q.data.total} trilhos · última etapa ${q.data.last_stage_concluded ? 'concluída' : 'por concluir'}` : '…'}</span>
+          <span className="faint">{q.data ? `${q.data.validated} de ${q.data.total} trilhos validados (em todas as etapas) · última etapa ${q.data.last_stage_concluded ? 'concluída' : 'por concluir'}` : '…'}</span>
         </span>
         {q.data?.eligible ? <Badge label="Elegível" tone="ok" icon="check" /> : <Badge label="Ainda não elegível" tone="muted" icon="circle" />}
       </Link>
