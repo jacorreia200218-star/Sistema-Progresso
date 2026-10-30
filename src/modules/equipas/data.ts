@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
 import { formatDay } from '../common';
+import { scoutYearBounds, scoutYearFromLabel, scoutYearLabel, scoutYearOf } from '../../lib/anoEscutista';
 
 export type RoleKind = 'guia' | 'subguia' | 'cargo';
 export interface EqTeam { id: string; name: string; archived_at: string | null; color: string | null; motto: string | null; emblem: { path: string; file_name: string } | null }
@@ -42,20 +43,15 @@ export const TEAM_COLORS: { value: string; label: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Ano escutista (setembro a agosto)
+// Ano escutista (setembro a agosto, definido em lib/anoEscutista)
 // ---------------------------------------------------------------------------
 /** «2026-10-15» → «2026/27»; «2027-08-31» → «2026/27». */
-export function scoutYear(day: string): string {
-  const y = Number(day.slice(0, 4));
-  const m = Number(day.slice(5, 7));
-  const start = m >= 9 ? y : y - 1;
-  return `${start}/${String((start + 1) % 100).padStart(2, '0')}`;
-}
+export const scoutYear = (day: string): string => scoutYearLabel(scoutYearOf(day));
 
 /** Limites do ano escutista (fim exclusivo): «2026/27» → [2026-09-01, 2027-09-01). */
 export function yearBounds(label: string): [string, string] {
-  const start = Number(label.slice(0, 4));
-  return [`${start}-09-01`, `${start + 1}-09-01`];
+  const start = scoutYearFromLabel(label);
+  return [scoutYearBounds(start).from, scoutYearBounds(start + 1).from];
 }
 
 /** Anos com registos (do mais recente para o mais antigo), sempre incluindo o atual. */
@@ -65,7 +61,7 @@ export function yearOptions(o: Pick<EqOverview, 'today' | 'appointments' | 'move
   const min = Math.min(...starts);
   const max = Math.max(...starts);
   const out: string[] = [];
-  for (let y = max; y >= min; y--) out.push(`${y}/${String((y + 1) % 100).padStart(2, '0')}`);
+  for (let y = max; y >= min; y--) out.push(scoutYearLabel(y));
   return out;
 }
 

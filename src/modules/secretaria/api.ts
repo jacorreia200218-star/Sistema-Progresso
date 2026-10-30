@@ -49,11 +49,19 @@ export interface AtaRow {
   open_tasks: number;
 }
 
+export interface TaskParticipant { id: string; name: string; team_name: string | null }
+
 export interface Task {
   id: string;
+  /** Título curto; null nas tarefas antigas (o texto faz de título). */
+  title: string | null;
+  /** «O que fazer». */
   text: string;
   responsible_id: string;
   responsible_name: string;
+  participants?: TaskParticipant[];
+  /** Só em «As minhas tarefas»: o meu papel na tarefa. */
+  my_role?: 'responsavel' | 'participante';
   due_date: string | null;
   status: TaskStatus;
   overdue: boolean;
@@ -62,6 +70,9 @@ export interface Task {
   updated_at: string;
   updated_by_name: string;
 }
+
+/** Título a mostrar: o título curto ou, nas tarefas antigas, o próprio texto. */
+export const taskTitle = (t: Pick<Task, 'title' | 'text'>) => t.title || t.text;
 
 export interface Ata {
   id: string;

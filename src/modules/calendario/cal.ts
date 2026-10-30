@@ -2,6 +2,7 @@
 // Datas de dia inteiro são «AAAA-MM-DD» (fim inclusivo); horas são instantes ISO.
 import { formatDay, isoToLisbon, lisbonDay, lisbonTime } from '../common';
 import type { CalSource } from './source';
+import { activityPeriod, scoutYearBounds, scoutYearLabel, scoutYearOf } from '../../lib/anoEscutista';
 
 export type Response = 'vou' | 'nao_vou' | 'por_confirmar';
 export type Missing = 'resposta' | 'autorizacao' | 'pagamento' | 'inscricao' | 'material';
@@ -175,26 +176,28 @@ export const weekdayName = (day: string) => ['segunda', 'terça', 'quarta', 'qui
 // ---------------------------------------------------------------------------
 export type YearMode = 'civil' | 'escutista';
 
-export interface Period { mode: YearMode; year: number; label: string; months: string[]; from: string; to: string }
-
-/** O ano escutista vai sempre de outubro a agosto; setembro já conta para o ano seguinte. */
-export const SCOUT_YEAR = { first: 10, last: 8, cutoff: 9 };
-
-/** Ano (civil ou escutista) que contém o dia indicado. */
-export function yearOf(day: string, mode: YearMode): number {
-  const y = Number(day.slice(0, 4));
-  if (mode === 'civil') return y;
-  return Number(day.slice(5, 7)) >= SCOUT_YEAR.cutoff ? y : y - 1;
+export interface Period {
+  mode: YearMode; year: number; label: string; months: string[]; from: string; to: string;
+  /** Início do ano escutista completo (1 de setembro); no ano civil é igual a `from`. */
+  yearFrom: string;
 }
 
-/** Meses do período: civil = janeiro a dezembro; escutista = outubro a agosto do ano seguinte. */
+/** Ano (civil ou escutista) que contém o dia indicado. O ano escutista vem de lib/anoEscutista. */
+export function yearOf(day: string, mode: YearMode): number {
+  return mode === 'civil' ? Number(day.slice(0, 4)) : scoutYearOf(day);
+}
+
+/**
+ * Meses mostrados: civil = janeiro a dezembro; escutista = período de atividades (outubro a
+ * agosto). O ano escutista completo começa a 1 de setembro (`yearFrom`).
+ */
 export function period(mode: YearMode, year: number): Period {
-  const first = mode === 'civil' ? `${year}-01` : `${year}-${String(SCOUT_YEAR.first).padStart(2, '0')}`;
-  const length = mode === 'civil' ? 12 : 12 - SCOUT_YEAR.first + 1 + SCOUT_YEAR.last;
-  const months = Array.from({ length }, (_, i) => addMonths(first, i));
-  const to = addDays(`${addMonths(months[length - 1], 1)}-01`, -1);
-  const label = mode === 'civil' ? String(year) : `${year}/${year + 1}`;
-  return { mode, year, label, months, from: `${first}-01`, to };
+  if (mode === 'escutista') {
+    const a = activityPeriod(year);
+    return { mode, year, label: scoutYearLabel(year), months: a.months, from: a.from, to: a.to, yearFrom: scoutYearBounds(year).from };
+  }
+  const months = Array.from({ length: 12 }, (_, i) => addMonths(`${year}-01`, i));
+  return { mode, year, label: String(year), months, from: `${year}-01-01`, to: `${year}-12-31`, yearFrom: `${year}-01-01` };
 }
 
 /** Dias (AAAA-MM-DD) ocupados por atividades ativas. */

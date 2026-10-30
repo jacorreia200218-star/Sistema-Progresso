@@ -236,7 +236,7 @@ test('progresso anterior: só os dirigentes registam, com o trilho completo e a 
   await expect(form.getByRole('list', { name: 'Objetivos do trilho' }).getByRole('listitem').first()).toBeVisible();
   await form.getByLabel('Fundamentação').fill('Concluiu este trilho no agrupamento anterior.');
   await expect(register).toBeDisabled(); // a data relevante é obrigatória
-  await form.getByLabel('Data relevante').fill('15/06/2025');
+  await form.getByLabel('Data relevante').fill('15-06-2025');
   await register.click();
   await page.getByRole('group', { name: 'Confirmação' }).getByRole('button', { name: 'Registar' }).click();
   await expect(form.getByText('Progresso anterior registado.')).toBeVisible();
@@ -273,7 +273,7 @@ test('percurso do membro: «Registar progresso anterior» à vista do dirigente,
   await expect(objectives.first()).toBeVisible();
   expect(await objectives.count()).toBeGreaterThan(1); // o trilho completo, com todos os objetivos
   await form.getByLabel('Fundamentação').fill('Concluiu este trilho no agrupamento anterior, confirmado pela chefia de então.');
-  await form.getByLabel('Data relevante').fill('01/03/2025');
+  await form.getByLabel('Data relevante').fill('01-03-2025');
   await form.getByRole('button', { name: 'Registar' }).click();
   await page.getByRole('group', { name: 'Confirmação' }).getByRole('button', { name: 'Registar' }).click();
   await expect(form.getByText('Progresso anterior registado.')).toBeVisible();
@@ -312,7 +312,7 @@ test.describe('capturas', () => {
       await form.getByLabel('Área').selectOption({ index: 1 });
       await form.getByLabel('Trilho', { exact: true }).selectOption({ index: 1 });
       await form.getByLabel('Fundamentação').fill('Concluiu este trilho no agrupamento anterior, com o acompanhamento da chefia de então e registo na ficha de progresso.');
-      await form.getByLabel('Data relevante').fill('01/03/2025');
+      await form.getByLabel('Data relevante').fill('01-03-2025');
       await shoot(page, info, theme, 'membro-registar-progresso-anterior');
     });
   }

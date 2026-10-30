@@ -65,7 +65,7 @@ describe('ano civil, ano escutista e dias livres', () => {
     expect(civil).toMatchObject({ label: '2026', from: '2026-01-01', to: '2026-12-31' });
     expect(civil.months).toHaveLength(12);
     const esc = period('escutista', 2026);
-    expect(esc).toMatchObject({ label: '2026/2027', from: '2026-10-01', to: '2027-08-31' });
+    expect(esc).toMatchObject({ label: '2026/27', yearFrom: '2026-09-01', from: '2026-10-01', to: '2027-08-31' });
     expect(esc.months).toHaveLength(11);
     expect(esc.months[0]).toBe('2026-10');
     expect(esc.months[10]).toBe('2027-08');

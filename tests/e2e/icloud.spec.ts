@@ -102,7 +102,7 @@ test('por rever: aprovar, editar antes de aprovar e rejeitar', async ({ page }, 
   await page.goto('/gestao/icloud');
   const rev = page.getByRole('region', { name: 'Por rever' });
   await expect(rev.locator('.icloud-review-row')).toHaveCount(3);
-  await expect(rev.getByText('Antes: 07/11/2026 · 14:30–16:00 · Raid · Sintra')).toBeVisible();
+  await expect(rev.getByText('Antes: 07-11-2026 · 14:30–16:00 · Raid · Sintra')).toBeVisible();
   await expect(rev.getByText('Removida do iCloud')).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   if (CAPTURAS) for (const t of THEMES) await shoot(page, info, t, 'icloud-rever');
@@ -142,8 +142,8 @@ test('gestão: verificar o link, pré-visualizar e confirmar a importação', as
   const pv = add.getByLabel('Pré-visualização');
   await expect(pv).toContainText('Agrupamento (fictício)');
   await expect(pv).toContainText('12 (+1 canceladas)');
-  await expect(pv).toContainText('05/09/2026 a 10/07/2027');
-  await expect(pv).toContainText('24/10/2026 · 14:30 · Reunião de sábado');
+  await expect(pv).toContainText('05-09-2026 a 10-07-2027');
+  await expect(pv).toContainText('24-10-2026 · 14:30 · Reunião de sábado');
   const req = ic.calls.filter((c) => c.fn === 'api:preview').at(-1)!;
   expect(req.auth).toBe('Bearer token-de-teste');
   expect(req.body).toMatchObject({ section_id: 'sec1', url: LINK });
@@ -165,7 +165,7 @@ test('gestão: verificar o link, pré-visualizar e confirmar a importação', as
   const card = page.getByRole('region', { name: 'Agrupamento', exact: true });
   await expect(card).toContainText('webcal://p00-caldav.icloud.com/…cdef');
   await expect(card).toContainText('Equipa Equipa Andorinha');
-  await expect(card).toContainText('12 · 05/09/2026 a 10/07/2027');
+  await expect(card).toContainText('12 · 05-09-2026 a 10-07-2027');
   await expect(card).toContainText('12 novas');
   // O link completo nunca fica visível depois de guardado.
   await page.reload();

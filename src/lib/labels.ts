@@ -61,7 +61,7 @@ export const memberStatusLabel: Record<MemberStatus, string> = {
   saiu: 'Saiu da secção',
 };
 
-// Datas: sempre DD/MM/AAAA (ver lib/dates.ts, onde a formatação está centralizada).
+// Datas: sempre DD-MM-AAAA (ver lib/dates.ts, onde a formatação está centralizada).
 export { formatDate, formatDateTime, formatTime, todayIso } from './dates';
 import { formatDate } from './dates';
 

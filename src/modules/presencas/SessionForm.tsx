@@ -48,7 +48,7 @@ export function SessionForm() {
     ...(options.data ?? []),
   ];
   const ev = evOptions.find((e) => e.id === event);
-  // Formato comum do seletor: «DD/MM/AAAA · Nome» (hora/equipa só para distinguir homónimos).
+  // Formato comum do seletor: «DD-MM-AAAA · Nome» (hora/equipa só para distinguir homónimos).
   const evChoices: EventChoice[] = evOptions.map((e) => ({
     id: e.id, title: e.title, team_name: e.team_name,
     day: e.starts_at ? lisbonDay(e.starts_at) : e.start,

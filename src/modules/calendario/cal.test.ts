@@ -13,13 +13,13 @@ describe('dias do calendário', () => {
     expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
   });
 
-  it('atividades com horas usam o dia de Lisboa, incluindo a mudança de hora (25/10/2026)', () => {
+  it('atividades com horas usam o dia de Lisboa, incluindo a mudança de hora (25-10-2026)', () => {
     // 23:30 de 24/10 (WEST) = 22:30Z; 01:30 de 25/10 (WET) = 01:30Z
     const late = { all_day: false, starts_at: '2026-10-24T22:30:00Z', ends_at: '2026-10-24T22:50:00Z', start_date: null, end_date: null };
     const night = { all_day: false, starts_at: '2026-10-25T01:30:00Z', ends_at: '2026-10-25T03:00:00Z', start_date: null, end_date: null };
     expect(eventDays(late)).toEqual({ from: '2026-10-24', to: '2026-10-24' });
     expect(coversDay(night, '2026-10-25')).toBe(true);
-    expect(whenLabel(night)).toBe('25/10/2026 · 01:30–03:00');
+    expect(whenLabel(night)).toBe('25-10-2026 · 01:30–03:00');
     // termina à meia-noite: não ocupa o dia seguinte
     expect(eventDays({ all_day: false, starts_at: '2026-10-24T18:00:00Z', ends_at: '2026-10-24T23:00:00Z', start_date: null, end_date: null }))
       .toEqual({ from: '2026-10-24', to: '2026-10-24' });
@@ -28,8 +28,8 @@ describe('dias do calendário', () => {
   it('dias inteiros e vários dias', () => {
     const one = { all_day: true, starts_at: null, ends_at: null, start_date: '2026-10-25', end_date: '2026-10-25' };
     const multi = { ...one, end_date: '2026-10-27' };
-    expect(whenLabel(one)).toBe('25/10/2026 · dia inteiro');
-    expect(whenLabel(multi)).toBe('25/10/2026 a 27/10/2026');
+    expect(whenLabel(one)).toBe('25-10-2026 · dia inteiro');
+    expect(whenLabel(multi)).toBe('25-10-2026 a 27-10-2026');
     expect(coversDay(multi, '2026-10-26')).toBe(true);
     expect(coversDay(multi, '2026-10-28')).toBe(false);
   });

@@ -34,8 +34,8 @@ describe('nomeações', () => {
     expect(inYear({ starts_on: '2025-10-01', ends_on: '2026-09-01' }, '2026/27')).toBe(true);
     expect(inYear({ starts_on: '2025-10-01', ends_on: '2026-08-31' }, '2026/27')).toBe(false);
     expect(inYear({ starts_on: '2027-09-01', ends_on: null }, '2026/27')).toBe(false);
-    expect(periodLabel({ starts_on: '2026-09-01', ends_on: null })).toBe('desde 01/09/2026');
-    expect(periodLabel({ starts_on: '2026-09-01', ends_on: '2027-06-30' })).toBe('01/09/2026 a 30/06/2027');
+    expect(periodLabel({ starts_on: '2026-09-01', ends_on: null })).toBe('desde 01-09-2026');
+    expect(periodLabel({ starts_on: '2026-09-01', ends_on: '2027-06-30' })).toBe('01-09-2026 a 30-06-2027');
   });
 });
 

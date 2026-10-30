@@ -13,7 +13,7 @@ const day = (offset: number) => {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(d);
 };
 const TODAY = day(0);
-const dmy = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+const dmy = (d: string) => `${d.slice(8, 10)}-${d.slice(5, 7)}-${d.slice(0, 4)}`;
 
 async function noHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -398,7 +398,7 @@ test('nova sessão a partir de uma atividade do Calendário', async ({ page }) =
   expect(opts[3]).toMatch(new RegExp(`^${dmy(day(-8))} · Reunião de pais · \\d{2}:00$`));
   await page.getByLabel('Atividade do Calendário').selectOption('ev1');
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Acampamento de outono');
-  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(day(-3).split('-').reverse().join('/'));
+  await expect(page.getByLabel('Data', { exact: true })).toHaveValue(day(-3).split('-').reverse().join('-'));
   await page.getByRole('button', { name: 'Criar sessão' }).click();
   await expect(page.getByRole('heading', { name: 'Acampamento de outono' })).toBeVisible();
   await expect(page.getByText(/Ligada à atividade do Calendário «Acampamento de outono»/)).toBeVisible();

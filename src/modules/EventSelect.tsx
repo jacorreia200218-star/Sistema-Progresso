@@ -1,4 +1,4 @@
-// Seletor de atividades do calendário, igual em todos os módulos: «DD/MM/AAAA · Nome», com a
+// Seletor de atividades do calendário, igual em todos os módulos: «DD-MM-AAAA · Nome», com a
 // hora ou a equipa quando há outra atividade com o mesmo nome no mesmo dia, mais recentes
 // primeiro e pesquisa quando a lista é longa. Guarda sempre o id do evento.
 import { SearchSelect, type SearchOption } from '../components/SearchSelect';

@@ -7,7 +7,7 @@ describe('datas em Lisboa', () => {
     expect(lisbonToIso('2026-12-01T10:00')).toBe('2026-12-01T10:00:00.000Z');
     expect(isoToLisbon('2026-07-01T09:00:00Z')).toBe('2026-07-01T10:00');
   });
-  it('mudança de hora (25/10/2026 às 02:00 volta à 01:00)', () => {
+  it('mudança de hora (25-10-2026 às 02:00 volta à 01:00)', () => {
     expect(lisbonToIso('2026-10-24T12:00')).toBe('2026-10-24T11:00:00.000Z');
     expect(lisbonToIso('2026-10-25T12:00')).toBe('2026-10-25T12:00:00.000Z');
     expect(lisbonToIso('2026-03-29T12:00')).toBe('2026-03-29T11:00:00.000Z');
@@ -24,9 +24,12 @@ describe('euros em cêntimos', () => {
     expect(parseEuros('abc')).toBeNull();
   });
   it('formata', () => {
-    expect(formatEuros(123456)).toBe('1 234,56 €');
-    expect(formatEuros(-10)).toBe('−0,10 €');
-    expect(formatEuros(0)).toBe('0,00 €');
+    // Espaços inquebráveis (o valor não se parte em duas linhas).
+    expect(formatEuros(123456)).toBe('1\u00a0234,56\u00a0€');
+    expect(formatEuros(-10)).toBe('−0,10\u00a0€');
+    expect(formatEuros(0)).toBe('0,00\u00a0€');
+    expect(formatEuros(123456789)).toBe('1\u00a0234\u00a0567,89\u00a0€');
+    expect(parseEuros(formatEuros(123456))).toBe(123456);
   });
 });
 

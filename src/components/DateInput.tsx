@@ -1,4 +1,4 @@
-// Campos de data e de data e hora sempre em DD/MM/AAAA e 24 horas, seja qual for o idioma
+// Campos de data e de data e hora sempre em DD-MM-AAAA e 24 horas, seja qual for o idioma
 // do navegador (o <input type="date"> nativo mostra «mm/dd/yyyy» em navegadores em inglês).
 // O valor continua a ser «AAAA-MM-DD» (ou «AAAA-MM-DDTHH:MM»), como no campo nativo, e o
 // botão do calendário abre o seletor do sistema. onChange recebe { target: { value } } para
@@ -61,7 +61,7 @@ export function DateInput({ value, onChange, min, max, className, disabled, id, 
   };
   return (
     <span className={`date-input${disabled ? ' is-disabled' : ''}${className ? ` ${className}` : ''}`}>
-      <input {...rest} id={id} type="text" inputMode="numeric" autoComplete="off" placeholder="dd/mm/aaaa"
+      <input {...rest} id={id} type="text" inputMode="numeric" autoComplete="off" placeholder="dd-mm-aaaa"
         value={text} disabled={disabled} onChange={(e) => write(e.target.value)}
         onBlur={(e) => {
           const iso = parseDateText(text);

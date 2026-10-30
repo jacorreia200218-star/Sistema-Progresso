@@ -4,6 +4,7 @@ import { call } from '../../lib/api';
 import { useActiveSection } from '../../lib/session';
 import { MONTHS, todayLisbon } from '../common';
 import type { EventChoice } from '../EventSelect';
+import { scoutYearBounds, scoutYearLabel, scoutYearMonths, scoutYearOf } from '../../lib/anoEscutista';
 
 export type Kind = 'receita' | 'despesa';
 export type MovState = 'previsto' | 'pendente' | 'efetivo';
@@ -92,19 +93,10 @@ export function useSectionId() {
   return useActiveSection().membership.section_id;
 }
 
-/** Ano escutista (setembro a agosto) a que pertence um dia: devolve o ano em que começa. */
-export function scoutYearOf(day: string): number {
-  const [y, m] = day.split('-').map(Number);
-  return m >= 9 ? y : y - 1;
-}
-export const scoutYearLabel = (y: number) => `${y}/${String((y + 1) % 100).padStart(2, '0')}`;
+/** Ano escutista (setembro a agosto): mesma definição em toda a app (lib/anoEscutista). */
+export { scoutYearOf, scoutYearLabel };
 /** Meses de um ano escutista, de setembro a agosto, como «AAAA-MM». */
-export function scoutMonths(y: number): string[] {
-  return Array.from({ length: 12 }, (_, i) => {
-    const m = ((8 + i) % 12) + 1;
-    return `${m >= 9 ? y : y + 1}-${String(m).padStart(2, '0')}`;
-  });
-}
+export const scoutMonths = scoutYearMonths;
 export const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} de ${ym.slice(0, 4)}`;
 const lastDay = (ym: string) => {
   const [y, m] = ym.split('-').map(Number);
@@ -126,8 +118,8 @@ export function filtersFrom(params: URLSearchParams, today = todayLisbon()): Fil
   const mes = ano !== 'todos' && mesRaw && /^\d{4}-(0[1-9]|1[0-2])$/.test(mesRaw) && scoutMonths(ano).includes(mesRaw) ? mesRaw : null;
   const estado = params.get('estado');
   const q = (params.get('q') ?? '').trim();
-  const de = mes ? `${mes}-01` : ano === 'todos' ? null : `${ano}-09-01`;
-  const ate = mes ? lastDay(mes) : ano === 'todos' ? null : `${ano + 1}-08-31`;
+  const de = mes ? `${mes}-01` : ano === 'todos' ? null : scoutYearBounds(ano).from;
+  const ate = mes ? lastDay(mes) : ano === 'todos' ? null : scoutYearBounds(ano).to;
   return {
     ano, mes, de, ate, atividade: params.get('atividade') || null, categoria: params.get('categoria') || null,
     estado: estado && ['previsto', 'pendente', 'efetivo'].includes(estado) ? estado : null, q: q ? q.slice(0, 100) : null,

@@ -6,7 +6,7 @@ import { monthLabel, type EvolutionPoint } from './api';
 
 const DAY = 86400000;
 const t = (d: string) => Date.parse(`${d}T00:00:00Z`);
-const shortDay = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+const shortDay = (d: string) => `${d.slice(8, 10)}-${d.slice(5, 7)}`;
 const MONTH_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const pointLabel = (p: EvolutionPoint) => (p.kind === 'mes' ? `fim de ${monthLabel(p.date.slice(0, 7))}` : p.kind === 'inicio' ? `início (${formatDay(p.date)})` : formatDay(p.date));
 

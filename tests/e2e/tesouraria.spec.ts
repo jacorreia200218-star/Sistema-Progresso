@@ -177,8 +177,8 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await expect(page.getByTestId('despesas-periodo')).toHaveText('5,00 €');
   await expect(page.getByTestId('resultado-periodo')).toHaveText('10,30 €');
   // Saldo atual (hoje, desde o saldo inicial) separado do período filtrado
-  await expect(main.getByRole('heading', { name: 'Hoje · 16/10/2026' })).toBeVisible();
-  await expect(page.getByTestId('saldo-hint')).toHaveText('desde 01/09/2026');
+  await expect(main.getByRole('heading', { name: 'Hoje · 16-10-2026' })).toBeVisible();
+  await expect(page.getByTestId('saldo-hint')).toHaveText('desde 01-09-2026');
   await expect(main.getByRole('heading', { name: 'Período · ano escutista 2026/27' })).toBeVisible();
   await expect(page.getByTestId('configurar')).toHaveCount(0);
   const align = await page.locator('.fin-kpis .stat').first().evaluate((el) => getComputedStyle(el).textAlign);
@@ -222,9 +222,9 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await expect(page.getByTestId('periodo')).toHaveText('outubro de 2026');
   // Atividade: seletor comum com pesquisa (data · nome), guarda o id
   const actFilter = filters.getByRole('combobox', { name: 'Atividade' });
-  await pickEvent(page, actFilter, 'acamp', '20/09/2026 · Acampamento de teste');
+  await pickEvent(page, actFilter, 'acamp', '20-09-2026 · Acampamento de teste');
   await expect(page).toHaveURL(/atividade=ev1/);
-  await expect(actFilter).toHaveValue('20/09/2026 · Acampamento de teste');
+  await expect(actFilter).toHaveValue('20-09-2026 · Acampamento de teste');
   await expect(page.getByTestId('resultado-atividade')).toHaveText('−5,00 €');
   expect(calls.filter((c) => c.fn === 'fin_dashboard').at(-1)!.body).toMatchObject({ p_from: '2026-10-01', p_to: '2026-10-31', p_activity: 'ev1' });
   await tabs.getByRole('link', { name: 'A minha situação' }).click();
@@ -233,7 +233,7 @@ test('painel: saldo atual com a fórmula, saldo inicial, gráfico acessível e f
   await expect(page).toHaveURL(/mes=2026-10/);
   await expect(filters.getByLabel('Mês')).toHaveValue('2026-10');
   await openFilters(page);
-  await expect(filters.getByRole('combobox', { name: 'Atividade' })).toHaveValue('20/09/2026 · Acampamento de teste');
+  await expect(filters.getByRole('combobox', { name: 'Atividade' })).toHaveValue('20-09-2026 · Acampamento de teste');
   // Ano escutista anterior limpa o mês
   await openFilters(page);
   await filters.getByLabel('Ano escutista').selectOption('2025');
@@ -290,7 +290,7 @@ test('a minha situação: quotas devidas, pagas e em falta', async ({ page }, in
   await expect(page.getByTestId('em-falta')).toHaveText('3,33 €');
   await expect(page.getByText('Quota de teste 2026/27').first()).toBeVisible();
   await expect(page.getByText('Por pagar')).toBeVisible();
-  await expect(page.getByText('limite 31/12/2026', { exact: false })).toBeVisible();
+  await expect(page.getByText('limite 31-12-2026', { exact: false })).toBeVisible();
   await page.goto('/tesouraria/quotas');
   await expect(page.getByText(/reservada a quem a administração autorizou/)).toBeVisible();
   await page.goto('/tesouraria/minha');
@@ -325,7 +325,7 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await page.screenshot({ path: `test-results/tesouraria-novo-${info.project.name}.png`, fullPage: true });
   // Data anterior ao saldo inicial: aviso de que não soma de novo
   await page.getByLabel('Data').fill('2026-08-15');
-  await expect(page.getByText(/Data anterior ao saldo inicial \(01\/09\/2026\)/)).toBeVisible();
+  await expect(page.getByText(/Data anterior ao saldo inicial \(01-09-2026\)/)).toBeVisible();
   await page.getByLabel('Data').fill('2026-10-10');
   await page.getByLabel('Observações (opcional, privadas)').fill('Entregue pela equipa A');
   await page.getByRole('button', { name: 'Registar movimento' }).click();
@@ -344,15 +344,15 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await actInput.focus();
   await actInput.fill('17/10');
   const listbox = page.getByRole('listbox', { name: 'Atividades' });
-  await expect(listbox.getByRole('option')).toHaveText(['17/10/2026 · Reunião · 10:30 · Equipa A', '17/10/2026 · Reunião · 15:00']);
+  await expect(listbox.getByRole('option')).toHaveText(['17-10-2026 · Reunião · 10:30 · Equipa A', '17-10-2026 · Reunião · 15:00']);
   await actInput.press('ArrowDown');
   await actInput.press('Enter');
-  await expect(actInput).toHaveValue('17/10/2026 · Reunião · 15:00');
+  await expect(actInput).toHaveValue('17-10-2026 · Reunião · 15:00');
   await actInput.fill('reuni');
-  await expect(listbox.getByRole('option', { name: /^10\/10\/2026 · Reunião$/ })).toBeVisible();
-  await expect(listbox.getByRole('option', { name: /24\/10\/2026 · Reunião.*cancelada/ })).toBeVisible();
+  await expect(listbox.getByRole('option', { name: /^10-10-2026 · Reunião$/ })).toBeVisible();
+  await expect(listbox.getByRole('option', { name: /24-10-2026 · Reunião.*cancelada/ })).toBeVisible();
   await page.keyboard.press('Escape');
-  await pickEvent(page, actInput, 'acamp', '20/09/2026 · Acampamento de teste');
+  await pickEvent(page, actInput, 'acamp', '20-09-2026 · Acampamento de teste');
   await page.getByRole('button', { name: 'Registar movimento' }).click();
   await expect(page.getByRole('heading', { name: 'Gás para o acampamento' })).toBeVisible();
   await expect(page.getByText('−12,30 €')).toBeVisible();
@@ -362,7 +362,7 @@ test('tesoureiro autorizado: nova receita e nova despesa, validação, lista com
   await page.getByLabel('Descrição').fill('Lanche da reunião');
   await page.getByLabel('Valor (€)').fill('3,40');
   await page.getByLabel('Categoria').fill('Material');
-  await pickEvent(page, page.getByRole('combobox', { name: 'Atividade (opcional)' }), 'reunião', '17/10/2026 · Reunião · 15:00');
+  await pickEvent(page, page.getByRole('combobox', { name: 'Atividade (opcional)' }), 'reunião', '17-10-2026 · Reunião · 15:00');
   await page.getByRole('button', { name: 'Registar movimento' }).click();
   await expect(page.getByRole('heading', { name: 'Lanche da reunião' })).toBeVisible();
   expect(calls.filter((c) => c.fn === 'fin_create_movement').at(-1)!.body).toMatchObject({ p_amount: 340, p_activity: 'r-b' });
@@ -468,7 +468,7 @@ test('tesouraria por configurar: ação «Configurar saldo inicial», sem saldo 
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(/\/tesouraria$/);
   await expect(page.getByTestId('saldo-atual')).toHaveText('250,00 €');
-  await expect(page.getByTestId('saldo-hint')).toHaveText('desde 01/09/2026');
+  await expect(page.getByTestId('saldo-hint')).toHaveText('desde 01-09-2026');
   await expect(page.getByTestId('configurar').getByRole('heading')).toHaveText('Ainda não há contas nem caixas');
 });
 
@@ -509,7 +509,7 @@ test('tesoureiro autorizado: configuração pelo menu «Mais»; orçamento com o
   const form = page.getByRole('form', { name: 'Linha de orçamento' });
   await form.getByRole('button', { name: 'Guardar linha' }).click();
   await expect(form.getByText('Escolhe a atividade.')).toBeVisible();
-  await pickEvent(page, form.getByRole('combobox', { name: 'Atividade' }), '17/10', '17/10/2026 · Reunião · 10:30 · Equipa A');
+  await pickEvent(page, form.getByRole('combobox', { name: 'Atividade' }), '17/10', '17-10-2026 · Reunião · 10:30 · Equipa A');
   await form.getByLabel('Categoria').fill('Alimentação');
   await form.getByLabel('Valor previsto (€)').fill('20,00');
   await form.getByLabel('Descrição').fill('Lanche');

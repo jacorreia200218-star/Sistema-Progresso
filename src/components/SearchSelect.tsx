@@ -5,7 +5,8 @@ import { ChevronDown } from 'lucide-react';
 
 export interface SearchOption { id: string; label: string; detail?: string; disabled?: boolean }
 
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+// Sem acentos nem maiúsculas; «17/10» e «17.10» encontram «17-10-2026» (datas em DD-MM-AAAA).
+const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/(\d)[/.](?=\d)/g, '$1-');
 
 export function SearchSelect({ id, value, onChange, options, placeholder = 'Procurar', empty, invalid, loading, listLabel = 'Opções', minSearch = 12, none = 'Sem resultados.' }: {
   id: string;

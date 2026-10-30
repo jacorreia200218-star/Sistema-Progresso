@@ -26,7 +26,7 @@ describe('ano escutista (setembro a agosto)', () => {
   });
 
   it('datas livres têm prioridade; inválidas ou trocadas são ignoradas', () => {
-    expect(periodFrom(P('de=2026-10-01&ate=2026-10-20&mes=05'), '2026-10-15')).toMatchObject({ from: '2026-10-01', to: '2026-10-20', label: '01/10/2026 a 20/10/2026' });
+    expect(periodFrom(P('de=2026-10-01&ate=2026-10-20&mes=05'), '2026-10-15')).toMatchObject({ from: '2026-10-01', to: '2026-10-20', label: '01-10-2026 a 20-10-2026' });
     expect(periodFrom(P('de=2026-10-20&ate=2026-10-01'), '2026-10-15')).toMatchObject({ from: '2026-09-01' });
     expect(periodFrom(P('de=ontem&ate=2026-10-01'), '2026-10-15')).toMatchObject({ from: '2026-09-01' });
   });
