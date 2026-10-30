@@ -11,10 +11,12 @@
 -- 4. Os novos participantes recebem o aviso «Nova tarefa», como o responsável.
 -- Aditivo: não apaga registos nem obriga a preencher os campos novos nas tarefas antigas.
 
-alter table public.sec_items add column if not exists title text;
-alter table public.sec_items drop constraint if exists sec_items_title_check;
-alter table public.sec_items add constraint sec_items_title_check
-  check (title is null or length(trim(title)) between 1 and 120);
+-- (Chama-se task_title e não title para não ficar ambíguo nas funções antigas que juntam
+-- sec_items com reuniões e eventos, que também têm «title».)
+alter table public.sec_items add column if not exists task_title text;
+alter table public.sec_items drop constraint if exists sec_items_task_title_check;
+alter table public.sec_items add constraint sec_items_task_title_check
+  check (task_title is null or length(trim(task_title)) between 1 and 120);
 
 create table if not exists public.sec_item_participants (
   item_id uuid not null references public.sec_items (id) on delete cascade,
@@ -36,7 +38,7 @@ alter table public.sec_item_participants enable row level security;
 create or replace function private.ata_task_json(i public.sec_items, p_see boolean)
 returns jsonb language sql stable security definer set search_path = ''
 as $$
-  select jsonb_build_object('id', i.id, 'title', i.title, 'text', i.text, 'responsible_id', i.responsible_id,
+  select jsonb_build_object('id', i.id, 'title', i.task_title, 'text', i.text, 'responsible_id', i.responsible_id,
     'responsible_name', private.sec_name(i.responsible_id),
     'participants', coalesce((
       select jsonb_agg(jsonb_build_object('id', p.profile_id, 'name', private.sec_name(p.profile_id),
@@ -111,21 +113,21 @@ begin
     if a.id is null or not private.sec_can_see_as(a.meeting_id, auth.uid()) then raise exception 'Registo não encontrado.'; end if;
     b := a;
     -- Uma tarefa antiga sem título continua sem título se o formulário o deixar vazio.
-    b.title := v_title;
+    b.task_title := v_title;
     b.text := v_text; b.responsible_id := p_responsible; b.due_date := p_due; b.exec_status := coalesce(p_status, 'por_fazer');
     if b.exec_status = 'concluida' and a.exec_status <> 'concluida' then b.completed_at := now(); b.completed_by := auth.uid(); end if;
     if b.exec_status <> 'concluida' then b.completed_at := null; b.completed_by := null; end if;
     if b.exec_status is distinct from a.exec_status then b.status_changed_by := auth.uid(); b.status_changed_at := now(); end if;
     b.updated_by := auth.uid(); b.updated_at := now();
-    update public.sec_items set title = b.title, text = b.text, responsible_id = b.responsible_id, due_date = b.due_date,
+    update public.sec_items set task_title = b.task_title, text = b.text, responsible_id = b.responsible_id, due_date = b.due_date,
            exec_status = b.exec_status, completed_at = b.completed_at, completed_by = b.completed_by,
            status_changed_by = b.status_changed_by, status_changed_at = b.status_changed_at, updated_by = b.updated_by,
            updated_at = b.updated_at
      where id = a.id;
     perform private.sec_item_log(a, b, null);
-    if a.title is distinct from b.title then
+    if a.task_title is distinct from b.task_title then
       insert into public.sec_item_history (item_id, section_id, space, field, from_value, to_value, note, changed_by)
-      values (b.id, b.section_id, b.space, 'titulo', a.title, b.title, null, auth.uid());
+      values (b.id, b.section_id, b.space, 'titulo', a.task_title, b.task_title, null, auth.uid());
     end if;
     -- O responsável novo deixa de ser participante, mesmo sem lista nova.
     v_before := private.ata_participant_names(b.id);
@@ -140,7 +142,7 @@ begin
     select * into d from public.sec_minutes where id = p_ata and section_id = p_section and space = v_space and kind = 'ata';
     select * into m from public.sec_meetings where id = d.meeting_id;
     if d.id is null or m.status <> 'ativa' or not private.sec_can_see_as(m.id, auth.uid()) then raise exception 'Registo não encontrado.'; end if;
-    insert into public.sec_items (section_id, space, meeting_id, minute_id, kind, title, text, responsible_id, due_date, exec_status,
+    insert into public.sec_items (section_id, space, meeting_id, minute_id, kind, task_title, text, responsible_id, due_date, exec_status,
                                   cal_event_id, completed_at, completed_by, created_by, updated_by)
     values (p_section, v_space, m.id, d.id, 'tarefa', v_title, v_text, p_responsible, p_due, coalesce(p_status, 'por_fazer'), m.cal_event_id,
             case when p_status = 'concluida' then now() end, case when p_status = 'concluida' then auth.uid() end, auth.uid(), auth.uid())
@@ -154,7 +156,7 @@ begin
   v_notify := array(select distinct x from unnest(v_notify) x where x is distinct from auth.uid());
   if cardinality(v_notify) > 0 then
     perform private.module_notify(p_section, 'secretaria', v_space, v_notify, 'sec_tarefa', 'Nova tarefa',
-      left(coalesce(b.title, b.text), 160) || coalesce(' · prazo ' || to_char(b.due_date, 'DD-MM-YYYY'), ''), '/atas-e-tarefas/minhas');
+      left(coalesce(b.task_title, b.text), 160) || coalesce(' · prazo ' || to_char(b.due_date, 'DD-MM-YYYY'), ''), '/atas-e-tarefas/minhas');
   end if;
   perform private.audit(p_section, case when a.id is null then 'tarefa_criada' else 'tarefa_alterada' end, 'sec_item', b.id::text,
     jsonb_build_object('space', v_space, 'participantes_novos', coalesce(cardinality(v_added), 0)));

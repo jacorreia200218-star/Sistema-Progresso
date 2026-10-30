@@ -106,6 +106,17 @@ export async function disablePush() {
   await sub.unsubscribe();
 }
 
+/**
+ * Ao sair: este dispositivo deixa de receber as notificações desta conta (o servidor apaga o
+ * registo). A autorização do navegador fica, para voltar a ativar sem novo pedido.
+ */
+export async function forgetPushDevice() {
+  if (!supported()) return;
+  const reg = await navigator.serviceWorker.getRegistration('/');
+  const sub = await reg?.pushManager.getSubscription();
+  if (sub) await call('remove_push_subscription', { p_endpoint: sub.endpoint });
+}
+
 export const sendTestNotification = () => call('send_test_notification');
 
 /** Último envio aceite pelo serviço de push para este dispositivo (e o último erro). */

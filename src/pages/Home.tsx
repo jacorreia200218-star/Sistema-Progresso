@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, ClipboardList, Flag, MessageSquare, Route as 
 import { supabase } from '../lib/supabase';
 import { useActiveSection } from '../lib/session';
 import { useProgress, useTeams } from '../lib/hooks';
-import { fetchActivity, fetchPendingCounts, fetchSectionChoices, fetchSectionPath, fetchSectionRequests, fetchSectionStageRequests, type ActivityItem } from '../lib/api';
+import { fetchActivity, fetchPendingCounts, fetchSectionPath, type ActivityItem } from '../lib/api';
 import { memberPosition, milestoneByKey, STATE_LABEL } from '../lib/caminho';
 import { nextAction } from '../lib/progress';
 import { progressCounts } from '../lib/meuprogresso';
@@ -124,10 +124,6 @@ function LeaderHome() {
   const path = useQuery({ queryKey: ['section-path', membership.section_id], queryFn: () => fetchSectionPath(membership.section_id) });
   const teams = useTeams(membership.section_id);
   const navigate = useNavigate();
-  const ids = (path.data?.members ?? []).map((m) => m.membership_id);
-  const reqs = useQuery({ queryKey: ['section-requests', membership.section_id, 'pendentes'], queryFn: () => fetchSectionRequests(membership.section_id, ['submetido', 'em_revisao', 'validado_guias']) });
-  const choices = useQuery({ queryKey: ['choices', ids, 'proposta'], queryFn: () => fetchSectionChoices(ids, 'proposta'), enabled: ids.length > 0 });
-  const stages = useQuery({ queryKey: ['stage-requests', ids], queryFn: () => fetchSectionStageRequests(ids), enabled: ids.length > 0 });
   const activity = useQuery({ queryKey: ['activity', membership.section_id, 3], queryFn: () => fetchActivity(membership.section_id, 3) });
   const counts = useQuery({ queryKey: ['pending-counts', membership.section_id], queryFn: () => fetchPendingCounts(membership.section_id) });
 
@@ -137,11 +133,17 @@ function LeaderHome() {
   const activeTeams = (teams.data ?? []).filter((t) => !t.archived_at).length;
   const members = [...(path.data?.members ?? [])].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' }));
   const teamName = (id: string | null) => teams.data?.find((t) => t.id === id)?.name ?? 'Sem equipa';
-  // Cada pedido conta uma vez (negociação, trilhos e progresso anterior), como na caixa de entrada.
+  // Os mesmos contadores do menu e dos separadores do Acompanhamento (my_pending_counts):
+  // cada pedido conta uma vez (negociação, trilhos e progresso anterior).
   const c = counts.data ?? {};
-  const pendingReqs = counts.data ? (c.negociacao ?? 0) + (c.trilhos ?? 0) + (c.anterior ?? 0) : (reqs.data?.length ?? 0) + (choices.data?.length ?? 0);
-  const openStages = counts.data ? c.etapas ?? 0 : (stages.data ?? []).filter((x) => x.status === 'submetido' || x.status === 'decidido_conselho').length;
-  const others = [
+  const pendingReqs = counts.data ? (c.negociacao ?? 0) + (c.trilhos ?? 0) + (c.anterior ?? 0) : '…';
+  const openStages = counts.data ? c.etapas ?? 0 : '…';
+  // Por decidir: o que espera por um dirigente, por cima do mapa (sem percorrer o caminho).
+  const todo = [
+    { label: 'Negociações de trilhos', n: c.negociacao ?? 0, to: '/acompanhamento/pedidos?tipo=negociacao' },
+    { label: 'Pedidos de validação de trilhos', n: c.trilhos ?? 0, to: '/acompanhamento/pedidos?tipo=trilhos' },
+    { label: 'Progresso anterior por decidir', n: c.anterior ?? 0, to: '/acompanhamento/pedidos?tipo=anterior' },
+    { label: 'Etapas por validar', n: c.etapas ?? 0, to: '/acompanhamento/etapas' },
     ...(s.isAdmin ? [{ label: 'Pedidos de entrada por confirmar', n: c.gestao ?? 0, to: '/gestao/membros' }] : []),
   ].filter((i) => i.n > 0);
 
@@ -169,6 +171,22 @@ function LeaderHome() {
         { label: 'Etapas por validar', value: openStages, to: '/acompanhamento/etapas', tone: 'lilas', icon: Flag },
       ]} />
 
+      {counts.data && (todo.length > 0 ? (
+        <section className="card" aria-labelledby="h-pend">
+          <h2 id="h-pend">Por decidir</h2>
+          <ul className="list">
+            {todo.map((i) => (
+              <li key={i.label}>
+                <Link to={i.to} className="list-item">
+                  <span className="grow">{i.label}</span>
+                  <span className="count">{i.n}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : <p className="card faint" role="status">Sem pendentes.</p>)}
+
       <section className="card map-card" aria-labelledby="h-dist">
         <div className="row between">
           <h2 id="h-dist" style={{ margin: 0 }}>Onde estão</h2>
@@ -178,23 +196,6 @@ function LeaderHome() {
           onPick={(id) => navigate(`/caminho?pessoa=${id}`)} onMore={(k) => navigate(`/caminho?marco=${k}`)} />
       </section>
 
-      {others.length > 0 ? (
-        <section className="card" aria-labelledby="h-pend">
-          <h2 id="h-pend">Gestão</h2>
-          <ul className="list">
-            {others.map((i) => (
-              <li key={i.to}>
-                <Link to={i.to} className="list-item">
-                  <span className="grow">{i.label}</span>
-                  <span className="count">{i.n}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : pendingReqs === 0 && openStages === 0 ? (
-        <p className="card faint" role="status">Sem pendentes.</p>
-      ) : null}
 
       <section className="card" aria-labelledby="h-act">
         <div className="row between">

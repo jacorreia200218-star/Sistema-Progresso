@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Camera, KeyRound, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { signOut } from '../lib/signOut';
 import { useActiveSection } from '../lib/session';
 import { useTeams } from '../lib/hooks';
 import { call } from '../lib/api';
@@ -11,9 +12,11 @@ import { functionLabel, memberStatusLabel } from '../lib/labels';
 import { Avatar, ErrorBox, Field, Notice, PageTitle, PasswordInput } from '../components/ui';
 import { ThemeControl } from '../components/ThemeControl';
 import { PushSettings } from '../components/PushSettings';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Profile() {
   const s = useActiveSection();
+  const queryClient = useQueryClient();
   const teams = useTeams(s.membership.section_id);
   const action = useAction();
   const [name, setName] = useState(s.profile?.full_name ?? '');
@@ -143,7 +146,7 @@ export default function Profile() {
         </Field>
         <div className="btn-row">
           <button className="btn secondary" disabled={pwdAction.busy || pwd.length < 8}><KeyRound size={18} aria-hidden="true" /> Alterar palavra-passe</button>
-          <button type="button" className="btn ghost" onClick={() => supabase.auth.signOut()}><LogOut size={18} aria-hidden="true" /> Sair</button>
+          <button type="button" className="btn ghost" onClick={() => signOut(queryClient)}><LogOut size={18} aria-hidden="true" /> Sair</button>
         </div>
       </form>
       <p className="faint prose">Ferramenta de acompanhamento local. Não substitui os registos oficiais do CNE.</p>
