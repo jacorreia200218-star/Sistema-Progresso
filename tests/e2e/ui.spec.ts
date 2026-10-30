@@ -79,8 +79,12 @@ test('pioneiro não vê ecrãs de gestão', async ({ page }) => {
 test('dirigente e administração', async ({ page }, info) => {
   const mock = await installMock(page, leader());
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Gestão' })).toBeVisible();
-  await expect(page.getByText('Pedidos de entrada por confirmar')).toBeVisible();
+  // «Por decidir» por cima do mapa, com os contadores do menu (my_pending_counts).
+  const todo = page.getByRole('region', { name: 'Por decidir' });
+  await expect(todo).toBeVisible();
+  await expect(todo.getByText('Pedidos de entrada por confirmar')).toBeVisible();
+  const map = page.getByRole('region', { name: 'Onde estão' });
+  expect((await todo.boundingBox())!.y).toBeLessThan((await map.boundingBox())!.y);
   await noHorizontalScroll(page);
 
   await page.goto('/dirigentes/negociacao');
