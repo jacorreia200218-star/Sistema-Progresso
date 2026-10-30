@@ -150,6 +150,7 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const [yearParam, setYear] = useParam('ano');
   const [day, setDay] = useParam('dia');
   const [range, setRange] = useParam('livres_de');
+  const [pastParam, setPast] = useParam('anteriores');
   const narrow = useNarrow();
   const pending = usePendingSummary();
   const thisYear = yearOf(today, mode);
@@ -162,6 +163,11 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
   const withSeptember = p.yearFrom < p.from && all.some((e) => eventDays(e).from < p.from);
   const months = withSeptember ? [p.yearFrom.slice(0, 7), ...p.months] : p.months;
   const viewFrom = withSeptember ? p.yearFrom : p.from;
+  // No ano atual, o calendário começa no mês em que estamos: os meses que já passaram ficam
+  // escondidos (e abrem-se com «Ver meses anteriores»). Noutros anos mostram-se todos.
+  const past = year === thisYear ? months.filter((ym) => ym < monthOf(today)) : [];
+  const showPast = pastParam === '1';
+  const visible = showPast ? months : months.filter((ym) => !past.includes(ym));
   const marks = useMemo(() => dayMarks(viewFrom, p.to, cfg.data?.special_days ?? []), [viewFrom, p.to, cfg.data]);
   const busyAll = useMemo(() => busyDays(all, viewFrom, p.to), [all, viewFrom, p.to]);
   const busyShown = useMemo(() => (onlyMine ? busyDays(shown, viewFrom, p.to) : busyAll), [onlyMine, shown, busyAll, viewFrom, p.to]);
@@ -216,10 +222,15 @@ function YearView({ mode, onlyMine }: { mode: YearMode; onlyMine: boolean }) {
         <div className="cal-year-layout">
           {!narrow && <PendingStrip s={pending} />}
           <div className="cal-year-main">
-            <MonthJump months={months} today={today} />
+            <MonthJump months={visible} today={today} />
+            {past.length > 0 && (
+              <button type="button" className="btn ghost cal-past-toggle" aria-expanded={showPast} onClick={() => setPast(showPast ? '' : '1')}>
+                {showPast ? 'Esconder meses anteriores' : `Ver meses anteriores (${past.length})`}
+              </button>
+            )}
             {/* Os meses abertos, um por baixo do outro, como na vista «Mês». */}
             <div className="cal-year-open" aria-busy={!ready}>
-              {months.map((ym) => (
+              {visible.map((ym) => (
                 <section key={ym} id={`mes-${ym}`} className="cal-year-month" aria-labelledby={`cal-om-${ym}`}>
                   <h3 id={`cal-om-${ym}`} className="cal-year-month-title">
                     <Link to={`/calendario?vista=mes&mes=${ym}`} className="cal-mm-link">{monthLabel(ym)}</Link>

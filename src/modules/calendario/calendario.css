@@ -257,3 +257,4 @@ button.cal-counter[aria-pressed='true'] { background: var(--amber); color: var(-
 .cal-year-month-title::first-letter { text-transform: uppercase; }
 .cal-year-month-title { font-size: var(--fs-section) !important; margin: 0 0 8px 4px !important; font-weight: 700; color: var(--ink); }
 .cal-year-month .cal-month { margin-bottom: 0; }
+.cal-past-toggle { align-self: flex-start; margin: 0 0 8px; }
