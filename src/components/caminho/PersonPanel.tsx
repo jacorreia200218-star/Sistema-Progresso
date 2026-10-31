@@ -3,7 +3,7 @@
 // permissões do servidor.
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchMemberProgress, type PathMember } from '../../lib/api';
+import { canOpenPath, fetchMemberProgress, type PathMember } from '../../lib/api';
 import { memberPosition, milestoneByKey, STATE_LABEL } from '../../lib/caminho';
 import { nextAction } from '../../lib/progress';
 import type { Catalog } from '../../lib/types';
@@ -11,7 +11,8 @@ import { Avatar, ErrorBox, Loading } from '../ui';
 import { FaceisSummary } from './Faceis';
 
 export function PersonPanelBody({ member, catalog, teamName, role }: { member: PathMember; catalog: Catalog; teamName: (id: string | null) => string; role: 'dirigente' | 'guia' | 'outro' }) {
-  const q = useQuery({ queryKey: ['progress', member.membership_id], queryFn: () => fetchMemberProgress(member.membership_id) });
+  const open = canOpenPath(member);
+  const q = useQuery({ queryKey: ['progress', member.membership_id], queryFn: () => fetchMemberProgress(member.membership_id), enabled: open });
   const self = member.is_me;
   const base = self ? '/meu-progresso' : `/meu-progresso?pioneiro=${member.membership_id}`;
   const join = base.includes('?') ? '&' : '?';
@@ -25,7 +26,12 @@ export function PersonPanelBody({ member, catalog, teamName, role }: { member: P
           <span className="faint">{teamName(member.team_id)}{member.function === 'guia' ? ' · Guia' : ''}{member.totem ? ` · ${member.totem}` : ''}</span>
         </div>
       </div>
-      {q.isLoading ? <Loading rows={2} compact /> : q.error || !q.data ? <ErrorBox error={q.error ?? 'Sem acesso a este percurso.'} /> : (() => {
+      {!open ? (
+        <dl className="meta">
+          <dt>Etapa atual</dt>
+          <dd><strong>{milestoneByKey[member.milestone as keyof typeof milestoneByKey]?.name ?? '—'}</strong></dd>
+        </dl>
+      ) : q.isLoading ? <Loading rows={2} compact /> : q.error || !q.data ? <ErrorBox error={q.error ?? 'Sem acesso a este percurso.'} /> : (() => {
         const p = q.data;
         const pos = memberPosition(p, catalog);
         const action = nextAction(catalog, p, self ? { kind: 'self' } : { kind: role, membershipId: member.membership_id });
@@ -44,10 +50,10 @@ export function PersonPanelBody({ member, catalog, teamName, role }: { member: P
           </>
         );
       })()}
-      <div className="btn-row">
+      {open && <div className="btn-row">
         <Link to={`${base}${join}vista=caminho`} className="btn">Ver percurso</Link>
         <Link to={`${base}${join}vista=areas`} className="btn secondary">Ver trilhos</Link>
-      </div>
+      </div>}
     </div>
   );
 }

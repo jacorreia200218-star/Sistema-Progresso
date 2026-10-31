@@ -2,10 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { asUser, buildWorld, expectError, pool, rpc, trailsByArea, type World } from './helpers';
 
 let w: World;
+let other: World;
 let byArea: Awaited<ReturnType<typeof trailsByArea>>;
 
 beforeAll(async () => {
   w = await buildWorld('ficheiros');
+  other = await buildWorld('ficheiros-outro');
   byArea = await trailsByArea();
 });
 afterAll(() => pool.end());
@@ -23,14 +25,19 @@ describe('armazenamento privado', () => {
     expect(Number(b.rows.find((x) => x.id === 'fotografias').file_size_limit)).toBeLessThanOrEqual(2 * 1024 * 1024);
   });
 
-  it('fotografia só na própria pasta; visível apenas a quem pode ver o perfil', async () => {
+  it('fotografia só na própria pasta; visível à secção (mapa do caminho), não a outros agrupamentos', async () => {
     await upload(w.users.P1, 'fotografias', `${w.users.P1}/foto.jpg`);
     await expectError(upload(w.users.P1, 'fotografias', `${w.users.P2}/foto.jpg`), 'row-level security');
     await rpc(w.users.P1, 'set_my_photo', { p_path: `${w.users.P1}/foto.jpg` });
     await expectError(rpc(w.users.P1, 'set_my_photo', { p_path: `${w.users.P2}/foto.jpg` }), 'inválido');
     const q = `select name from storage.objects where bucket_id = 'fotografias' and name = $1`;
     expect(await asUser(w.users.GuiaA, q, [`${w.users.P1}/foto.jpg`])).toHaveLength(1); // mesma equipa
-    expect(await asUser(w.users.P3, q, [`${w.users.P1}/foto.jpg`])).toHaveLength(0); // outra equipa
+    expect(await asUser(w.users.P3, q, [`${w.users.P1}/foto.jpg`])).toHaveLength(1); // outra equipa, mesma secção
+    expect(await asUser(other.users.P3, q, [`${w.users.P1}/foto.jpg`])).toHaveLength(0); // outro agrupamento
+    // O perfil (nome, totem, fotografia) também; a inscrição continua só a quem a acompanha.
+    expect(await asUser(w.users.P3, `select id from public.profiles where id = $1`, [w.users.P1])).toHaveLength(1);
+    expect(await asUser(other.users.P3, `select id from public.profiles where id = $1`, [w.users.P1])).toHaveLength(0);
+    expect(await asUser(w.users.P3, `select id from public.memberships where id = $1`, [w.members.P1])).toHaveLength(0);
   });
 
   it('anexos: carregar só em rascunho próprio; ler só com permissão; imutáveis após submissão', async () => {
