@@ -60,6 +60,7 @@ async function mockEquipas(page: Page, manage = true) {
     if (!fn.startsWith('eq_')) return route.fallback();
     calls.push({ fn, body });
     if (fn === 'eq_overview') return ok(route, s);
+    if (fn === 'eq_role_grants') return ok(route, [{ role_id: 'r-int', permission: 'inventario.gerir' }]);
     if (fn === 'eq_appoint') {
       if (s.appointments.some((a) => a.role_id === body.p_role && a.team_id === body.p_team && !a.ends_on && !a.cancelled_at && body.p_role !== 'r-int')) {
         return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'P0001', message: 'A equipa Equipa Andorinha já tem Guia nesse período (Guia Teste). Termina primeiro essa nomeação.' }) });
@@ -217,8 +218,8 @@ test('quem só consulta não vê ações de gestão', async ({ page }) => {
   await expect(main.getByText('Cuida do material da equipa.')).toBeVisible();
   await expect(main.getByRole('button', { name: /Editar/ })).toHaveCount(0);
   await expect(main.getByRole('button', { name: 'Novo cargo' })).toHaveCount(0);
-  await expect(main).toContainText('Um cargo não dá permissões');
-  expect(calls.every((c) => c.fn === 'eq_overview')).toBe(true);
+  await expect(main).toContainText('Um cargo só dá permissões na aplicação quando a administração o escolhe');
+  expect(calls.every((c) => ['eq_overview', 'eq_role_grants'].includes(c.fn))).toBe(true);
   await noHorizontalScroll(page);
 });
 
@@ -228,6 +229,9 @@ test('cargos: o formulário de novo cargo só aparece ao escolher a ação', asy
   await page.goto('/equipas-e-cargos?vista=cargos');
   const main = page.locator('main');
   await expect(main.getByText('Cuida do material da equipa.')).toBeVisible();
+  // O cargo mostra a permissão que a administração lhe ligou em Gestão › Módulos
+  await expect(main.locator('.eq-role', { hasText: 'Intendente' }).locator('.badge', { hasText: 'Pode alterar o Inventário' })).toBeVisible();
+  await expect(main.locator('.eq-role', { hasText: 'Subguia' }).locator('.badge', { hasText: 'Pode alterar' })).toHaveCount(0);
   await expect(main.getByRole('form', { name: 'Novo cargo' })).toHaveCount(0);
   await main.getByRole('button', { name: 'Novo cargo' }).click();
   const form = main.getByRole('form', { name: 'Novo cargo' });

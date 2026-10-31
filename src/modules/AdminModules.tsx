@@ -11,12 +11,20 @@ import { ConfirmButton, ErrorBox, Field, Loading, Notice } from '../components/u
 import { MODULE_PERMISSIONS, MODULE_STATUS_LABEL, type ModuleKey, type ModuleStatus } from './common';
 
 type Overview = { module: ModuleKey; status: ModuleStatus; testers: string[]; grants: { permission: string; profile_id: string }[] };
+type RoleGrants = {
+  roles: { id: string; name: string }[];
+  links: { role_id: string; permission: string }[];
+  holders: { permission: string; profile_id: string; full_name: string; role_name: string; team_name: string | null }[];
+};
+/** Permissões que um cargo de equipa pode dar (o servidor recusa as restantes). */
+const ROLE_PERMISSIONS = ['tesouraria.gerir', 'inventario.gerir'];
 
 export function AdminModules() {
   const s = useActiveSection();
   const section = s.membership.section_id;
   const q = useQuery({ queryKey: ['module-admin', section], queryFn: () => call<Overview[]>('module_admin_overview', { p_section: section }) });
   const members = useMembers(section);
+  const rg = useQuery({ queryKey: ['module-role-grants', section], queryFn: () => call<RoleGrants>('module_role_grants_overview', { p_section: section }) });
   if (q.isLoading || members.isLoading) return <Loading />;
   if (q.error) return <ErrorBox error={q.error} retry={() => q.refetch()} />;
   const active = (members.data ?? []).filter((m) => m.status === 'ativo');
@@ -29,13 +37,13 @@ export function AdminModules() {
       </p>
       {FUTURE_AREAS.map((a) => {
         const o = q.data?.find((x) => x.module === a.key);
-        return o ? <ModuleCard key={a.key} name={a.name} o={o} members={active.map((m) => ({ id: m.profile_id, name: m.profiles?.full_name ?? '?' }))} section={section} /> : null;
+        return o ? <ModuleCard key={a.key} name={a.name} o={o} rg={rg.data} members={active.map((m) => ({ id: m.profile_id, name: m.profiles?.full_name ?? '?' }))} section={section} /> : null;
       })}
     </>
   );
 }
 
-function ModuleCard({ name, o, members, section }: { name: string; o: Overview; members: { id: string; name: string }[]; section: string }) {
+function ModuleCard({ name, o, rg, members, section }: { name: string; o: Overview; rg?: RoleGrants; members: { id: string; name: string }[]; section: string }) {
   const action = useAction();
   const [status, setStatus] = useState<ModuleStatus>(o.status);
   const [move, setMove] = useState(false);
@@ -99,7 +107,12 @@ function ModuleCard({ name, o, members, section }: { name: string; o: Overview; 
         </button>
       </div>
 
-      {MODULE_PERMISSIONS[o.module].map((p) => <GrantRow key={p.key} p={p} o={o} members={members} section={section} action={action} />)}
+      {MODULE_PERMISSIONS[o.module].map((p) => (
+        <div key={p.key}>
+          <GrantRow p={p} o={o} members={members} section={section} action={action} />
+          {rg && ROLE_PERMISSIONS.includes(p.key) && <RoleGrantRow p={p} rg={rg} section={section} action={action} />}
+        </div>
+      ))}
     </section>
   );
 }
@@ -137,6 +150,43 @@ function GrantRow({ p, o, members, section, action }: {
           Atribuir
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Cargos de equipa que dão a permissão: quem está nomeado tem-na enquanto a nomeação durar. */
+function RoleGrantRow({ p, rg, section, action }: {
+  p: { key: string; label: string }; rg: RoleGrants; section: string; action: ReturnType<typeof useAction>;
+}) {
+  const linked = new Set(rg.links.filter((l) => l.permission === p.key).map((l) => l.role_id));
+  const holders = rg.holders.filter((h) => h.permission === p.key);
+  return (
+    <div className="grant-row">
+      <fieldset className="role-grants">
+        <legend className="label">Cargos que dão «{p.label}»</legend>
+        {rg.roles.length === 0 ? <p className="faint">Ainda não há cargos em Equipas e cargos.</p> : (
+          <div className="role-grant-options">
+            {rg.roles.map((r) => (
+              <label key={r.id} className="checkbox">
+                <input type="checkbox" checked={linked.has(r.id)} disabled={action.busy}
+                  onChange={(e) => action.run(() => call('set_module_role_grant', { p_section: section, p_role: r.id, p_permission: p.key, p_on: e.target.checked }),
+                    e.target.checked ? `«${r.name}» passa a dar «${p.label}».` : `«${r.name}» deixa de dar «${p.label}».`)} />
+                {' '}{r.name}
+              </label>
+            ))}
+          </div>
+        )}
+        <p className="faint prose">Quem está nomeado para um destes cargos tem a permissão enquanto a nomeação durar. Os dirigentes não a recebem por cargo.</p>
+      </fieldset>
+      {holders.length > 0 && (
+        <ul className="chip-list" aria-label={`Com «${p.label}» por cargo`}>
+          {holders.map((h) => (
+            <li key={`${h.profile_id}-${h.role_name}`} className="chip chip-static">
+              {h.full_name} <span className="faint">· {h.role_name}{h.team_name ? ` · ${h.team_name}` : ''}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
