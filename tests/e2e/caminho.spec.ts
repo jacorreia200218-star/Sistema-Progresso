@@ -35,14 +35,32 @@ for (const theme of ['light', 'dark'] as const) {
   });
 }
 
-test('caminho da secção para o pioneiro: só o próprio nome e contagens dos outros', async ({ page }) => {
-  await installMock(page, pioneer());
-  await page.goto('/caminho');
-  await expect(page.getByText(/Vês o teu nome; dos outros pioneiros/)).toBeVisible();
-  await expect(page.getByRole('button', { name: /Pedro Teste \(tu\)/ })).toBeVisible();
-  await expect(page.getByText('Diogo Fictício')).toHaveCount(0);
-  await expect(page.locator('.track-step', { hasText: 'Conhecimento' })).toContainText('+3 outros');
-});
+for (const theme of ['light', 'dark'] as const) {
+  test(`mapa do caminho para o pioneiro: todos com nome no Início; só abre o próprio percurso (${theme})`, async ({ page }, info) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await installMock(page, pioneer());
+    await page.goto('/');
+    const map = page.locator('section.map-card', { has: page.getByRole('heading', { name: 'Onde estão' }) });
+    await expect(map).toBeVisible();
+    const conhecimento = map.locator('.track-step', { hasText: 'Conhecimento' });
+    await expect(conhecimento).toContainText('4 pessoas');
+    await expect(conhecimento.getByRole('button', { name: /Pedro Teste \(tu\)/ })).toBeVisible();
+    await expect(conhecimento.getByRole('button', { name: /^Diogo Fictício/ })).toBeVisible();
+    await expect(map).not.toContainText('outros');
+    await noHorizontalScroll(page);
+    await page.screenshot({ path: `test-results/inicio-mapa-pioneiro-${info.project.name}-${theme}.png`, fullPage: true });
+
+    // Outra pessoa: nome, equipa e marco, sem percurso
+    await conhecimento.getByRole('button', { name: /^Diogo Fictício/ }).click();
+    await expect(page).toHaveURL(/\/caminho\?pessoa=/);
+    const panel = page.getByRole('dialog', { name: 'Percurso' });
+    await expect(panel).toContainText('Diogo Fictício');
+    await expect(panel).toContainText('Conhecimento');
+    await expect(panel.locator('.faceis-row')).toHaveCount(0);
+    await expect(panel.getByRole('link', { name: 'Ver percurso' })).toHaveCount(0);
+    await page.screenshot({ path: `test-results/inicio-mapa-pioneiro-painel-${info.project.name}-${theme}.png` });
+  });
+}
 
 for (const theme of ['light', 'dark'] as const) {
   test(`caminho da secção do dirigente: avatares, painel, pesquisa e equipa (${theme})`, async ({ page }, info) => {

@@ -109,7 +109,7 @@ describe('reconhecimento na negociação (p. 10)', () => {
 });
 
 describe('caminho da secção e permissões no servidor', () => {
-  it('dirigente vê todos com nomes; guia só a sua equipa; pioneiro só a si próprio', async () => {
+  it('todos veem o mapa com nomes; só abre o percurso quem o acompanha', async () => {
     const lead = await rpc(w.users.Ana, 'section_path', { p_section: w.section });
     expect(lead.scope).toBe('seccao');
     expect(lead.total).toBe(5); // GuiaA, GuiaB, P1, P2, P3
@@ -118,32 +118,42 @@ describe('caminho da secção e permissões no servidor', () => {
     expect(lead.counts.inicio_pista).toBe(3);
     expect(lead.counts.conhecimento).toBe(1);
 
+    expect(lead.members.every((m: any) => m.can_open && m.state)).toBe(true);
+    const openIds = (r: any) => r.members.filter((m: any) => m.can_open).map((m: any) => m.membership_id).sort();
+
     const guia = await rpc(w.users.GuiaA, 'section_path', { p_section: w.section });
-    expect(guia.members.map((m: any) => m.membership_id).sort()).toEqual([w.members.GuiaA, w.members.P1, w.members.P2].sort());
+    expect(guia.members).toHaveLength(5);
+    expect(openIds(guia)).toEqual([w.members.GuiaA, w.members.P1, w.members.P2].sort());
     expect(guia.total).toBe(5);
 
     const pio = await rpc(w.users.P3, 'section_path', { p_section: w.section });
-    expect(pio.members).toHaveLength(1);
-    expect(pio.members[0]).toMatchObject({ membership_id: w.members.P3, is_me: true, milestone: 'conhecimento' });
-    expect(pio.counts).toEqual(lead.counts); // contagens agregadas, sem nomes
+    expect(pio.members).toHaveLength(5);
+    expect(openIds(pio)).toEqual([w.members.P3]);
+    expect(pio.members.find((m: any) => m.is_me)).toMatchObject({ membership_id: w.members.P3, milestone: 'conhecimento' });
+    // De quem não acompanha: marco sim, estado não.
+    const other = pio.members.find((m: any) => m.membership_id === w.members.P1);
+    expect(other).toMatchObject({ can_open: false, state: null });
+    expect(other.milestone).toBeTruthy();
+    expect(pio.counts).toEqual(lead.counts);
 
     // Nada de conteúdo pessoal nesta vista
     const keys = new Set(lead.members.flatMap((m: any) => Object.keys(m)));
     for (const k of ['reflection', 'experiences', 'notes', 'comment', 'storage_path']) expect(keys.has(k)).toBe(false);
   });
 
-  it('administração técnica sem função pedagógica só vê contagens; outro agrupamento não tem acesso', async () => {
+  it('administração técnica vê o mapa sem abrir percursos; outro agrupamento não tem acesso', async () => {
     const t = await rpc(w.users.Tecnico, 'section_path', { p_section: w.section });
-    expect(t.members).toHaveLength(0);
+    expect(t.members).toHaveLength(5);
+    expect(t.members.some((m: any) => m.can_open)).toBe(false);
     expect(t.total).toBe(5);
     await expectError(rpc(other.users.Ana, 'section_path', { p_section: w.section }), 'Sem acesso');
     await expectError(rpc(null, 'section_path', { p_section: w.section }), 'permission denied');
   });
 
-  it('antigo guia deixa de ver os nomes da equipa no caminho', async () => {
+  it('antigo guia deixa de abrir os percursos da equipa no caminho', async () => {
     await rpc(w.users.Ana, 'update_membership', { p_membership: w.members.GuiaA, p_function: 'pioneiro', p_team: w.teamA, p_is_admin: false, p_reason: 'Teste' });
     const g = await rpc(w.users.GuiaA, 'section_path', { p_section: w.section });
-    expect(g.members.map((m: any) => m.membership_id)).toEqual([w.members.GuiaA]);
+    expect(g.members.filter((m: any) => m.can_open).map((m: any) => m.membership_id)).toEqual([w.members.GuiaA]);
     await rpc(w.users.Ana, 'update_membership', { p_membership: w.members.GuiaA, p_function: 'guia', p_team: w.teamA, p_is_admin: false, p_reason: 'Regresso' });
   });
 

@@ -7,7 +7,7 @@ import { Search } from 'lucide-react';
 import { useActiveSection } from '../lib/session';
 import { LeadersHeader } from '../components/LeadersHeader';
 import { useTeams } from '../lib/hooks';
-import { fetchSectionPath, type PathMember } from '../lib/api';
+import { canOpenPath, fetchSectionPath, type PathMember } from '../lib/api';
 import { MILESTONES, milestoneByKey, type MilestoneKey } from '../lib/caminho';
 import { Avatar, Empty, ErrorBox, Loading, PageTitle } from '../components/ui';
 import { SidePanel } from '../components/nav';
@@ -112,9 +112,6 @@ export default function Caminho() {
                 </label>
               )}
             </div>
-            {path.data?.scope !== 'seccao' && (
-              <p className="faint">{isMember && path.data?.scope === 'proprio' ? 'Vês o teu nome; dos outros pioneiros, quantos estão em cada marco.' : 'Vês os nomes da tua equipa; das outras, quantos estão em cada marco.'}</p>
-            )}
             {filtering && !filtered.length && <p className="faint" role="status">Ninguém corresponde à pesquisa.</p>}
             {vista === 'mapa' ? (
               <section className="card map-card" aria-label="Mapa do caminho da secção">
@@ -122,7 +119,7 @@ export default function Caminho() {
                   onPick={(id) => set({ pessoa: id, marco: null })} onMore={(k) => set({ marco: k, pessoa: null })} />
               </section>
             ) : (
-              <TeamView people={filtered} catalog={catalog} areaCode={areaCode} teamName={teamName} sectionId={membership.section_id}
+              <TeamView people={filtered.filter(canOpenPath)} catalog={catalog} areaCode={areaCode} teamName={teamName} sectionId={membership.section_id}
                 onPick={(id) => set({ pessoa: id, marco: null })} />
             )}
             <details className="more">
