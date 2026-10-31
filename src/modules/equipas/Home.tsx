@@ -1,5 +1,6 @@
 // Página inicial do módulo: equipas (por ano escutista), pessoas e cargos.
 import { useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Plus, Search } from 'lucide-react';
 import { call } from '../../lib/api';
@@ -31,7 +32,7 @@ export default function Home() {
         info={(
           <>
             <p>Quem está em cada equipa e que cargos tem, por ano escutista (de 1 de setembro a 31 de agosto). O ano atual é {o.year}.</p>
-            <p>Os cargos são responsabilidades dentro da equipa. Um cargo não dá permissões na aplicação (administração, tesouraria ou documentos): essas são atribuídas à parte, pela administração.</p>
+            <p>Os cargos são responsabilidades dentro da equipa. Um cargo só dá permissões na aplicação quando a administração o escolhe (por exemplo, o tesoureiro na Tesouraria): o cargo mostra-o, e a permissão acaba quando a nomeação termina.</p>
             {!o.can_manage && <p>Só os dirigentes e quem tem essa permissão alteram equipas e cargos.</p>}
           </>
         )}
@@ -157,6 +158,11 @@ function Roles({ o, creating, setCreating }: { o: EqOverview; creating: boolean;
   const section = useSectionId();
   const seed = useAction();
   const [editing, setEditing] = useState<string | null>(null);
+  const grants = useQuery({
+    queryKey: ['eq-role-grants', section],
+    queryFn: () => call<{ role_id: string; permission: string }[]>('eq_role_grants', { p_section: section }),
+  });
+  const gives = (id: string) => (grants.data ?? []).filter((g) => g.role_id === id).map((g) => ROLE_GRANT_LABEL[g.permission]).filter(Boolean);
   const active = o.roles.filter((r) => !r.archived_at);
   const archived = o.roles.filter((r) => r.archived_at);
   return (
@@ -192,6 +198,7 @@ function Roles({ o, creating, setCreating }: { o: EqOverview; creating: boolean;
                       <div className="eq-role-head">
                         <h2>{r.name}</h2>
                         <Badge label={r.kind === 'cargo' ? (r.single ? 'Um por equipa' : 'Vários por equipa') : `${ROLE_KIND_LABEL[r.kind]} · um por equipa`} tone="neutral" />
+                        {gives(r.id).map((g) => <Badge key={g} label={g} tone="progress" />)}
                       </div>
                       <p className="eq-duties">{r.description || <span className="faint">Sem responsabilidades descritas.</span>}</p>
                     </div>
@@ -219,6 +226,12 @@ function Roles({ o, creating, setCreating }: { o: EqOverview; creating: boolean;
     </>
   );
 }
+
+/** Permissões que a administração ligou ao cargo (Gestão › Módulos). */
+const ROLE_GRANT_LABEL: Record<string, string> = {
+  'tesouraria.gerir': 'Pode alterar a Tesouraria',
+  'inventario.gerir': 'Pode alterar o Inventário',
+};
 
 function ArchiveRole({ role }: { role: EqRole }) {
   const section = useSectionId();
