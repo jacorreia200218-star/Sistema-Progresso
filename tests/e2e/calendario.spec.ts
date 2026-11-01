@@ -295,7 +295,8 @@ test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', as
   await expect(page.getByLabel('Hora de início')).toBeHidden();
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
   await page.getByLabel('Evento', { exact: true }).fill('Jogo de cidade (teste)');
-  await page.getByLabel('Repetir todas as semanas até').uncheck();
+  await expect(page.getByLabel('Repetir todas as semanas até')).not.toBeChecked();
+  await expect(page.getByLabel('Repetir até')).toHaveCount(0);
   await page.getByText('Mais opções').click();
   // Por omissão, a reunião de sábado (14:30–16:00); sem horas fica de dia inteiro.
   await expect(page.getByLabel('Hora de início')).toHaveValue('14:30');
@@ -441,8 +442,7 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await page.getByLabel('Evento', { exact: true }).fill('Fogo de conselho (teste)');
   await page.getByLabel('Data', { exact: true }).fill('25-10-2026');
   await page.getByLabel('Notas (opcional)').fill('Trazer lenha.');
-  await expect(page.getByLabel('Repetir todas as semanas até')).toBeChecked();
-  await page.getByLabel('Repetir todas as semanas até').uncheck();
+  await expect(page.getByLabel('Repetir todas as semanas até')).not.toBeChecked();
   await page.getByText('Mais opções').click();
   await page.getByLabel('Local', { exact: true }).fill('Sede (teste)');
   await page.getByLabel('Hora de início').fill('10:00');
@@ -516,13 +516,14 @@ test('dirigente marca pendências e cancela', async ({ page }) => {
   await noHorizontalScroll(page);
 });
 
-test('nova atividade semanal: a reunião de sábado repete-se até ao fim do ano escutista', async ({ page }) => {
+test('nova atividade semanal: só se repete quando se pede, até ao fim do ano escutista', async ({ page }) => {
   await installMock(page, leader());
   const cal = await installCalendar(page, 'ana');
   await page.goto('/calendario/nova?dia=2026-10-17');
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
   await expect(page.getByLabel('Data', { exact: true })).toHaveValue('17-10-2026');
-  await expect(page.getByLabel('Repetir todas as semanas até')).toBeChecked();
+  await expect(page.getByLabel('Repetir todas as semanas até')).not.toBeChecked();
+  await page.getByLabel('Repetir todas as semanas até').check();
   await expect(page.getByLabel('Repetir até')).toHaveValue('31-08-2027');
   await page.getByLabel('Repetir até').fill('07-11-2026');
   await page.getByRole('button', { name: 'Criar atividade' }).click();
