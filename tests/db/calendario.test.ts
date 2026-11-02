@@ -279,6 +279,55 @@ describe('notificações de alteração e cancelamento', () => {
   });
 });
 
+describe('eliminar atividades', () => {
+  const del = (who: string, id: string, following = false, dry = false) =>
+    rpc<number>(w.users[who], 'cal_delete_event', { p_section: S(), p_event: id, p_following: following, p_dry_run: dry });
+  const ids = (title: string) => admin<{ id: string; status: string }>(
+    `select id, status from public.cal_events where section_id = $1 and title = $2
+      order by coalesce(start_date, (starts_at at time zone 'Europe/Lisbon')::date)`, [S(), title]);
+
+  it('só quem gere elimina; a atividade sai com os lembretes, fica na auditoria e os envolvidos são avisados', async () => {
+    const id = await create('Rui', timed('Jogo por engano', 9 * D));
+    expect(active(await reminders(id)).length).toBeGreaterThan(0);
+    await expectDenied(del('P1', id), 'permissão');
+    await admin(`delete from public.notifications where section_id = $1`, [S()]);
+    expect(await del('Tecnico', id)).toBe(1);
+    expect(await ids('Jogo por engano')).toEqual([]);
+    expect(active(await reminders(id))).toEqual([]);
+    const audit = await admin(`select details from public.audit_log where action = 'cal_evento_eliminado' and entity_id = $1`, [id]);
+    expect(audit[0].details.atividade.title).toBe('Jogo por engano');
+    const n = await admin(`select profile_id, title, link from public.notifications where section_id = $1 and kind = 'cal_evento_cancelado'`, [S()]);
+    expect(n.length).toBeGreaterThan(0);
+    expect(n.every((x) => x.profile_id !== w.users.Tecnico)).toBe(true);
+    expect(n[0]).toMatchObject({ title: '[Teste] Atividade eliminada: Jogo por engano', link: '/calendario' });
+    await expectDenied(get('Rui', id), 'não encontrado');
+  });
+
+  it('série semanal: só esta data, ou esta e as seguintes; as anteriores e outras atividades ficam', async () => {
+    const first = new Date(Date.now() + 10 * D);
+    const until = new Date(first.getTime() + 28 * D).toISOString().slice(0, 10);
+    const n = await rpc<number>(w.users.Rui, 'cal_create_weekly', { p_section: S(), p_data: timed('Francesinhas', 10 * D), p_until: until });
+    expect(n).toBe(5);
+    const other = await create('Rui', timed('Francesinhas', 50 * D)); // mesmo título, criada à parte
+    let all = await ids('Francesinhas');
+    expect(all).toHaveLength(6);
+    expect(await del('Rui', all[1].id, false)).toBe(1);
+    all = await ids('Francesinhas');
+    expect(all).toHaveLength(5);
+    expect(await del('Rui', all[1].id, true, true)).toBe(3); // só conta
+    expect(await ids('Francesinhas')).toHaveLength(5);
+    expect(await del('Rui', all[1].id, true)).toBe(3);
+    all = await ids('Francesinhas');
+    expect(all.map((x) => x.id)).toHaveLength(2);
+    expect(all[1].id).toBe(other);
+    // Uma atividade cancelada também se pode eliminar.
+    await rpc(w.users.Rui, 'cal_cancel_event', { p_section: S(), p_event: all[0].id, p_reason: null });
+    expect(await del('Rui', all[0].id)).toBe(1);
+    expect(await del('Rui', other)).toBe(1);
+    expect(await ids('Francesinhas')).toEqual([]);
+  });
+});
+
 describe('horas em Europe/Lisbon (mudança de hora a 25/10/2026)', () => {
   it('«1 dia antes» mantém a hora de parede; dias inteiros às 09:00', async () => {
     const before = async (ref: string, m: number) =>
