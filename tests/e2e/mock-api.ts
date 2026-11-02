@@ -153,7 +153,7 @@ export function pioneer(): Persona {
       ...progressRows(),
     },
     rpc: {
-      section_path: { scope: 'proprio', total: pathMembers.length, counts, members: pathMembers.filter((m) => m.membership_id === 'm-p1').map((m) => ({ ...m, is_me: true })) },
+      section_path: { scope: 'proprio', total: pathMembers.length, counts, members: pathMembers.map((m) => (m.membership_id === 'm-p1' ? { ...m, is_me: true, can_open: true } : { ...m, state: null, can_open: false })) },
       my_pending_counts: { pedidos: 2 },
       section_activity: [],
     },

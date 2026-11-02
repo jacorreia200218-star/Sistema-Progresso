@@ -1,19 +1,19 @@
 // Quem está a ser consultado no «Meu progresso»: o próprio pioneiro/guia ou,
 // em modo de consulta, um pioneiro autorizado (dirigente: toda a secção; guia:
-// a sua equipa). A autorização vem do servidor (section_path) e as leituras
+// a sua equipa). A autorização vem do servidor (section_path, can_open) e as leituras
 // continuam protegidas por RLS. Nunca se cria percurso para o dirigente.
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useActiveSection } from '../../lib/session';
 import { useProgress } from '../../lib/hooks';
-import { fetchExperiences, fetchSectionPath, type PathMember } from '../../lib/api';
+import { canOpenPath, fetchExperiences, fetchSectionPath, type PathMember } from '../../lib/api';
 
 export function useSubject() {
   const s = useActiveSection();
   const [params] = useSearchParams();
   const requested = params.get('pioneiro');
   const path = useQuery({ queryKey: ['section-path', s.membership.section_id], queryFn: () => fetchSectionPath(s.membership.section_id) });
-  const authorized = (path.data?.members ?? []).filter((m) => !m.is_me || s.isMember).sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' }));
+  const authorized = (path.data?.members ?? []).filter((m) => canOpenPath(m) && (!m.is_me || s.isMember)).sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' }));
   const consulted = requested && requested !== s.membership.id ? authorized.find((m) => m.membership_id === requested) : undefined;
   const subjectId = consulted ? consulted.membership_id : s.isMember ? s.membership.id : null;
   const isSelf = !!subjectId && subjectId === s.membership.id;
