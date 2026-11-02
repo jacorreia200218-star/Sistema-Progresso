@@ -2,7 +2,7 @@
 -- Cola no SQL Editor e carrega em «Run» UMA vez. Não apaga registos nem muda permissões já dadas:
 -- nenhum cargo dá permissões até escolheres em Gestão › Módulos.
 
--- ===== supabase/migrations/20261102000100_cargos_permissoes.sql =====
+-- ===== supabase/migrations/20261102000200_cargos_permissoes.sql =====
 -- Pioneiros — Cargos que dão permissões (tesoureiro e guarda do material).
 --
 -- 1. A administração escolhe, em Gestão › Módulos, que cargos dão cada permissão de alteração:

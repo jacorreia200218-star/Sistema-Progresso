@@ -240,9 +240,14 @@ export interface PathMember {
   team_id: string | null;
   function: 'pioneiro' | 'guia';
   milestone: string;
-  state: string;
+  /** Só vem para quem pode abrir o percurso (o próprio, o guia da equipa, os dirigentes). */
+  state: string | null;
+  /** Quem pergunta pode abrir o percurso desta pessoa? (Sem o campo: servidor antigo, só vinham estas.) */
+  can_open?: boolean;
   is_me: boolean;
 }
+
+export const canOpenPath = (m: PathMember) => m.can_open !== false;
 
 export interface SectionPath {
   scope: 'seccao' | 'equipa' | 'proprio';

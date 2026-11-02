@@ -15,6 +15,30 @@ import { StatCards } from '../components/nav';
 import { MeritCard } from '../components/StagePanel';
 import { SectionMap } from '../components/caminho/SectionMap';
 
+// «Onde estão»: o mapa do caminho de toda a secção, igual para todos (pioneiros, guias e
+// dirigentes). Tocar numa pessoa abre-a no Caminho da secção.
+function WhereTheyAre() {
+  const { membership } = useActiveSection();
+  const path = useQuery({ queryKey: ['section-path', membership.section_id], queryFn: () => fetchSectionPath(membership.section_id) });
+  const teams = useTeams(membership.section_id);
+  const navigate = useNavigate();
+  if (path.isLoading) return <Loading rows={2} compact />;
+  if (path.error) return <ErrorBox error={path.error} retry={path.refetch} />;
+  const members = [...(path.data?.members ?? [])].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' }));
+  if (!members.length) return null;
+  const teamName = (id: string | null) => teams.data?.find((t) => t.id === id)?.name ?? 'Sem equipa';
+  return (
+    <section className="card map-card" aria-labelledby="h-dist">
+      <div className="row between">
+        <h2 id="h-dist" style={{ margin: 0 }}>Onde estão</h2>
+        <Link to="/caminho" className="btn ghost">Caminho da secção</Link>
+      </div>
+      <SectionMap visible={members} counts={path.data?.counts ?? {}} teamName={teamName}
+        onPick={(id) => navigate(`/caminho?pessoa=${id}`)} onMore={(k) => navigate(`/caminho?marco=${k}`)} />
+    </section>
+  );
+}
+
 function MemberHome() {
   const { membership, catalog, isGuia } = useActiveSection();
   const q = useProgress(membership.id);
@@ -61,6 +85,8 @@ function MemberHome() {
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
       )}
+
+      <WhereTheyAre />
 
       {feedback.data && feedback.data.length > 0 && (
         <section className="card" aria-labelledby="h-fb">
@@ -123,7 +149,6 @@ function LeaderHome() {
   const { membership } = s;
   const path = useQuery({ queryKey: ['section-path', membership.section_id], queryFn: () => fetchSectionPath(membership.section_id) });
   const teams = useTeams(membership.section_id);
-  const navigate = useNavigate();
   const activity = useQuery({ queryKey: ['activity', membership.section_id, 3], queryFn: () => fetchActivity(membership.section_id, 3) });
   const counts = useQuery({ queryKey: ['pending-counts', membership.section_id], queryFn: () => fetchPendingCounts(membership.section_id) });
 
@@ -131,8 +156,6 @@ function LeaderHome() {
   if (path.error) return <ErrorBox error={path.error} retry={path.refetch} />;
   const total = path.data?.total ?? 0;
   const activeTeams = (teams.data ?? []).filter((t) => !t.archived_at).length;
-  const members = [...(path.data?.members ?? [])].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt', { sensitivity: 'base' }));
-  const teamName = (id: string | null) => teams.data?.find((t) => t.id === id)?.name ?? 'Sem equipa';
   // Os mesmos contadores do menu e dos separadores do Acompanhamento (my_pending_counts):
   // cada pedido conta uma vez (negociação, trilhos e progresso anterior).
   const c = counts.data ?? {};
@@ -187,14 +210,7 @@ function LeaderHome() {
         </section>
       ) : <p className="card faint" role="status">Sem pendentes.</p>)}
 
-      <section className="card map-card" aria-labelledby="h-dist">
-        <div className="row between">
-          <h2 id="h-dist" style={{ margin: 0 }}>Onde estão</h2>
-          <Link to="/caminho" className="btn ghost">Caminho da secção</Link>
-        </div>
-        <SectionMap visible={members} counts={path.data?.counts ?? {}} teamName={teamName}
-          onPick={(id) => navigate(`/caminho?pessoa=${id}`)} onMore={(k) => navigate(`/caminho?marco=${k}`)} />
-      </section>
+      <WhereTheyAre />
 
 
       <section className="card" aria-labelledby="h-act">
