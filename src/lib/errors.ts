@@ -11,6 +11,10 @@ export function errorMessage(e: unknown): string {
   if (/Email not confirmed/i.test(msg)) return 'Ainda não confirmaste o teu email. Procura a mensagem de confirmação na tua caixa de correio.';
   if (/User already registered/i.test(msg)) return 'Já existe uma conta com este email. Entra ou recupera a palavra-passe.';
   if (/Password should be at least|weak password/i.test(msg)) return 'A palavra-passe é demasiado fraca. Usa pelo menos 8 caracteres.';
+  // Limite de emails do Supabase (registo, confirmação, recuperação): é de todo o projeto, não da pessoa.
+  if (anyE?.code === 'over_email_send_rate_limit' || /email rate limit/i.test(msg)) {
+    return 'O limite de emails da aplicação foi atingido por agora. Tenta de novo daqui a uma hora ou avisa um dirigente.';
+  }
   if (/rate limit|too many/i.test(msg)) return 'Demasiadas tentativas. Aguarda uns minutos e tenta de novo.';
   if (/JWT expired|invalid jwt/i.test(msg)) return 'A tua sessão expirou. Entra de novo.';
   if (/permission denied|row-level security/i.test(msg)) return 'Não tens permissão para esta ação.';

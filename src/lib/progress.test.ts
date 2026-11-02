@@ -139,6 +139,8 @@ describe('mensagens de erro', () => {
   });
   it('não expõe mensagens técnicas em inglês', () => {
     expect(errorMessage({ message: 'duplicate key value violates unique constraint' })).toMatch(/Ocorreu um erro/);
+    expect(errorMessage({ message: 'email rate limit exceeded', code: 'over_email_send_rate_limit' })).toMatch(/limite de emails/);
+    expect(errorMessage({ message: 'Request rate limit reached' })).toMatch(/Demasiadas tentativas/);
   });
 });
 

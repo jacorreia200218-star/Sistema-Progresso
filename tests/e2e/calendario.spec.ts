@@ -127,6 +127,14 @@ async function installCalendar(page: Page, who: 'ana' | 'p1') {
         p.resolved = body.p_done ? [...p.resolved, body.p_item] : p.resolved.filter((r: string) => r !== body.p_item);
         return ok(null);
       }
+      case 'cal_delete_event': {
+        if (!manage) return fail('Não tens permissão para esta ação neste módulo.');
+        const e = find();
+        if (!e) return fail('Registo não encontrado.');
+        const serie = body.p_following ? events.filter((x) => x.title === e.title && x.created_at === e.created_at && (x.starts_at ?? x.start_date) >= (e.starts_at ?? e.start_date)) : [e];
+        if (!body.p_dry_run) for (const x of serie) events.splice(events.indexOf(x), 1);
+        return ok(serie.length);
+      }
       case 'cal_cancel_event':
         Object.assign(find()!, { status: 'cancelado', cancel_reason: body.p_reason, cancelled_at: new Date().toISOString() });
         return ok(null);
@@ -295,7 +303,8 @@ test('clicar num dia: detalhe do dia e nova atividade com a data preenchida', as
   await expect(page.getByLabel('Hora de início')).toBeHidden();
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
   await page.getByLabel('Evento', { exact: true }).fill('Jogo de cidade (teste)');
-  await page.getByLabel('Repetir todas as semanas até').uncheck();
+  await expect(page.getByLabel('Repetir todas as semanas até')).not.toBeChecked();
+  await expect(page.getByLabel('Repetir até')).toHaveCount(0);
   await page.getByText('Mais opções').click();
   // Por omissão, a reunião de sábado (14:30–16:00); sem horas fica de dia inteiro.
   await expect(page.getByLabel('Hora de início')).toHaveValue('14:30');
@@ -441,8 +450,7 @@ test('criar atividade com validação e horas de Lisboa', async ({ page }) => {
   await page.getByLabel('Evento', { exact: true }).fill('Fogo de conselho (teste)');
   await page.getByLabel('Data', { exact: true }).fill('25-10-2026');
   await page.getByLabel('Notas (opcional)').fill('Trazer lenha.');
-  await expect(page.getByLabel('Repetir todas as semanas até')).toBeChecked();
-  await page.getByLabel('Repetir todas as semanas até').uncheck();
+  await expect(page.getByLabel('Repetir todas as semanas até')).not.toBeChecked();
   await page.getByText('Mais opções').click();
   await page.getByLabel('Local', { exact: true }).fill('Sede (teste)');
   await page.getByLabel('Hora de início').fill('10:00');
@@ -516,13 +524,14 @@ test('dirigente marca pendências e cancela', async ({ page }) => {
   await noHorizontalScroll(page);
 });
 
-test('nova atividade semanal: a reunião de sábado repete-se até ao fim do ano escutista', async ({ page }) => {
+test('nova atividade semanal: só se repete quando se pede, até ao fim do ano escutista', async ({ page }) => {
   await installMock(page, leader());
   const cal = await installCalendar(page, 'ana');
   await page.goto('/calendario/nova?dia=2026-10-17');
   await expect(page.getByLabel('Evento', { exact: true })).toHaveValue('Reunião');
   await expect(page.getByLabel('Data', { exact: true })).toHaveValue('17-10-2026');
-  await expect(page.getByLabel('Repetir todas as semanas até')).toBeChecked();
+  await expect(page.getByLabel('Repetir todas as semanas até')).not.toBeChecked();
+  await page.getByLabel('Repetir todas as semanas até').check();
   await expect(page.getByLabel('Repetir até')).toHaveValue('31-08-2027');
   await page.getByLabel('Repetir até').fill('07-11-2026');
   await page.getByRole('button', { name: 'Criar atividade' }).click();
@@ -830,4 +839,43 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'calendario-pendentes');
     });
   }
+});
+
+test('eliminar atividade: só esta data ou esta e as seguintes da série', async ({ page }) => {
+  await installMock(page, leader());
+  const cal = await installCalendar(page, 'ana');
+  const base = cal.events[0];
+  for (let k = 1; k <= 3; k++) {
+    cal.events.push({ ...base, id: `rep${k}`, title: 'Francesinhas (teste)', created_at: 'serie-1',
+      starts_at: new Date(Date.parse(base.starts_at) + k * 7 * D).toISOString(), ends_at: new Date(Date.parse(base.ends_at) + k * 7 * D).toISOString() });
+  }
+  await page.goto('/calendario/evento/rep1');
+  const main = page.locator('main');
+  await main.getByRole('button', { name: 'Mais ações' }).click();
+  await main.getByRole('button', { name: 'Eliminar atividade…' }).click();
+  await expect(main.getByRole('heading', { name: 'Eliminar atividade' })).toBeVisible();
+  await expect(main.getByLabel('Só esta data')).toBeChecked();
+  await main.getByLabel('Esta e as seguintes (3 datas)').check();
+  await main.getByRole('button', { name: 'Eliminar 3 atividades' }).click();
+  await expect(page).toHaveURL(/\/calendario$/);
+  await expect(main.getByText('3 atividades eliminadas.')).toBeVisible();
+  expect(cal.calls.filter((c) => c.fn === 'cal_delete_event' && !c.body.p_dry_run).at(-1)!.body).toMatchObject({ p_event: 'rep1', p_following: true, p_dry_run: false });
+  expect(cal.events.map((e) => e.id)).toEqual(['ev1']);
+
+  // Atividade única: sem escolha, só «Eliminar atividade».
+  await page.goto('/calendario/evento/ev1');
+  await main.getByRole('button', { name: 'Mais ações' }).click();
+  await main.getByRole('button', { name: 'Eliminar atividade…' }).click();
+  await expect(main.getByLabel('Só esta data')).toHaveCount(0);
+  await main.getByRole('button', { name: 'Eliminar atividade', exact: true }).click();
+  await expect(main.getByText('Atividade eliminada.')).toBeVisible();
+  expect(cal.events).toEqual([]);
+});
+
+test('pioneiro não vê «Eliminar atividade»', async ({ page }) => {
+  await installMock(page, pioneer());
+  await installCalendar(page, 'p1');
+  await page.goto('/calendario/evento/ev1');
+  await expect(page.locator('main').getByRole('heading', { name: 'A tua resposta' })).toBeVisible();
+  await expect(page.locator('main').getByRole('button', { name: /Eliminar/ })).toHaveCount(0);
 });

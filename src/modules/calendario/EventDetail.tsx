@@ -2,10 +2,11 @@
 // (com pendências por pessoa para quem gere), anexos, exportação e gestão; e, em
 // separadores, o que está ligado ao evento noutros módulos (ver EventLinks.tsx).
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Ban, Check, Download, FileText, Paperclip, Pencil } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ban, Check, Download, FileText, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import { call } from '../../lib/api';
+import { errorMessage } from '../../lib/errors';
 import { useAction } from '../../lib/useAction';
 import { useActiveSection } from '../../lib/session';
 import { ErrorBox, Field, Loading, MoreInfo, MoreMenu, Notice, PageTitle } from '../../components/ui';
@@ -26,6 +27,7 @@ export function EventDetail() {
   const { space } = useModuleCtx();
   const location = useLocation();
   const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const q = useQuery({
     queryKey: ['cal-event', section, space, id],
     queryFn: () => call<CalDetail>('cal_event_get', { p_section: section, p_event: id }),
@@ -47,12 +49,13 @@ export function EventDetail() {
   const manage = e.can_manage && !cancelled;
   return (
     <>
-      <PageTitle title={e.title} back="/calendario" actions={manage ? (
+      <PageTitle title={e.title} back="/calendario" actions={e.can_manage ? (
         <>
-          <Link to={`/calendario/evento/${e.id}/editar`} className="btn secondary"><Pencil size={16} aria-hidden="true" /> Alterar</Link>
+          {manage && <Link to={`/calendario/evento/${e.id}/editar`} className="btn secondary"><Pencil size={16} aria-hidden="true" /> Alterar</Link>}
           <MoreMenu>
             <button type="button" className="btn" onClick={exportIcs}><Download size={16} aria-hidden="true" /> Adicionar ao meu calendário (.ics)</button>
-            {!isReadonly(e) && <button type="button" className="btn danger" onClick={() => setCancelling(true)}><Ban size={16} aria-hidden="true" /> Cancelar atividade…</button>}
+            {manage && !isReadonly(e) && <button type="button" className="btn danger" onClick={() => { setDeleting(false); setCancelling(true); }}><Ban size={16} aria-hidden="true" /> Cancelar atividade…</button>}
+            {!isReadonly(e) && <button type="button" className="btn danger" onClick={() => { setCancelling(false); setDeleting(true); }}><Trash2 size={16} aria-hidden="true" /> Eliminar atividade…</button>}
           </MoreMenu>
         </>
       ) : (
@@ -66,6 +69,7 @@ export function EventDetail() {
         </Notice>
       )}
       {manage && cancelling && <ManageBox e={e} onClose={() => setCancelling(false)} />}
+      {e.can_manage && deleting && <DeleteBox e={e} onClose={() => setDeleting(false)} />}
       <EventBody e={e} />
     </>
   );
@@ -351,6 +355,54 @@ function ManageBox({ e, onClose }: { e: CalDetail; onClose: () => void }) {
         <button type="button" className="btn danger-solid" disabled={action.busy}
           onClick={() => void action.run(() => call('cal_cancel_event', { p_section: section, p_event: e.id, p_reason: reason.trim() || null }), 'Atividade cancelada. Os envolvidos foram avisados.')}>
           Cancelar atividade
+        </button>
+        <button type="button" className="btn secondary" onClick={onClose}>Voltar</button>
+      </div>
+    </section>
+  );
+}
+
+/** Eliminar: só esta data ou, numa série semanal, esta e as seguintes. Volta ao calendário. */
+function DeleteBox({ e, onClose }: { e: CalDetail; onClose: () => void }) {
+  const section = useActiveSection().membership.section_id;
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [following, setFollowing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Quantas datas da mesma série (esta incluída) seriam eliminadas com «esta e as seguintes».
+  const series = useQuery({
+    queryKey: ['cal-delete-count', section, e.id],
+    queryFn: () => call<number>('cal_delete_event', { p_section: section, p_event: e.id, p_following: true, p_dry_run: true }),
+  });
+  const n = series.data ?? 1;
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const done = await call<number>('cal_delete_event', { p_section: section, p_event: e.id, p_following: following && n > 1, p_dry_run: false });
+      navigate('/calendario', { replace: true, state: { flash: done > 1 ? `${done} atividades eliminadas.` : 'Atividade eliminada.' } });
+      void qc.invalidateQueries();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="card danger-zone" aria-labelledby="cal-delete-h">
+      <h2 id="cal-delete-h">Eliminar atividade</h2>
+      <p className="faint prose">A atividade sai do calendário e não pode ser recuperada. Para a manter visível como cancelada, usa «Cancelar atividade».</p>
+      {n > 1 && (
+        <fieldset className="cal-delete-scope">
+          <legend className="label">O que eliminar</legend>
+          <label className="checkbox"><input type="radio" name="cal-delete" checked={!following} onChange={() => setFollowing(false)} /> Só esta data</label>
+          <label className="checkbox"><input type="radio" name="cal-delete" checked={following} onChange={() => setFollowing(true)} /> Esta e as seguintes ({n} datas)</label>
+        </fieldset>
+      )}
+      <ErrorBox error={error} />
+      <div className="btn-row">
+        <button type="button" className="btn danger-solid" disabled={busy || series.isLoading} onClick={() => void remove()}>
+          {busy ? 'A eliminar…' : following && n > 1 ? `Eliminar ${n} atividades` : 'Eliminar atividade'}
         </button>
         <button type="button" className="btn secondary" onClick={onClose}>Voltar</button>
       </div>

@@ -108,9 +108,9 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Atividade do iCloud: título, datas, local e descrição só mudam no iCloud.
   const ro = !!event && isReadonly(event);
-  // Nova atividade: por omissão repete todas as semanas até ao fim do ano escutista (a reunião de sábado).
+  // Nova atividade: por omissão só no dia marcado; a repetição semanal (até ao fim do ano escutista) é opcional.
   const yearEnd = f.startDay ? period('escutista', yearOf(f.startDay, 'escutista')).to : '';
-  const [repeat, setRepeat] = useState(!event);
+  const [repeat, setRepeat] = useState(false);
   const [until, setUntil] = useState('');
   const untilDay = until || yearEnd;
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -182,8 +182,10 @@ function FormBody({ title, event, options }: { title: string; event: CalDetail |
         {!event && (
           <div className="cal-repeat">
             <label className="checkbox"><input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} /> Repetir todas as semanas até</label>
-            <DateInput id="cal-until" aria-label="Repetir até" value={untilDay} min={f.startDay} disabled={!repeat}
-              onChange={(e) => setUntil(e.target.value)} aria-invalid={!!errors.until} aria-describedby={errId('until')} />
+            {repeat && (
+              <DateInput id="cal-until" aria-label="Repetir até" value={untilDay} min={f.startDay}
+                onChange={(e) => setUntil(e.target.value)} aria-invalid={!!errors.until} aria-describedby={errId('until')} />
+            )}
           </div>
         )}
         <Err k="until" />
