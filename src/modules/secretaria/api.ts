@@ -90,7 +90,10 @@ export interface Ata {
   updated_by_name: string;
   created_by_name: string;
   versions: { version: number; saved_at: string; saved_by_name: string }[];
+  /** Pode escrever e editar o texto da ata (todos os membros com acesso). */
   can_write: boolean;
+  /** Gere as tarefas e pode reservar a ata aos dirigentes (dirigentes e quem redige). */
+  can_manage: boolean;
   tasks: Task[];
 }
 
@@ -104,7 +107,7 @@ export function useAtas(q: string) {
   const section = useSectionId();
   return useQuery({
     queryKey: ['atas', section, q],
-    queryFn: () => call<{ can_write: boolean; atas: AtaRow[] }>('ata_list', { p_section: section, p_search: q || null }),
+    queryFn: () => call<{ can_write: boolean; can_manage: boolean; atas: AtaRow[] }>('ata_list', { p_section: section, p_search: q || null }),
   });
 }
 

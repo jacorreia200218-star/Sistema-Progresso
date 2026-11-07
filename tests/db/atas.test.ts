@@ -38,12 +38,11 @@ describe('acesso', () => {
     await expectDenied(rpc(w.users.P1, 'cal_events_list', { p_section: S(), p_from: today(), p_to: inDays(30) }));
   });
 
-  it('escrevem os dirigentes e quem redige; os pioneiros só consultam', async () => {
-    expect((await rpc<any>(w.users.Rui, 'ata_list', { p_section: S() })).can_write).toBe(true);
-    expect((await rpc<any>(w.users.GuiaA, 'ata_list', { p_section: S() })).can_write).toBe(true);
-    expect((await rpc<any>(w.users.P1, 'ata_list', { p_section: S() })).can_write).toBe(false);
-    await expectDenied(event('P1'), 'Só os dirigentes');
-    await expectDenied(rpc(w.users.P1, 'ata_events', { p_section: S() }), 'Só os dirigentes');
+  it('todos escrevem atas; as tarefas são geridas pelos dirigentes e por quem redige', async () => {
+    for (const [who, manage] of [['Rui', true], ['GuiaA', true], ['GuiaB', false], ['P1', false]] as const) {
+      expect(await rpc<any>(w.users[who], 'ata_list', { p_section: S() })).toMatchObject({ can_write: true, can_manage: manage });
+    }
+    expect(await rpc(w.users.P1, 'ata_events', { p_section: S() })).toBeTruthy();
   });
 });
 
@@ -55,7 +54,7 @@ describe('ata ligada a um evento', () => {
     await expectError(save('Rui', { event: ev1, body: '  ' }), 'Escreve o texto');
     ataSeccao = await save('Rui', { event: ev1, body: 'Falámos do acampamento.' });
     const a = await get('P1', ataSeccao);
-    expect(a).toMatchObject({ title: 'Reunião de sábado', scope: 'seccao', body: 'Falámos do acampamento.', version: 1, can_write: false });
+    expect(a).toMatchObject({ title: 'Reunião de sábado', scope: 'seccao', body: 'Falámos do acampamento.', version: 1, can_write: true, can_manage: false });
     expect(a.event).toMatchObject({ id: ev1, day: today() });
     expect(a.updated_by_name).toContain('Rui');
     await expectError(save('GuiaA', { event: ev1, body: 'Outra' }), 'já tem ata');
@@ -252,5 +251,37 @@ describe('progresso anterior só pelos dirigentes', () => {
     const n = await rpc<string>(w.users.P2, 'create_trail_request', { p_membership: w.members.P2, p_trail: await trailId('carater-autonomia'), p_kind: 'normal' });
     await rpc(w.users.P2, 'submit_trail_validation', { p_request: n, p_expected_version: 1, p_justification: 'Organizei a minha semana sozinho.' });
     expect((await admin(`select status::text from public.trail_requests where id = $1`, [n]))[0].status).toBe('submetido');
+  });
+});
+
+describe('atas para todos', () => {
+  let evA: string, evP3: string, ataP3: string;
+  it('um pioneiro vê só eventos da secção e da sua equipa', async () => {
+    evA = (await admin(`insert into public.cal_events (section_id, space, title, all_day, start_date, end_date, audience, team_id, created_by)
+      values ($1, 'real', 'Raid da Equipa A', true, current_date, current_date, 'equipa', $2, $3) returning id`, [S(), w.teamA, w.users.Rui]))[0].id;
+    const ids = (who: string) => rpc<any[]>(w.users[who], 'ata_events', { p_section: S() }).then((l) => l.map((e) => e.id));
+    expect(await ids('P3')).not.toContain(evA);
+    expect(await ids('P1')).toContain(evA);
+    expect(await ids('Rui')).toContain(evA);
+    await expectDenied(save('P3', { event: evA, body: 'Não é da minha equipa.' }), 'da tua equipa');
+  });
+
+  it('um pioneiro cria o evento, escreve e edita a ata (com histórico)', async () => {
+    evP3 = await event('P3', 'Reunião de patrulha', inDays(-2));
+    ataP3 = await save('P3', { event: evP3, body: 'Combinámos o jogo.' });
+    expect(await get('P3', ataP3)).toMatchObject({ scope: 'seccao', body: 'Combinámos o jogo.', can_write: true, can_manage: false });
+    await save('P1', { ata: ataSeccao, body: 'Acrescentei a data do raid.', version: 2 });
+    const a = await get('Rui', ataSeccao);
+    expect(a).toMatchObject({ current_version: 3, body: 'Acrescentei a data do raid.' });
+    expect((await get('Rui', ataSeccao, 2)).body).toBe('Falámos do acampamento e das quotas.');
+  });
+
+  it('só quem gere reserva atas aos dirigentes e cria tarefas', async () => {
+    const ev = await event('P2', 'Conversa', inDays(-3));
+    await expectDenied(save('P2', { event: ev, body: 'x', scope: 'dirigentes' }), 'reservar uma ata');
+    await expectDenied(save('P3', { ata: ataP3, body: 'y', scope: 'dirigentes', version: 1 }), 'reservar uma ata');
+    await expectDenied(rpc(w.users.P3, 'ata_task_save', { p_section: S(), p_task: null, p_ata: ataP3, p_text: 'x', p_responsible: w.users.P3 }), 'Só os dirigentes');
+    await expectError(get('P3', ataReservada), 'não encontrado');
+    await expectError(save('P3', { ata: ataReservada, body: 'z', version: 1 }), 'não encontrado');
   });
 });

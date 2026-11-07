@@ -11,7 +11,7 @@ import { useAction } from '../../lib/useAction';
 import { MEETING_DEFAULT, lisbonTime, todayLisbon, useModule } from '../common';
 import { EventSelect, type EventChoice } from '../EventSelect';
 import { useModuleCtx } from '../ModuleShell';
-import { BASE, useSectionId, type AtaEvent } from './api';
+import { BASE, useAtas, useSectionId, type AtaEvent } from './api';
 
 const toChoice = (e: AtaEvent): EventChoice => ({
   id: e.id, title: e.title, day: e.day, time: !e.all_day && e.starts_at ? lisbonTime(e.starts_at) : null,
@@ -67,6 +67,8 @@ export function AtaNew() {
   const [event, setEvent] = useState(params.get('evento') ?? '');
   const [body, setBody] = useState('');
   const [reserved, setReserved] = useState(false);
+  // «Reservada aos dirigentes» só para quem gere (dirigentes e quem redige).
+  const canManage = !!useAtas('').data?.can_manage;
   const [creating, setCreating] = useState(false);
   const { space } = useModuleCtx();
   const cal = useModule('calendario');
@@ -83,7 +85,7 @@ export function AtaNew() {
     setErrors(err);
     if (err.event || err.body) return;
     const r = await action.run(() => call<string>('ata_save', {
-      p_section: section, p_ata: null, p_event: event, p_body: body, p_scope: reserved ? 'dirigentes' : 'evento', p_expected_version: null,
+      p_section: section, p_ata: null, p_event: event, p_body: body, p_scope: reserved && canManage ? 'dirigentes' : 'evento', p_expected_version: null,
     }));
     if (r.ok && r.value) navigate(`${BASE}/atas/${r.value}`, { replace: true });
   }
@@ -130,11 +132,13 @@ export function AtaNew() {
             <textarea id="ata-body" rows={12} value={body} onChange={(e) => setBody(e.target.value)} maxLength={50000} aria-invalid={!!errors.body} />
             {errors.body && <span className="sec-error">{errors.body}</span>}
           </Field>
-          <MoreOptions>
-            <label className="check-row">
-              <input type="checkbox" checked={reserved} onChange={(e) => setReserved(e.target.checked)} /> Reservada aos dirigentes
-            </label>
-          </MoreOptions>
+          {canManage && (
+            <MoreOptions>
+              <label className="check-row">
+                <input type="checkbox" checked={reserved} onChange={(e) => setReserved(e.target.checked)} /> Reservada aos dirigentes
+              </label>
+            </MoreOptions>
+          )}
           <ErrorBox error={action.error} />
           <div className="btn-row">
             <button type="submit" className="btn" disabled={action.busy || !!chosen?.ata_id}>{action.busy ? 'A guardar…' : 'Guardar'}</button>

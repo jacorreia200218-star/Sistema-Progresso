@@ -622,8 +622,11 @@ test('evento ligado: o pioneiro vê só o que lhe diz respeito, sem blocos vazio
   const main = page.locator('main');
   // Separador sem acesso cai para «Detalhes»
   const tabs = main.getByRole('tablist', { name: 'Secções da atividade' });
-  await expect(tabs.getByRole('tab')).toHaveText(['Detalhes', 'Presenças']);
+  // Todos com acesso a Atas e tarefas podem escrever a ata da atividade.
+  await expect(tabs.getByRole('tab')).toHaveText(['Detalhes', 'Presenças', 'Ata e tarefas']);
   await expect(main.getByRole('tab', { name: 'Detalhes' })).toHaveAttribute('aria-selected', 'true');
+  await main.getByRole('tab', { name: 'Ata e tarefas' }).click();
+  await expect(main.getByRole('link', { name: 'Escrever ata' })).toHaveAttribute('href', '/atas-e-tarefas/nova?evento=ev1');
   await main.getByRole('tab', { name: 'Presenças' }).click();
   await expect(main.getByRole('tabpanel')).toContainText('A tua presença: Falta justificada');
   await expect(main.getByRole('button', { name: 'Registar presenças' })).toHaveCount(0);
