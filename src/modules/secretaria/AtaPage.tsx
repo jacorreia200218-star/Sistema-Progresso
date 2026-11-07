@@ -34,11 +34,13 @@ function Editor({ ata, onDone }: { ata: Ata; onDone: (msg?: string) => void }) {
       <label className="sr-only" htmlFor="ata-edit">Texto da ata</label>
       <textarea id="ata-edit" rows={14} value={body} onChange={(e) => setBody(e.target.value)} maxLength={50000} aria-invalid={!!error} autoFocus />
       {error && <span className="sec-error">{error}</span>}
-      <MoreOptions open={ata.scope === 'dirigentes'}>
-        <label className="check-row">
-          <input type="checkbox" checked={reserved} onChange={(e) => setReserved(e.target.checked)} /> Reservada aos dirigentes
-        </label>
-      </MoreOptions>
+      {ata.can_manage && (
+        <MoreOptions open={ata.scope === 'dirigentes'}>
+          <label className="check-row">
+            <input type="checkbox" checked={reserved} onChange={(e) => setReserved(e.target.checked)} /> Reservada aos dirigentes
+          </label>
+        </MoreOptions>
+      )}
       <ErrorBox error={action.error} />
       <div className="btn-row">
         <button type="button" className="btn" disabled={action.busy} onClick={save}>{action.busy ? 'A guardar…' : 'Guardar'}</button>
@@ -115,7 +117,7 @@ export function AtaPage() {
       <section className="card" aria-labelledby="ata-tasks-h">
         <div className="sec-h2-row">
           <h2 className="sec-h2" id="ata-tasks-h">Tarefas</h2>
-          {a.can_write && taskForm !== 'new' && (
+          {a.can_manage && taskForm !== 'new' && (
             <button type="button" className="btn ghost" onClick={() => { setDone(null); setTaskForm('new'); }}>
               <Plus size={16} aria-hidden="true" /> Nova tarefa
             </button>
@@ -127,8 +129,8 @@ export function AtaPage() {
           <ul className="list sec-items">
             {a.tasks.map((t) => taskForm === t.id
               ? <li key={t.id}><TaskForm ata={a.id} task={t} onDone={finish} /></li>
-              : <TaskRow key={t.id} t={t} showAta={false} canChange={a.can_write || t.responsible_id === me}
-                  onEdit={a.can_write ? () => { setDone(null); setTaskForm(t.id); } : undefined} />)}
+              : <TaskRow key={t.id} t={t} showAta={false} canChange={a.can_manage || t.responsible_id === me}
+                  onEdit={a.can_manage ? () => { setDone(null); setTaskForm(t.id); } : undefined} />)}
           </ul>
         )}
       </section>

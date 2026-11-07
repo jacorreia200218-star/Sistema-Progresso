@@ -68,10 +68,9 @@ async function installAtas(page: Page, opts: { write?: boolean; me?: string; eve
           : { module: k, status: 'teste', space: null, grants: [], dirigente: write }));
       case 'ata_list': {
         const q = String(b.p_search ?? '').toLowerCase();
-        return ok(route, { can_write: write, atas: S.atas.map(row).filter((a) => !q || a.title.toLowerCase().includes(q)).sort((x, y) => y.day.localeCompare(x.day)) });
+        return ok(route, { can_write: true, can_manage: write, atas: S.atas.map(row).filter((a) => !q || a.title.toLowerCase().includes(q)).sort((x, y) => y.day.localeCompare(x.day)) });
       }
       case 'ata_events':
-        if (!write) return fail(route, 'Só os dirigentes e quem redige atas podem fazer isto.');
         return ok(route, S.events.map((e) => ({ ...e, ata_id: S.atas.find((a) => a.event_id === e.id)?.id ?? null })));
       case 'ata_event_create': {
         if (!String(b.p_title ?? '').trim()) return fail(route, 'Indica o nome do evento.');
@@ -80,6 +79,7 @@ async function installAtas(page: Page, opts: { write?: boolean; me?: string; eve
         return ok(route, id);
       }
       case 'ata_save': {
+        if (b.p_scope === 'dirigentes' && !write) return fail(route, 'Só os dirigentes e quem redige atas podem reservar uma ata aos dirigentes.');
         if (!String(b.p_body ?? '').trim()) return fail(route, 'Escreve o texto da ata.');
         if (!b.p_ata) {
           if (S.atas.some((a) => a.event_id === b.p_event)) return fail(route, 'Este evento já tem ata. Abre-a para a editar.');
@@ -103,7 +103,7 @@ async function installAtas(page: Page, opts: { write?: boolean; me?: string; eve
         return ok(route, { id: a.id, meeting_id: a.meeting_id, title: e?.title ?? a.title, scope: a.scope, team_id: null, team_name: null, event: e,
           day: e?.day ?? a.day, body: v.body, version: v.version, current_version: cur, updated_at: now, updated_by_name: nameOf(a.versions[cur - 1].by),
           created_by_name: nameOf(a.created_by), versions: [...a.versions].reverse().map((x: Row) => ({ version: x.version, saved_at: x.saved_at, saved_by_name: nameOf(x.by) })),
-          can_write: write, tasks: S.tasks.filter((t) => t.ata_id === a.id).map(task) });
+          can_write: true, can_manage: write, tasks: S.tasks.filter((t) => t.ata_id === a.id).map(task) });
       }
       case 'ata_people': return ok(route, PEOPLE);
       case 'ata_task_save': {
@@ -347,17 +347,18 @@ test('participante: a tarefa aparece em «As minhas tarefas», sem mudar o estad
   await expect(open.getByRole('listitem').filter({ hasText: 'Reservar o parque' }).getByRole('combobox')).toHaveCount(1);
 });
 
-test('pioneiro: vê atas partilhadas sem botões de escrita e muda o estado das suas tarefas', async ({ page }) => {
+test('pioneiro: escreve e edita atas, sem gerir tarefas nem reservar, e muda o estado das suas tarefas', async ({ page }) => {
   await installMock(page, pioneer());
   const S = await installAtas(page, { write: false, me: 'u-p1' });
   await page.goto(BASE);
   const main = page.locator('main');
-  await expect(main.getByRole('link', { name: 'Nova ata' })).toHaveCount(0);
+  await expect(main.getByRole('link', { name: 'Nova ata' })).toBeVisible();
   await main.getByRole('link', { name: /Acampamento de outono/ }).click();
   await expect(main.locator('.sec-body')).toHaveText('Ficou combinado o acampamento.');
-  await expect(main.getByRole('button', { name: 'Editar' })).toHaveCount(0);
   await expect(main.getByRole('button', { name: 'Nova tarefa' })).toHaveCount(0);
-  await expect(main.locator('textarea')).toHaveCount(0);
+  await main.getByRole('button', { name: 'Editar' }).click();
+  await expect(main.getByText('Reservada aos dirigentes')).toHaveCount(0);
+  await main.getByRole('button', { name: 'Cancelar' }).click();
 
   await page.goBack();
   await main.getByRole('link', { name: 'As minhas tarefas' }).click();
@@ -372,7 +373,9 @@ test('pioneiro: vê atas partilhadas sem botões de escrita e muda o estado das 
   expect(S.calls.find((c) => c.fn === 'ata_task_status')!.body).toMatchObject({ p_task: 't1', p_status: 'concluida' });
 
   await page.goto(`${BASE}/nova`);
-  await expect(main.getByText('Só os dirigentes e quem redige atas podem fazer isto.')).toBeVisible();
+  await expect(main.getByRole('heading', { name: 'Nova ata' })).toBeVisible();
+  await expect(main.getByLabel('Ata')).toBeVisible();
+  await expect(main.getByText('Reservada aos dirigentes')).toHaveCount(0);
 });
 
 test('endereços antigos levam a Atas e tarefas', async ({ page }) => {

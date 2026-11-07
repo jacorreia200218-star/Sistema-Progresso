@@ -79,7 +79,8 @@ export function EventDetail() {
 function EventBody({ e }: { e: CalDetail }) {
   const links = useEventLinks(e);
   const [sec, setSec] = useParam('sec');
-  const tabs = eventTabs(e, links.data);
+  const myTeam = useActiveSection().membership.team_id;
+  const tabs = eventTabs(e, links.data, myTeam);
   const current: TabKey = tabs.some((t) => t.key === sec) ? (sec as TabKey) : 'detalhes';
   const l = links.data;
   if (tabs.length === 1) return <Details e={e} />;
