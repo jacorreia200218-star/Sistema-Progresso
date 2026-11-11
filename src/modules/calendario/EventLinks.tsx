@@ -22,7 +22,7 @@ export type EventLinksData = {
   financas?: { orcamento: Totals; efetivo: Totals; por_confirmar: Totals; tem_dados?: boolean } | null;
   fin_can_manage?: boolean;
   reunioes?: { id: string; title: string; kind: string; starts_at: string; ata_id: string | null }[];
-  ata_writer?: boolean;
+  ata_writer?: boolean; // gere as tarefas; escrever atas é para todos com acesso
   presencas?: { id: string; title: string; status: string; counts: { presente: number; justificada: number; injustificada: number } | null; mine: string | null } | null;
   pres_can_register?: boolean;
   tarefas?: {
@@ -47,16 +47,20 @@ export function useEventLinks(e: CalDetail) {
   });
 }
 
+/** Pode escrever a ata: todos com acesso a Atas e tarefas (eventos da secção ou da sua equipa). */
+const canWriteAta = (e: CalDetail, l: EventLinksData, myTeam: string | null) =>
+  !!l.ata_writer || (l.reunioes !== undefined && (e.audience !== 'equipa' || e.team_id === myTeam));
+
 const visibleAtas = (l: EventLinksData) => (l.reunioes ?? []).filter((m) => m.ata_id);
 const openTasks = (l: EventLinksData) => (l.tarefas ?? []).filter((t) => t.exec_status === 'por_fazer' || t.exec_status === 'em_curso').length;
 
 /** Separadores disponíveis: um módulo só aparece com acesso e com dados ou algo a fazer. */
-export function eventTabs(e: CalDetail, l: EventLinksData | undefined): TabDef[] {
+export function eventTabs(e: CalDetail, l: EventLinksData | undefined, myTeam: string | null = null): TabDef[] {
   const tabs: TabDef[] = [{ key: 'detalhes', label: 'Detalhes' }];
   if (!l) return tabs;
   const active = e.status === 'ativo';
   if (l.presencas || (l.pres_can_register && active)) tabs.push({ key: 'presencas', label: 'Presenças' });
-  if (visibleAtas(l).length || l.tarefas?.length || (l.ata_writer && active)) {
+  if (visibleAtas(l).length || l.tarefas?.length || (canWriteAta(e, l, myTeam) && active)) {
     const n = openTasks(l);
     tabs.push({ key: 'ata', label: 'Ata e tarefas', count: n || undefined, countLabel: n === 1 ? 'tarefa por fazer' : 'tarefas por fazer' });
   }
@@ -163,7 +167,8 @@ export function PresencasPanel({ e, l }: { e: CalDetail; l: EventLinksData }) {
 // ---------------------------------------------------------------------------
 export function AtaPanel({ e, l }: { e: CalDetail; l: EventLinksData }) {
   const atas = visibleAtas(l);
-  const canWrite = !!l.ata_writer && atas.length === 0 && e.status === 'ativo';
+  const myTeam = useActiveSection().membership.team_id;
+  const canWrite = canWriteAta(e, l, myTeam) && atas.length === 0 && e.status === 'ativo';
   const tasks = l.tarefas ?? [];
   return (
     <>
