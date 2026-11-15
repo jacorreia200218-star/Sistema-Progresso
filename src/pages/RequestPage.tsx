@@ -3,11 +3,12 @@
 // trilho, justificação integral, anexos, datas e decisões anteriores. A decisão
 // formal é sobre o trilho completo: validar, ou devolver para revisão com
 // fundamentação (que pode indicar objetivos ainda por demonstrar).
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useActiveSection } from '../lib/session';
-import { useProgress, useTeams } from '../lib/hooks';
+import { useMembers, useProgress, useTeams } from '../lib/hooks';
+import { teamHasOtherGuia } from '../lib/progress';
 import { call, fetchRequest, type RequestDetail } from '../lib/api';
 import { useAction } from '../lib/useAction';
 import { flaggedObjectives } from '../lib/meuprogresso';
@@ -68,6 +69,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
   const isOwner = request.membership_id === s.membership.id;
   const progress = useProgress(request.membership_id);
   const teams = useTeams(s.membership.section_id);
+  const members = useMembers(s.membership.section_id);
   const current = versions.find((v) => v.version_no === request.current_version)!;
   const st = requestStatusLabel[request.status];
   const historic = request.kind === 'historico';
@@ -123,7 +125,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
       )}
 
       {isOwner && <OwnerRequestPanel detail={detail} current={current} />}
-      {!isOwner && <ReviewerPanel detail={detail} current={current} hasTeamGuia={!!member?.team_id} />}
+      {!isOwner && <ReviewerPanel detail={detail} current={current} hasTeamGuia={!!member && teamHasOtherGuia(member.id, members.data ?? [])} />}
 
       {request.kind === 'negociacao' && (
         <Notice kind="info">
@@ -187,6 +189,8 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
   const commentRequired = outcome !== 'validado' && outcome !== 'aprovado';
   const memberIsGuia = member?.function === 'guia';
   const onBehalf = s.isDirigente && !isTeamGuia;
+  // Primeiro os guias: com guia na equipa, o dirigente só valida já se quiser (fica logo validado).
+  const guiasFirst = onBehalf && hasTeamGuia && !memberIsGuia;
 
   // Depois de decidir, o painel deixa de se aplicar; a confirmação continua visível.
   const done = action.success && !canTeam && !canHistoric ? <Notice kind="success">{action.success}</Notice> : null;
@@ -203,18 +207,20 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
           <p className="faint prose">
             Regista a decisão tomada <strong>em reunião de Equipa</strong> sobre o trilho completo. Este registo não substitui a reunião e é comunicado ao pioneiro e ao Conselho de Guias.
           </p>
-          {onBehalf && (
+          {onBehalf && !guiasFirst && (
             <Notice kind="warn">
               <p className="prose">
                 Estás a registar como Equipa de Animação, em nome da reunião de Equipa
-                {memberIsGuia ? ' (pedido do próprio guia, que não decide o seu pedido).' : hasTeamGuia ? '. O guia da equipa será avisado deste registo.' : '.'}
+                {memberIsGuia ? ' (pedido do próprio guia, que não decide o seu pedido).' : '.'}
               </p>
             </Notice>
           )}
+          {guiasFirst && !action.success && <p className="prose">Este pedido está com os guias. Chega aos dirigentes depois de a reunião de Equipa o validar.</p>}
           <ErrorBox error={action.error} />
           {action.success && <Notice kind="success">{action.success}</Notice>}
           {!action.success && (
-            <>
+            <MaybeMore more={guiasFirst} label="Validar já como dirigente">
+              {guiasFirst && <p className="faint prose">O trilho fica logo validado e atribuído à etapa em curso, sem passar pelos guias. O guia da equipa é avisado.</p>}
               {request.status === 'submetido' && (
                 <button type="button" className="btn secondary" disabled={action.busy}
                   onClick={() => action.run(() => call('mark_request_in_review', { p_request: request.id }), 'Pedido marcado como em análise.')}>
@@ -256,7 +262,7 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
                 confirmLabel={outcome === 'validado' ? 'Validar o trilho' : 'Devolver para revisão'}
                 disabled={action.busy || !meeting || (commentRequired && !comment.trim())}
                 description={outcome === 'validado'
-                  ? onBehalf || s.isDirigente ? 'O trilho fica validado e a decisão é comunicada ao pioneiro e ao Conselho de Guias.' : 'O pedido segue para os dirigentes, que confirmam a validação. O pioneiro é avisado.'
+                  ? onBehalf || s.isDirigente ? 'O trilho fica validado, é atribuído à etapa em curso e a decisão é comunicada ao pioneiro e ao Conselho de Guias.' : 'O pedido segue para os dirigentes, que confirmam a validação. O pioneiro é avisado.'
                   : 'O pedido fica «A rever» para o pioneiro corrigir e reenviar; o histórico fica guardado.'}
                 onConfirm={() =>
                   action.run(() => call('record_team_decision', {
@@ -269,7 +275,7 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
               >
                 Registar decisão
               </ConfirmButton>
-            </>
+            </MaybeMore>
           )}
         </section>
       )}
@@ -343,6 +349,11 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
   );
 }
 
+/** Mostra o conteúdo diretamente ou dentro de «Mais opções». */
+function MaybeMore({ more, label, children }: { more: boolean; label: string; children: ReactNode }) {
+  return more ? <MoreOptions label={label}>{children}</MoreOptions> : <>{children}</>;
+}
+
 /** Segundo passo da validação: os dirigentes confirmam o que os guias validaram, ou devolvem com fundamentação. */
 function ConfirmValidation({ requestId, action }: { requestId: string; action: ReturnType<typeof useAction> }) {
   const [comment, setComment] = useState('');
@@ -356,7 +367,7 @@ function ConfirmValidation({ requestId, action }: { requestId: string; action: R
         <textarea id="confirm-comment" value={comment} maxLength={4000} onChange={(e) => setComment(e.target.value)} />
       </Field>
       <ConfirmButton className="btn" confirmLabel="Confirmar validação" disabled={action.busy}
-        description="O trilho fica validado e a decisão é comunicada ao pioneiro e ao Conselho de Guias."
+        description="O trilho fica validado, é atribuído à etapa em curso e a decisão é comunicada ao pioneiro e ao Conselho de Guias."
         onConfirm={() => action.run(() => call('confirm_trail_validation', { p_request: requestId, p_comment: comment || null }), 'Trilho validado.')}>
         Confirmar validação
       </ConfirmButton>

@@ -20,7 +20,7 @@ import { useAction } from '../lib/useAction';
 import { MILESTONES, milestoneByKey, STATE_LABEL, type MilestoneKey, type PositionState } from '../lib/caminho';
 import { formatDate, functionLabel, requestStatusLabel, stageRequestLabel, todayIso, type Tone } from '../lib/labels';
 import type { StageChoice, StageRequest, TrailRequest } from '../lib/types';
-import { isAwaiting } from '../lib/progress';
+import { awaitsDirigentes, isAwaiting } from '../lib/progress';
 import { Avatar, Badge, ConfirmButton, Empty, ErrorBox, Field, Loading, Notice } from '../components/ui';
 import { RequestList } from '../components/RequestList';
 import { stageName } from '../components/StagePanel';
@@ -253,7 +253,9 @@ function Inbox({ members }: { members: MemberRow[] }) {
   for (const r of reqs.data ?? []) {
     if (!byId.has(r.membership_id) || r.status === 'rascunho' || r.status === 'cancelado') continue;
     const type: InboxType = r.kind === 'historico' ? 'anterior' : r.kind === 'negociacao' ? 'negociacao' : 'trilhos';
-    items.set(`${type}:${r.id}`, { key: `${type}:${r.id}`, type, memberId: r.membership_id, pending: isAwaiting(r), at: r.updated_at, request: r });
+    // Trilhos: primeiro os guias; só ficam pendentes para os dirigentes depois de os guias validarem.
+    const pending = isDirigente ? awaitsDirigentes(r, members) : isAwaiting(r);
+    items.set(`${type}:${r.id}`, { key: `${type}:${r.id}`, type, memberId: r.membership_id, pending, at: r.updated_at, request: r });
   }
   const all = [...items.values()].filter((i) => !team || byId.get(i.memberId)?.team_id === team);
   const byState = all.filter((i) => (estado === 'todos' ? true : estado === 'decididos' ? !i.pending : i.pending));
@@ -295,7 +297,9 @@ function Inbox({ members }: { members: MemberRow[] }) {
               const trail = catalog.trailById.get(i.choice?.trail_id ?? i.request!.trail_id);
               const area = trail ? catalog.areaById.get(trail.area_id) : undefined;
               const m = byId.get(i.memberId);
-              const badge = i.choice ? CHOICE_STATUS[i.choice.status] : requestStatusLabel[i.request!.status];
+              const withGuias = isDirigente && !!i.request && isAwaiting(i.request) && !i.pending;
+              const badge = i.choice ? CHOICE_STATUS[i.choice.status]
+                : withGuias ? { label: 'Com os guias', tone: 'muted' as Tone, icon: 'clock' as const } : requestStatusLabel[i.request!.status];
               const stage = i.choice ? stageName(catalog, paths.data?.find((p) => p.id === i.choice!.stage_path_id)?.stage_key ?? '') : null;
               const guiaOwn = i.type === 'trilhos' && m?.function === 'guia';
               const head = (

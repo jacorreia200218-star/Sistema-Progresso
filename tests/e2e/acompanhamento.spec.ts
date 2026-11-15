@@ -42,16 +42,19 @@ test('pedidos: caixa única com filtros por tipo, estado e equipa, sem duplicado
   await installMock(page, leader());
   await page.goto('/acompanhamento/pedidos');
   const inbox = page.locator('.inbox');
-  // Pendentes: uma negociação, um pedido de trilho e um de progresso anterior
-  await expect(inbox.locator('> li')).toHaveCount(3);
-  await expect(inbox.locator('.type-tag')).toHaveText([/Negociação|Trilho|anterior/, /Negociação|Trilho|anterior/, /Negociação|Trilho|anterior/]);
+  // Pendentes: uma negociação e um de progresso anterior (o pedido de trilho ainda está com os guias)
+  await expect(inbox.locator('> li')).toHaveCount(2);
+  await expect(inbox.locator('.type-tag')).toHaveText([/Negociação|anterior/, /Negociação|anterior/]);
   await noHorizontalScroll(page);
   await page.screenshot({ path: `test-results/acomp-pedidos-${info.project.name}.png`, fullPage: true });
 
   await page.getByRole('radiogroup', { name: 'Tipo de pedido' }).getByRole('radio', { name: /^Trilhos/ }).click();
   await expect(page).toHaveURL(/tipo=trilhos/);
-  await expect(inbox.locator('> li')).toHaveCount(1);
+  await expect(inbox.locator('> li')).toHaveCount(0);
+  await page.getByLabel('Filtrar por estado').selectOption('todos');
   await expect(inbox).toContainText('Descoberta');
+  await expect(inbox).toContainText('Com os guias');
+  await page.getByLabel('Filtrar por estado').selectOption('pendentes');
 
   await page.getByRole('radiogroup', { name: 'Tipo de pedido' }).getByRole('radio', { name: /^Progresso anterior/ }).click();
   await expect(inbox.locator('> li')).toHaveCount(1);
@@ -316,4 +319,21 @@ test.describe('capturas', () => {
       await shoot(page, info, theme, 'membro-registar-progresso-anterior');
     });
   }
+});
+
+test('trilhos: primeiro os guias; o dirigente só valida já se quiser (fica logo validado)', async ({ page }) => {
+  await installMock(page, leader());
+  // O pedido de Pedro (equipa com guia) ainda está com os guias: não é pendente para os dirigentes.
+  await page.goto('/acompanhamento/pedidos?tipo=trilhos&estado=todos');
+  const row = page.locator('ul.inbox li', { hasText: 'Pedro Teste' }).filter({ hasText: 'Descoberta' });
+  await expect(row.getByText('Com os guias')).toBeVisible();
+  await expect(row).not.toHaveClass(/is-pending/);
+  await page.goto('/revisoes/pedido/r-obj');
+  await expect(page.getByText('Este pedido está com os guias.', { exact: false })).toBeVisible();
+  const more = page.locator('details', { hasText: 'Validar já como dirigente' });
+  await expect(more.getByRole('button', { name: 'Registar decisão' })).toBeHidden();
+  await more.locator('summary').click();
+  await more.getByRole('button', { name: 'Registar decisão' }).click();
+  await page.getByRole('button', { name: 'Validar o trilho' }).click();
+  await expect(page.getByText('Trilho validado. A decisão foi comunicada ao Conselho de Guias.')).toBeVisible();
 });

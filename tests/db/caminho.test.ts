@@ -57,11 +57,18 @@ describe('posição no caminho (pp. 3, 4–14)', () => {
     // Valida 6 trilhos de UMA só área/fora da etapa: não chega.
     for (const t of [byArea.F[0], byArea.F[1], byArea.F[2], byArea.A[0], byArea.A[1], byArea.A[2]]) await validateTrail(w, 'P1', t.id);
     expect(await pos(w.members.P1)).toEqual({ milestone: 'conhecimento', state: 'em_curso' });
+    // O primeiro trilho validado de cada área fica atribuído à etapa; os outros ficam sem etapa.
+    const placed = await admin(`select trail_key from public.stage_choices where stage_path_id = $1 and status = 'confirmada' order by area_code`, [path]);
+    expect(placed.map((r) => r.trail_key).sort()).toEqual([byArea.A[0].key, byArea.F[0].key].sort());
+    // Uma proposta pendente do trilho é confirmada quando o trilho fica validado.
+    const c = await rpc<string>(w.users.P1, 'propose_choice', { p_stage_path: path, p_trail: byArea.S[0].id, p_planned: 'Oportunidades previstas', p_replaces: null });
+    await validateTrail(w, 'P1', byArea.S[0].id);
+    expect((await admin(`select status::text from public.stage_choices where id = $1`, [c]))[0].status).toBe('confirmada');
   });
 
   it('requisitos cumpridos → em validação → concluída → reconhecida', async () => {
     const byAreaKeys = await confirmAllAreas(w, 'P1', path, 0);
-    for (const t of byAreaKeys.slice(2)) await validateTrail(w, 'P1', t.id); // F e A já validados
+    for (const t of byAreaKeys.slice(2, 5)) await validateTrail(w, 'P1', t.id); // F, A e S já validados
     // Com um trilho validado em cada área, a etapa segue sozinha para o Conselho de Guias.
     expect(await pos(w.members.P1)).toEqual({ milestone: 'conhecimento', state: 'em_validacao' });
     const sr = (await openStageRequest(path))!;

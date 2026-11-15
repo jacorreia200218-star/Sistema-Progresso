@@ -219,6 +219,11 @@ describe('aplicabilidade e fórmula', () => {
     const b = await board('Ana');
     expect(b.by_team.map((t: any) => t.team_name)).toEqual(['Equipa A', 'Equipa B', null]); // «Sem equipa» no fim
     expect(b.by_month.length).toBeGreaterThan(0);
+    // Cada pessoa conta uma vez, na equipa da sessão mais recente (Mudou passou da A para a B).
+    const people = new Set(b.cells.map((c: any) => c.m)).size;
+    expect(b.by_team.reduce((n: number, t: any) => n + t.members, 0)).toBe(people);
+    expect(b.by_team.find((t: any) => t.team_name === 'Equipa A').members).toBe(4); // GuiaA, P1, P2, Novo
+    expect(b.by_team.find((t: any) => t.team_name === 'Equipa B').members).toBe(5); // GuiaB, P3, Mudou, Saiu, Promovido
     const teams = b.members.map((m: any) => m.team_name ?? 'zzz');
     expect(teams).toEqual([...teams].sort());
     const inA = b.members.filter((m: any) => m.team_name === 'Equipa A').map((m: any) => m.name);

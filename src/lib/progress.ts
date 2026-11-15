@@ -17,6 +17,24 @@ export function isAwaiting(r: TrailRequest | undefined): boolean {
   return !!r && (r.status === 'submetido' || r.status === 'em_revisao' || r.status === 'validado_guias');
 }
 
+type TeamMember = { id: string; status: string; function: string | null; team_id: string | null };
+
+/** A equipa do membro tem outro guia ativo, que decide o pedido na reunião de Equipa? */
+export function teamHasOtherGuia(memberId: string, members: TeamMember[]): boolean {
+  const m = members.find((x) => x.id === memberId);
+  return !!m?.team_id && members.some((g) => g.id !== m.id && g.status === 'ativo' && g.function === 'guia' && g.team_id === m.team_id);
+}
+
+/**
+ * Pedido com os dirigentes: validado pelos guias ou, se a equipa não tiver outro guia,
+ * logo depois de enviado. Os pedidos de trilho vão primeiro aos guias (como no servidor).
+ */
+export function awaitsDirigentes(r: TrailRequest, members: TeamMember[]): boolean {
+  if (r.status === 'validado_guias') return true;
+  if (r.status !== 'submetido' && r.status !== 'em_revisao') return false;
+  return r.kind !== 'normal' || !teamHasOtherGuia(r.membership_id, members);
+}
+
 export function isValidated(r: TrailRequest | undefined): boolean {
   return !!r && (r.status === 'validado_equipa' || r.status === 'aprovado');
 }

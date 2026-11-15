@@ -135,12 +135,17 @@ export async function buildWorld(tag: string): Promise<World> {
   return { section, teamA, teamB, users, members };
 }
 
-/** Atribui (via dirigente) e confirma um trilho de cada área na etapa. */
+/**
+ * Atribui (via dirigente) e confirma um trilho de cada área na etapa. Áreas que já
+ * têm este trilho confirmado (um trilho validado é atribuído sozinho à etapa) ficam como estão.
+ */
 export async function confirmAllAreas(w: World, who: string, stagePath: string, offset = 0) {
   const byArea = await trailsByArea();
   const chosen: { id: string; key: string }[] = [];
   for (const code of Object.keys(byArea)) {
     const t = byArea[code][offset];
+    const placed = await admin(`select 1 from public.stage_choices where stage_path_id = $1 and trail_key = $2 and status = 'confirmada'`, [stagePath, t.key]);
+    if (placed.length) { chosen.push(t); continue; }
     const c = await rpc<string>(w.users[who], 'propose_choice', { p_stage_path: stagePath, p_trail: t.id, p_planned: 'Oportunidades previstas', p_replaces: null });
     await rpc(w.users.Ana, 'decide_choice', { p_choice: c, p_accept: true, p_comment: null });
     chosen.push(t);
