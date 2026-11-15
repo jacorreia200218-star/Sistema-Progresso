@@ -4,7 +4,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';
-import { fetchCatalog, fetchMe, fetchSettings, type MyMembership } from './api';
+import { fetchCatalog, fetchMe, fetchMyTeamRole, fetchSettings, type MyMembership, type TeamRole } from './api';
 import type { Catalog, Profile, SectionSettings } from './types';
 
 const KEY = 'pioneiros.secao';
@@ -19,6 +19,12 @@ export interface SectionContextValue {
   catalog: Catalog | null;
   isMember: boolean; // pioneiro ou guia (tem percurso próprio)
   isGuia: boolean;
+  /** Subguia (cargo em Equipas e cargos): decide na reunião de Equipa como o guia. */
+  isSubguia: boolean;
+  /** Equipa cujos pedidos decido na reunião de Equipa (guia ou subguia). */
+  decidesTeam: string | null;
+  /** Quem decide em cada equipa (guias e subguias), quando o servidor o indica. */
+  teamDeciders: TeamRole['deciders'];
   isDirigente: boolean;
   isAdmin: boolean;
   selectSection: (sectionId: string) => void;
@@ -57,6 +63,11 @@ export function SectionProvider({ children }: { children: ReactNode }) {
     enabled: !!membership,
   });
   const versionId = membership?.sections?.catalog_version_id ?? null;
+  const teamRole = useQuery({
+    queryKey: ['team-role', membership?.section_id, userId],
+    queryFn: () => fetchMyTeamRole(membership!.section_id),
+    enabled: !!membership,
+  });
   const catalog = useQuery({
     queryKey: ['catalog', versionId],
     queryFn: () => fetchCatalog(versionId!),
@@ -76,6 +87,9 @@ export function SectionProvider({ children }: { children: ReactNode }) {
       catalog: catalog.data ?? null,
       isMember: fn === 'pioneiro' || fn === 'guia',
       isGuia: fn === 'guia',
+      isSubguia: teamRole.data?.role === 'subguia',
+      decidesTeam: teamRole.data?.decider_team ?? (fn === 'guia' ? membership?.team_id ?? null : null),
+      teamDeciders: teamRole.data?.deciders ?? [],
       isDirigente: fn === 'dirigente',
       isAdmin: !!membership?.is_admin,
       selectSection: (id) => {
@@ -93,7 +107,7 @@ export function SectionProvider({ children }: { children: ReactNode }) {
         settings.refetch();
       },
     };
-  }, [userId, me.data, me.isLoading, me.error, memberships, membership, settings.data, settings.isLoading, settings.error, catalog.data, catalog.isLoading, catalog.error]);
+  }, [userId, me.data, me.isLoading, me.error, memberships, membership, settings.data, settings.isLoading, settings.error, catalog.data, catalog.isLoading, catalog.error, teamRole.data]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

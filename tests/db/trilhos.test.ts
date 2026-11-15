@@ -196,7 +196,8 @@ describe('contadores do Acompanhamento', () => {
   it('cada pendente conta uma vez, no seu tipo, e o total é a soma', async () => {
     const c = await counts();
     const pend = await admin(`select r.kind::text, count(*)::int n from public.trail_requests r join public.memberships m on m.id = r.membership_id
-      where r.section_id = $1 and m.status = 'ativo' and m.function in ('pioneiro', 'guia') and r.status::text in ('submetido', 'em_revisao', 'validado_guias') group by r.kind`, [w.section]);
+      where r.section_id = $1 and m.status = 'ativo' and m.function in ('pioneiro', 'guia') and r.status::text in ('submetido', 'em_revisao', 'validado_guias')
+        and private.request_awaits_dirigentes(r.kind, r.status, r.membership_id) group by r.kind`, [w.section]);
     const normal = pend.find((r) => r.kind === 'normal')?.n ?? 0;
     const hist = pend.find((r) => r.kind === 'historico')?.n ?? 0;
     expect(c.trilhos).toBe(normal);
@@ -204,16 +205,20 @@ describe('contadores do Acompanhamento', () => {
     expect(c.acompanhamento).toBe(c.negociacao + c.trilhos + c.anterior + c.etapas);
   });
 
-  it('conta os trilhos à espera dos dirigentes e não conta pedidos que a lista não mostra', async () => {
+  it('primeiro os guias: os dirigentes só contam (e são avisados) depois de os guias validarem', async () => {
     const before = (await counts()).trilhos;
     const req = await newRequest('P2', await trail('espiritual-descoberta'));
     await send('P2', req, 'Treinei todas as semanas e registei o progresso.');
-    expect((await counts()).trilhos).toBe(before + 1);
+    expect((await counts()).trilhos).toBe(before); // ainda com os guias
+    const avisos = async (who: string) => (await asUser(w.users[who], `select kind from public.notifications where link = $1`, [`/revisoes/pedido/${req}`])).map((r) => r.kind);
+    expect(await avisos('GuiaA')).toEqual(['pedido_submetido']);
+    expect(await avisos('Rui')).toEqual([]);
     await decide('GuiaA', req, true);
     expect((await counts()).trilhos).toBe(before + 1); // validado pelos guias: falta confirmar
+    expect(await avisos('Rui')).toEqual(['validacao_guias']);
     // Quem deixa de ser pioneiro ou guia sai da lista do Acompanhamento e do contador.
-    const ofP2 = (await admin(`select count(*)::int n from public.trail_requests where membership_id = $1 and kind = 'normal'
-      and status::text in ('submetido', 'em_revisao', 'validado_guias')`, [w.members.P2]))[0].n as number;
+    const ofP2 = (await admin(`select count(*)::int n from public.trail_requests r where r.membership_id = $1 and r.kind = 'normal'
+      and private.request_awaits_dirigentes(r.kind, r.status, r.membership_id)`, [w.members.P2]))[0].n as number;
     await admin(`update public.memberships set function = 'dirigente', team_id = null where id = $1`, [w.members.P2]);
     expect((await counts()).trilhos).toBe(before + 1 - ofP2);
     await admin(`update public.memberships set function = 'pioneiro', team_id = $2 where id = $1`, [w.members.P2, w.teamA]);
@@ -231,5 +236,48 @@ describe('contadores do Acompanhamento', () => {
     await rpc(w.users.Rui, 'record_council_return', { p_request: req, p_meeting_date: today(), p_comment: 'Falta falar do treino regular.' });
     expect(await status(req)).toBe('devolvido');
     await expectError(rpc(w.users.Rui, 'confirm_trail_validation', { p_request: req, p_comment: null }), 'confirmação dos dirigentes');
+  });
+});
+
+describe('guias primeiro, dirigentes depois', () => {
+  it('pedido do próprio guia (sem outro guia na equipa) vai logo para os dirigentes', async () => {
+    const counts = () => rpc<Record<string, number>>(w.users.Rui, 'my_pending_counts', { p_section: w.section });
+    const before = (await counts()).trilhos;
+    const req = await newRequest('GuiaB', await trail('social-exercer-ativamente-cidadania'));
+    await send('GuiaB', req, 'Organizei a recolha de alimentos com a minha equipa.');
+    expect((await counts()).trilhos).toBe(before + 1);
+    expect((await asUser(w.users.Rui, `select kind from public.notifications where link = $1`, [`/revisoes/pedido/${req}`])).map((r) => r.kind)).toEqual(['pedido_submetido']);
+    await decide('Rui', req, true);
+    expect(await status(req)).toBe('validado_equipa'); // dirigente: fica logo validado
+    expect((await counts()).trilhos).toBe(before);
+  });
+
+  it('um dirigente pode validar diretamente: fica logo validado, sem esperar pelos guias', async () => {
+    const req = await newRequest('P3', await trail('espiritual-descoberta'));
+    await send('P3', req, 'Participei no retiro e partilhei o que aprendi.');
+    await decide('Ana', req, true);
+    expect(await status(req)).toBe('validado_equipa');
+    expect(await validatedKeys('P3')).toContain('espiritual-descoberta');
+  });
+});
+
+describe('subguias', () => {
+  it('o subguia da equipa recebe o pedido, vê-o e regista a validação dos guias', async () => {
+    const role = (await admin(`insert into public.eq_roles (section_id, space, name, kind, single) values ($1, 'real', 'Subguia', 'subguia', true) returning id`, [w.section]))[0].id;
+    await admin(`insert into public.eq_appointments (section_id, space, role_id, role_kind, team_id, membership_id, profile_id, starts_on, created_by)
+      values ($1, 'real', $2, 'subguia', $3, $4, $5, current_date - 1, $6)`, [w.section, role, w.teamA, w.members.P1, w.users.P1, w.users.Ana]);
+    expect(await rpc(w.users.P1, 'my_team_role', { p_section: w.section })).toMatchObject({ role: 'subguia', decider_team: w.teamA });
+    const req = await newRequest('P2', await trail('afetivo-autoestima'));
+    await send('P2', req, 'Falei com a equipa sobre o que sinto e aprendi a aceitar elogios.');
+    expect((await asUser(w.users.P1, `select kind from public.notifications where link = $1`, [`/revisoes/pedido/${req}`])).map((r) => r.kind)).toEqual(['pedido_submetido']);
+    expect((await asUser(w.users.P1, `select id from public.trail_requests where id = $1`, [req])).length).toBe(1);
+    expect((await rpc<Record<string, number>>(w.users.P1, 'my_pending_counts', { p_section: w.section })).equipa).toBeGreaterThanOrEqual(1);
+    await decide('P1', req, true);
+    expect(await status(req)).toBe('validado_guias');
+    // O subguia não decide pedidos de outra equipa nem o seu.
+    const other = await newRequest('P3', await trail('afetivo-autoestima'));
+    await send('P3', other, 'Partilhei na reunião o que mudou em mim.');
+    await expectError(decide('P1', other, true), 'Sem permissão');
+    expect((await asUser(w.users.P1, `select id from public.trail_requests where id = $1`, [other])).length).toBe(0);
   });
 });

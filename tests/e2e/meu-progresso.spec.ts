@@ -168,6 +168,8 @@ test('revisão: o pedido e a revisão mostram os mesmos objetivos; devolver com 
   await expect(page.getByText('Preparei a vigília da equipa')).toBeVisible();
   await page.screenshot({ path: `test-results/revisao-trilho-${info.project.name}.png`, fullPage: true });
 
+  // Pedido ainda com os guias: o dirigente decide já em «Validar já como dirigente».
+  await page.locator('details', { hasText: 'Validar já como dirigente' }).locator('summary').click();
   await page.getByRole('radio', { name: /Devolver para revisão/ }).check();
   await page.locator('.obj-flags').getByText('E2').click();
   await page.getByLabel(/Fundamentação/).fill('Fala de um momento em que partilhaste a tua fé com outros.');
@@ -181,6 +183,7 @@ test('revisão: o pedido e a revisão mostram os mesmos objetivos; devolver com 
 test('revisão: validar o trilho completo', async ({ page }) => {
   const mock = await installMock(page, leader());
   await page.goto('/revisoes/pedido/r-obj');
+  await page.locator('details', { hasText: 'Validar já como dirigente' }).locator('summary').click();
   await page.getByRole('radio', { name: /Validar o trilho/ }).check();
   await page.getByLabel(/Comentário|Fundamentação/).fill('Demonstrou os três objetivos na vigília e no serviço.');
   await page.getByRole('button', { name: 'Registar decisão' }).click();
