@@ -125,7 +125,7 @@ function RequestView({ detail }: { detail: RequestDetail }) {
       )}
 
       {isOwner && <OwnerRequestPanel detail={detail} current={current} />}
-      {!isOwner && <ReviewerPanel detail={detail} current={current} hasTeamGuia={!!member && teamHasOtherGuia(member.id, members.data ?? [])} />}
+      {!isOwner && <ReviewerPanel detail={detail} current={current} hasTeamGuia={!!member && teamHasOtherGuia(member.id, members.data ?? [], s.teamDeciders)} />}
 
       {request.kind === 'negociacao' && (
         <Notice kind="info">
@@ -183,7 +183,7 @@ function ReviewerPanel({ detail, current, hasTeamGuia }: { detail: RequestDetail
   const [refDate, setRefDate] = useState('');
   const [note, setNote] = useState('');
   const open = request.status === 'submetido' || request.status === 'em_revisao';
-  const isTeamGuia = s.isGuia && member?.team_id === s.membership.team_id;
+  const isTeamGuia = !!s.decidesTeam && member?.team_id === s.decidesTeam;
   const canTeam = request.kind === 'normal' && open && (s.isDirigente || isTeamGuia);
   const canHistoric = request.kind === 'historico' && open && s.isDirigente;
   const commentRequired = outcome !== 'validado' && outcome !== 'aprovado';

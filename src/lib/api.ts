@@ -261,6 +261,17 @@ export function fetchSectionPath(sectionId: string): Promise<SectionPath> {
   return call<SectionPath>('section_path', { p_section: sectionId });
 }
 
+export interface TeamRole {
+  role: 'guia' | 'subguia' | null;
+  decider_team: string | null;
+  /** Por equipa, quem decide na reunião de Equipa (guia e subguia). Só para dirigentes, guias e subguias. */
+  deciders: { team_id: string; membership_id: string }[];
+}
+
+export function fetchMyTeamRole(sectionId: string): Promise<TeamRole | null> {
+  return call<TeamRole | null>('my_team_role', { p_section: sectionId });
+}
+
 export function fetchPendingCounts(sectionId: string): Promise<Record<string, number>> {
   return call<Record<string, number>>('my_pending_counts', { p_section: sectionId });
 }

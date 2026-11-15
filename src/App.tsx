@@ -98,14 +98,14 @@ function Authenticated() {
           <Route path="pedidos" element={<Navigate to="/meu-progresso?vista=pedidos" replace />} />
           <Route path="pedidos/:id" element={<RequestPage />} />
           <Route path="revisoes/pedido/:id" element={<RequestPage />} />
-          <Route path="equipa" element={<Guard when={s.isGuia}><Team /></Guard>} />
+          <Route path="equipa" element={<Guard when={s.isGuia || s.isSubguia}><Team /></Guard>} />
           <Route path="conselho" element={<Guard when={s.isGuia || s.isDirigente}>{s.isDirigente ? <Navigate to="/acompanhamento/etapas" replace /> : <Team />}</Guard>} />
           <Route path="acompanhamento" element={<Guard when={s.isDirigente}><Leaders /></Guard>} />
           <Route path="acompanhamento/proposta/:id" element={<Guard when={s.isDirigente}><ProposalPage /></Guard>} />
           <Route path="acompanhamento/:tab" element={<Guard when={s.isDirigente}><LeadersRoute /></Guard>} />
           <Route path="dirigentes" element={<LegacyLeaders />} />
           <Route path="dirigentes/:tab" element={<LegacyLeaders />} />
-          <Route path="membros/:id" element={<Guard when={s.isDirigente || s.isGuia}><MemberDetail /></Guard>} />
+          <Route path="membros/:id" element={<Guard when={s.isDirigente || s.isGuia || s.isSubguia}><MemberDetail /></Guard>} />
           <Route path="gestao" element={<Guard when={s.isAdmin}><Admin /></Guard>} />
           <Route path="gestao/:tab" element={<Guard when={s.isAdmin}><Admin /></Guard>} />
           <Route path="perfil" element={<Profile />} />

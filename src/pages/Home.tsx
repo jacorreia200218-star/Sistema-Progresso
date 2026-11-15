@@ -40,7 +40,8 @@ function WhereTheyAre() {
 }
 
 function MemberHome() {
-  const { membership, catalog, isGuia } = useActiveSection();
+  const { membership, catalog, isGuia, isSubguia } = useActiveSection();
+  const decides = isGuia || isSubguia;
   const q = useProgress(membership.id);
   const ids = (q.data?.requests ?? []).map((r) => r.id);
   const feedback = useQuery({
@@ -53,7 +54,7 @@ function MemberHome() {
       return data as TrailDecision[];
     },
   });
-  const teamCounts = useQuery({ queryKey: ['pending-counts', membership.section_id], queryFn: () => fetchPendingCounts(membership.section_id), enabled: isGuia });
+  const teamCounts = useQuery({ queryKey: ['pending-counts', membership.section_id], queryFn: () => fetchPendingCounts(membership.section_id), enabled: decides });
   if (q.isLoading) return <Loading />;
   if (q.error || !q.data) return <ErrorBox error={q.error} retry={q.refetch} />;
   const p = q.data;
@@ -79,7 +80,7 @@ function MemberHome() {
         {action.to && <Link to={action.to} className="btn">{action.label ?? 'Continuar'} <ArrowRight size={16} aria-hidden="true" /></Link>}
       </section>
 
-      {isGuia && (
+      {decides && (
         <Link to="/equipa" className="card list-item">
           <span className="grow"><strong>A tua Equipa</strong> · {equipa ? `${equipa} pedido(s) para a reunião de Equipa` : 'Sem pedidos para a reunião'}</span>
           <ArrowRight size={16} aria-hidden="true" />

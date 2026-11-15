@@ -125,7 +125,7 @@ export function useNavItems() {
     // Dirigentes veem o caminho e os pioneiros dentro do Acompanhamento.
     !s.isDirigente && { key: 'caminho', to: '/caminho', label: 'Caminho da secção', short: 'Caminho', icon: RouteIcon },
     { key: 'trilhos', to: '/trilhos', label: 'Trilhos', short: 'Trilhos', icon: ListTree },
-    s.isGuia && { key: 'equipa', to: '/equipa', label: 'Equipa', short: 'Equipa', icon: Users, count: c.equipa, countLabel: 'para a reunião de Equipa' },
+    (s.isGuia || s.isSubguia) && { key: 'equipa', to: '/equipa', label: 'Equipa', short: 'Equipa', icon: Users, count: c.equipa, countLabel: 'para a reunião de Equipa' },
     s.isDirigente && {
       key: 'acompanhamento', to: '/acompanhamento', label: 'Acompanhamento', short: 'Acompanhar', icon: UserCheck,
       count: c.acompanhamento, countLabel: 'pendentes', also: s.isMember ? ['/caminho', '/membros'] : ['/caminho', '/meu-progresso', '/membros'],

@@ -144,9 +144,12 @@ describe('aplicabilidade e fórmula', () => {
     expect(await who(today)).not.toContain('Saiu');
   });
 
-  it('sessões de equipa contam a equipa à data da sessão', async () => {
+  it('sessões de equipa contam a equipa à data da sessão; a pessoa aparece só na equipa atual', async () => {
     expect(await who(sTeamA)).toEqual(['GuiaA', 'Mudou', 'P1', 'P2']);
     expect(await who(sTeamB)).toEqual(['GuiaB', 'Mudou', 'P3', 'Saiu']);
+    const cellsOf = (b: any) => b.cells.filter((c: any) => c.m === w.members.Mudou).length;
+    expect(cellsOf(await board('Ana', day(-200), day(60), w.teamA))).toBe(0);
+    expect(cellsOf(await board('Ana', day(-200), day(60), w.teamB))).toBeGreaterThan(0);
   });
 
   it('não regista quem não conta na sessão', async () => {

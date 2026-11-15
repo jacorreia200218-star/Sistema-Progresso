@@ -260,3 +260,24 @@ describe('guias primeiro, dirigentes depois', () => {
     expect(await validatedKeys('P3')).toContain('espiritual-descoberta');
   });
 });
+
+describe('subguias', () => {
+  it('o subguia da equipa recebe o pedido, vê-o e regista a validação dos guias', async () => {
+    const role = (await admin(`insert into public.eq_roles (section_id, space, name, kind, single) values ($1, 'real', 'Subguia', 'subguia', true) returning id`, [w.section]))[0].id;
+    await admin(`insert into public.eq_appointments (section_id, space, role_id, role_kind, team_id, membership_id, profile_id, starts_on, created_by)
+      values ($1, 'real', $2, 'subguia', $3, $4, $5, current_date - 1, $6)`, [w.section, role, w.teamA, w.members.P1, w.users.P1, w.users.Ana]);
+    expect(await rpc(w.users.P1, 'my_team_role', { p_section: w.section })).toMatchObject({ role: 'subguia', decider_team: w.teamA });
+    const req = await newRequest('P2', await trail('afetivo-autoestima'));
+    await send('P2', req, 'Falei com a equipa sobre o que sinto e aprendi a aceitar elogios.');
+    expect((await asUser(w.users.P1, `select kind from public.notifications where link = $1`, [`/revisoes/pedido/${req}`])).map((r) => r.kind)).toEqual(['pedido_submetido']);
+    expect((await asUser(w.users.P1, `select id from public.trail_requests where id = $1`, [req])).length).toBe(1);
+    expect((await rpc<Record<string, number>>(w.users.P1, 'my_pending_counts', { p_section: w.section })).equipa).toBeGreaterThanOrEqual(1);
+    await decide('P1', req, true);
+    expect(await status(req)).toBe('validado_guias');
+    // O subguia não decide pedidos de outra equipa nem o seu.
+    const other = await newRequest('P3', await trail('afetivo-autoestima'));
+    await send('P3', other, 'Partilhei na reunião o que mudou em mim.');
+    await expectError(decide('P1', other, true), 'Sem permissão');
+    expect((await asUser(w.users.P1, `select id from public.trail_requests where id = $1`, [other])).length).toBe(0);
+  });
+});

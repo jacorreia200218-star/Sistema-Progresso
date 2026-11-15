@@ -230,7 +230,7 @@ export const CHOICE_STATUS: Record<StageChoice['status'], { label: string; tone:
 };
 
 function Inbox({ members }: { members: MemberRow[] }) {
-  const { membership, catalog, isDirigente } = useActiveSection();
+  const { membership, catalog, isDirigente, teamDeciders } = useActiveSection();
   const teams = useTeams(membership.section_id);
   const ids = members.map((m) => m.id);
   const choices = useQuery({ queryKey: ['choices', ids, 'todas'], queryFn: () => fetchSectionChoices(ids), enabled: ids.length > 0 });
@@ -254,7 +254,7 @@ function Inbox({ members }: { members: MemberRow[] }) {
     if (!byId.has(r.membership_id) || r.status === 'rascunho' || r.status === 'cancelado') continue;
     const type: InboxType = r.kind === 'historico' ? 'anterior' : r.kind === 'negociacao' ? 'negociacao' : 'trilhos';
     // Trilhos: primeiro os guias; só ficam pendentes para os dirigentes depois de os guias validarem.
-    const pending = isDirigente ? awaitsDirigentes(r, members) : isAwaiting(r);
+    const pending = isDirigente ? awaitsDirigentes(r, members, teamDeciders) : isAwaiting(r);
     items.set(`${type}:${r.id}`, { key: `${type}:${r.id}`, type, memberId: r.membership_id, pending, at: r.updated_at, request: r });
   }
   const all = [...items.values()].filter((i) => !team || byId.get(i.memberId)?.team_id === team);
