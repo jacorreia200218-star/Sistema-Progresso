@@ -51,7 +51,8 @@ test('perfil: por autorizar → ativo, teste e desativar (pioneiro)', async ({ p
   await card.getByRole('button', { name: 'Ativar notificações' }).click();
   await expect(card.getByText('Notificações ativadas neste dispositivo.')).toBeVisible();
   expect(mock.calls.find((c) => c.fn === 'save_push_subscription')?.body).toMatchObject({ p_endpoint: 'https://push.example.invalid/dispositivo', p_p256dh: 'BKey', p_auth: 'auth' });
-  expect(mock.calls.find((c) => c.fn === 'has_push_subscription')?.body).toMatchObject({ p_endpoint: 'https://push.example.invalid/dispositivo' });
+  // O sucesso aparece logo que o servidor confirma; o estado do dispositivo recarrega a seguir.
+  await expect.poll(() => mock.calls.find((c) => c.fn === 'has_push_subscription')?.body).toMatchObject({ p_endpoint: 'https://push.example.invalid/dispositivo' });
   await expect(card.locator('.badge')).toHaveText('Ativo');
   // Nunca promete a entrega com o ecrã bloqueado
   await expect(card).not.toContainText(/garant|sempre/i);

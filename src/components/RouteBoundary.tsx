@@ -11,8 +11,29 @@ function isChunkError(e: unknown) {
   return /dynamically imported module|Importing a module script failed|Failed to fetch|ChunkLoadError|error loading dynamically/i.test(msg);
 }
 
+const importers: (() => Promise<unknown>)[] = [];
+
+/**
+ * Pré-carrega o código de todas as páginas quando o navegador está parado, para que
+ * abrir uma página nova seja imediato. Não o faz com poupança de dados ativa.
+ */
+export function prefetchPages() {
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  if (conn?.saveData) return;
+  const idle = (cb: () => void) =>
+    typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(cb, { timeout: 4000 }) : setTimeout(cb, 2500);
+  const queue = [...importers];
+  const next = () => {
+    const imp = queue.shift();
+    if (!imp) return;
+    imp().catch(() => undefined).finally(() => idle(next));
+  };
+  idle(next);
+}
+
 /** lazy() que, se o código da página falhar (nova versão publicada), recarrega uma vez. */
 export function lazyPage<T extends ComponentType<object>>(importer: () => Promise<{ default: T }>) {
+  importers.push(importer);
   return lazy(async () => {
     try {
       const mod = await importer();

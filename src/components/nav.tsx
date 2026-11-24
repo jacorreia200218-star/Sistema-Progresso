@@ -1,6 +1,6 @@
 // Navegação contextual e blocos compactos partilhados: migalhas (Início › Progresso
 // › Área › Trilho), cartões-resumo com hiperligação e painel lateral/folha.
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import React, { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, X } from 'lucide-react';
 
@@ -86,6 +86,42 @@ export function StatCards({ items, label }: { items: Stat[]; label: string }) {
 }
 
 /**
+ * Folha do telemóvel: arrastar para baixo fecha (mais de 90 px ou um gesto rápido);
+ * a meio do gesto pode-se voltar atrás e a folha regressa ao lugar.
+ */
+function useSwipeDown(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
+  const start = useRef<{ y: number; t: number; id: number } | null>(null);
+  const isSheet = () => typeof window !== 'undefined' && !window.matchMedia('(min-width: 960px)').matches;
+  const set = (dy: number, animate: boolean) => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = animate ? 'transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1)' : 'none';
+    el.style.transform = dy > 0 ? `translateY(${dy}px)` : '';
+  };
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (!isSheet() || (e.target as Element).closest('button, a, input, select, textarea')) return;
+      start.current = { y: e.clientY, t: performance.now(), id: e.pointerId };
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (!start.current || e.pointerId !== start.current.id) return;
+      set(Math.max(0, e.clientY - start.current.y), false);
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      const s0 = start.current;
+      if (!s0 || e.pointerId !== s0.id) return;
+      start.current = null;
+      const dy = e.clientY - s0.y;
+      const speed = dy / Math.max(1, performance.now() - s0.t);
+      if (dy > 90 || (dy > 30 && speed > 0.6)) onClose();
+      else set(0, true);
+    },
+    onPointerCancel: () => { start.current = null; set(0, true); },
+  };
+}
+
+/**
  * Painel de detalhe: lateral no computador, folha inferior no telemóvel.
  * Fecha com Esc, com o botão ou tocando fora (telemóvel); devolve o foco a quem o abriu.
  */
@@ -104,11 +140,13 @@ export function SidePanel({ title, onClose, children, labelledBy }: { title: str
     };
   }, [onClose]);
   const id = labelledBy ?? 'painel-titulo';
+  const drag = useSwipeDown(ref, onClose);
   return (
     <>
       <div className="sheet-backdrop" onClick={onClose} aria-hidden="true" />
       <aside className="side-panel" ref={ref} tabIndex={-1} role="dialog" aria-labelledby={id}>
-        <div className="side-panel-head">
+        <div className="sheet-grip" aria-hidden="true" {...drag} />
+        <div className="side-panel-head" {...drag}>
           <h2 id={id}>{title}</h2>
           <button type="button" className="btn ghost icon-btn" aria-label="Fechar" onClick={onClose}><X size={20} aria-hidden="true" /></button>
         </div>

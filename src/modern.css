@@ -101,3 +101,65 @@ input:not([type='checkbox']):not([type='radio']):not([type='file']):focus, selec
   *, *::before, *::after { animation-delay: 0ms !important; }
   .stat:hover, .area-card:hover, a.slot:hover, .person:hover { transform: none; }
 }
+
+/* ---------- Os 20 detalhes de UX ---------- */
+
+/* Menu de comandos (Ctrl K / ⌘K) */
+.cmd-trigger { display: none; align-items: center; gap: 8px; min-height: 36px; padding: 6px 8px 6px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); font: inherit; font-size: var(--fs-body); cursor: pointer; margin-right: 6px;
+  transition: border-color 160ms var(--ease), background-color 160ms var(--ease); }
+.cmd-trigger:hover { border-color: var(--input-border); background: var(--card); }
+.cmd-trigger-label { min-width: 96px; text-align: left; }
+@media (min-width: 960px) { .cmd-trigger { display: inline-flex; } }
+.kbd { font: inherit; font-size: var(--fs-xs); color: var(--ink-soft); background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 6px; padding: 0 6px; line-height: 18px; white-space: nowrap; }
+.cmd-dialog { padding: 0; border: 0; background: transparent; width: min(560px, calc(100vw - 32px)); margin: 12vh auto auto; color: var(--ink); overflow: visible; }
+.cmd-dialog::backdrop { background: rgba(0, 0, 0, 0.32); animation: fade-in 140ms var(--ease); }
+.cmd-dialog[open] .cmd-box { animation: cmd-in 180ms var(--spring); }
+@keyframes cmd-in { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: none; } }
+.cmd-box { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-lift); overflow: hidden; }
+.cmd-search { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--line); color: var(--ink-soft); }
+.cmd-search input[type='search'] { border: 0; box-shadow: none; background: transparent; padding: 10px 0; min-height: 44px; }
+.cmd-search input[type='search']:focus, .cmd-search input[type='search']:focus-visible { box-shadow: none; outline: none; border-color: transparent; }
+.cmd-list { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow-y: auto; }
+.cmd-list li { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; cursor: pointer; min-height: 40px; color: var(--ink); }
+.cmd-list li svg { color: var(--ink-soft); flex: none; }
+.cmd-list li[aria-selected='true'] { background: var(--accent-tint); color: var(--accent-ink); }
+.cmd-list li[aria-selected='true'] svg { color: var(--accent-ink); }
+.cmd-list .cmd-empty { color: var(--ink-soft); cursor: default; }
+
+/* Transições entre páginas (View Transitions): troca suave e curta */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; animation-timing-function: var(--ease); }
+
+/* Folha do telemóvel: pega para arrastar para baixo */
+.sheet-grip { display: none; }
+@media (max-width: 959px) {
+  .sheet-grip { display: block; width: 40px; height: 5px; border-radius: 99px; background: var(--input-border); margin: 8px auto 2px; touch-action: none; cursor: grab; }
+  .side-panel .side-panel-head { touch-action: none; }
+}
+
+/* Fotografias: aparecem com um esbatimento suave por cima das iniciais (em vez de surgirem de repente) */
+.avatar img { animation: photo-in 360ms var(--ease) backwards; }
+@keyframes photo-in { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: none; } }
+
+/* Hit slop: ícones pequenos com área de toque maior do que o desenho */
+.multi-select-remove { position: relative; }
+.multi-select-remove::after { content: ''; position: absolute; inset: -8px; }
+.cs-icon, .ml-num { touch-action: manipulation; }
+
+/* Zonas seguras (entalhe e cantos do iPhone, também na horizontal) */
+.topbar { padding-top: max(8px, env(safe-area-inset-top)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.main { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.bottom-nav { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+@media (min-width: 960px) { .main { padding-left: 28px; padding-right: 28px; } }
+
+/* Títulos equilibrados (sem uma palavra sozinha na última linha) e parágrafos sem viúvas */
+h1, h2, h3, h4, .stat-label, .empty p { text-wrap: balance; }
+p, li, dd { text-wrap: pretty; }
+
+/* Cantos contínuos (squircle), onde o navegador já os suporta */
+@supports (corner-shape: squircle) {
+  .card, .stat, .btn, .tab, .area-card, .slot, .person, .alert, .side-panel, .cmd-box, input, select, textarea { corner-shape: squircle; }
+  .card, .stat, .area-card, .cmd-box { border-radius: 22px; }
+  .btn, input, select, textarea, .alert { border-radius: 16px; }
+}

@@ -13,6 +13,7 @@ import { environmentLabel } from '../lib/supabase';
 import { ThemeToggle } from './ThemeControl';
 import { Avatar, Loading } from './ui';
 import { RouteBoundary } from './RouteBoundary';
+import { CommandMenu } from './CommandMenu';
 
 /** Rosa dos Ventos — símbolo da III Secção, extraído do Manual do Dirigente (CNE), p. 41. */
 export function Rosa({ size = 30 }: { size?: number }) {
@@ -169,8 +170,8 @@ function NavEntry({ i, compact }: { i: NavItem; compact: boolean }) {
     </>
   );
   return also
-    ? <Link to={i.to} className={cls} aria-current="page">{body}</Link>
-    : <NavLink to={i.to} end={i.end} className={cls}>{body}</NavLink>;
+    ? <Link to={i.to} className={cls} aria-current="page" viewTransition>{body}</Link>
+    : <NavLink to={i.to} end={i.end} className={cls} viewTransition>{body}</NavLink>;
 }
 
 export default function Layout() {
@@ -187,6 +188,7 @@ export default function Layout() {
       <header className="topbar">
         <Brand />
         <div className="row topbar-tools">
+          <CommandMenu items={[...items, ...admin]} />
           <StageChip />
           {s.membership?.sections && !s.isMember && <span className="faint ellipsis section-name">{s.membership.sections.name}</span>}
           <ThemeToggle />
