@@ -1,0 +1,165 @@
+/* ---------- Interface mais viva (novembro de 2026) ----------
+   Movimento curto e discreto, sombras suaves e navegação mais clara.
+   Mesmas cores, mesma letra (Arial) e mesmos tamanhos; claro e escuro.
+   Tudo o que mexe desliga-se com «Reduzir movimento» no sistema. */
+
+:root {
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(31, 35, 40, 0.04), 0 2px 6px rgba(31, 35, 40, 0.04), 0 8px 24px rgba(31, 35, 40, 0.04);
+  --shadow-lift: 0 2px 4px rgba(31, 35, 40, 0.05), 0 10px 28px rgba(31, 35, 40, 0.09);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+:root[data-theme='dark'] {
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 6px 20px rgba(0, 0, 0, 0.22);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 6px 20px rgba(0, 0, 0, 0.22);
+    --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Âncoras e campos com foco não ficam escondidos debaixo da barra de cima */
+html { scroll-padding-top: 72px; }
+
+/* Números alinhados em colunas (tabelas, contadores, indicadores) */
+.stat-value, .count, .nav-count, .badge, table td, table th, .money, .ml-num { font-variant-numeric: tabular-nums; }
+
+/* 1. Resposta ao toque: tudo o que se carrega encolhe ligeiramente */
+.btn { transition: background-color 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease), box-shadow 160ms var(--ease), transform 180ms var(--spring); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.stat { transition: border-color 160ms var(--ease), box-shadow 200ms var(--ease), transform 200ms var(--spring); }
+.area-card, .person, .where-card, .caminho-shortcut, a.list-item, .tab, .segment, .filter-chip, .slot {
+  transition: background-color 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease), box-shadow 200ms var(--ease), transform 200ms var(--spring);
+}
+.stat:active, .area-card:active, .person:active, .slot:active, .tab:active, .filter-chip:active { transform: scale(0.98); }
+a.list-item:active, .where-card:active, .caminho-shortcut:active { transform: scale(0.99); }
+
+/* 2. Cartões clicáveis sobem um pouco ao passar o rato (só computador) */
+@media (hover: hover) and (pointer: fine) {
+  .stat:hover, .area-card:hover, a.slot:hover, .person:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+}
+
+/* 3. Indicadores: o ícone ganha um aro suave */
+.stat-icon { width: 36px; height: 36px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone-ink) 6%, transparent); }
+
+/* 4. Barra de cima translúcida; barra de baixo com pílula no destino atual */
+.topbar { -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px); background: color-mix(in srgb, var(--card) 92%, transparent); }
+.bottom-nav .nav-icon { padding: 2px 16px; border-radius: 99px; transition: background-color 220ms var(--ease), transform 220ms var(--spring); }
+.bottom-nav .nav-link[aria-current='page'] .nav-icon { background: var(--accent-tint); }
+.bottom-nav .nav-link:active .nav-icon { transform: scale(0.9); }
+.bottom-nav .nav-count { right: 2px; top: -4px; }
+
+/* 5. Menu lateral: traço no destino atual */
+.side-nav .nav-link[aria-current='page']::before {
+  content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--accent-ink);
+  animation: grow-y 240ms var(--ease);
+}
+@keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
+
+/* 6. Entrada em cascata: os blocos da página aparecem um a seguir ao outro */
+.page-enter > * > :not(.side-panel):not(.sheet-backdrop):not(dialog):not(.page-head) {
+  animation: rise 360ms var(--ease) backwards;
+}
+.page-enter > * > :nth-child(2) { animation-delay: 40ms; }
+.page-enter > * > :nth-child(3) { animation-delay: 80ms; }
+.page-enter > * > :nth-child(4) { animation-delay: 120ms; }
+.page-enter > * > :nth-child(5) { animation-delay: 160ms; }
+.page-enter > * > :nth-child(n + 6) { animation-delay: 200ms; }
+.stats > li { animation: pop-in 380ms var(--spring) backwards; }
+.stats > li:nth-child(2) { animation-delay: 50ms; }
+.stats > li:nth-child(3) { animation-delay: 100ms; }
+.stats > li:nth-child(4) { animation-delay: 150ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* 7. Barras de progresso enchem ao aparecer */
+.meter > span { transform-origin: left center; animation: fill-x 700ms var(--ease) 120ms backwards; }
+@keyframes fill-x { from { transform: scaleX(0); } to { transform: none; } }
+
+/* 8. Campos: realce suave na cor da app quando se escreve */
+input:not([type='checkbox']):not([type='radio']):not([type='file']):focus, select:focus, textarea:focus {
+  border-color: var(--accent-ink); box-shadow: 0 0 0 4px var(--accent-tint);
+}
+
+/* 9. Separadores e escolhas: transição mais macia */
+.tab[aria-selected='true'], .tab[aria-current='page'] { box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 18%, transparent); }
+
+/* 10. Estados vazios: ícone num círculo suave */
+.empty { padding: 28px 16px; }
+.empty svg { box-sizing: content-box; padding: 14px; border-radius: 50%; background: var(--green-tint); margin-bottom: 12px; animation: pop-in 420ms var(--spring) backwards; }
+
+/* 11. Avisos entram a deslizar */
+.alert { animation: rise 260ms var(--ease); }
+
+/* 12. Contadores de notificações com pequeno salto ao aparecer */
+.nav-count, .notice-dot[data-count]::after { animation: pop-in 320ms var(--spring) backwards; }
+
+/* Menos movimento: sem atrasos nem animações (o estilo de base já põe a duração a zero) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-delay: 0ms !important; }
+  .stat:hover, .area-card:hover, a.slot:hover, .person:hover { transform: none; }
+}
+
+/* ---------- Os 20 detalhes de UX ---------- */
+
+/* Menu de comandos (Ctrl K / ⌘K) */
+.cmd-trigger { display: none; align-items: center; gap: 8px; min-height: 36px; padding: 6px 8px 6px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); font: inherit; font-size: var(--fs-body); cursor: pointer; margin-right: 6px;
+  transition: border-color 160ms var(--ease), background-color 160ms var(--ease); }
+.cmd-trigger:hover { border-color: var(--input-border); background: var(--card); }
+.cmd-trigger-label { min-width: 96px; text-align: left; }
+@media (min-width: 960px) { .cmd-trigger { display: inline-flex; } }
+.kbd { font: inherit; font-size: var(--fs-xs); color: var(--ink-soft); background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 6px; padding: 0 6px; line-height: 18px; white-space: nowrap; }
+.cmd-dialog { padding: 0; border: 0; background: transparent; width: min(560px, calc(100vw - 32px)); margin: 12vh auto auto; color: var(--ink); overflow: visible; }
+.cmd-dialog::backdrop { background: rgba(0, 0, 0, 0.32); animation: fade-in 140ms var(--ease); }
+.cmd-dialog[open] .cmd-box { animation: cmd-in 180ms var(--spring); }
+@keyframes cmd-in { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: none; } }
+.cmd-box { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-lift); overflow: hidden; }
+.cmd-search { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--line); color: var(--ink-soft); }
+.cmd-search input[type='search'] { border: 0; box-shadow: none; background: transparent; padding: 10px 0; min-height: 44px; }
+.cmd-search input[type='search']:focus, .cmd-search input[type='search']:focus-visible { box-shadow: none; outline: none; border-color: transparent; }
+.cmd-list { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow-y: auto; }
+.cmd-list li { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; cursor: pointer; min-height: 40px; color: var(--ink); }
+.cmd-list li svg { color: var(--ink-soft); flex: none; }
+.cmd-list li[aria-selected='true'] { background: var(--accent-tint); color: var(--accent-ink); }
+.cmd-list li[aria-selected='true'] svg { color: var(--accent-ink); }
+.cmd-list .cmd-empty { color: var(--ink-soft); cursor: default; }
+
+/* Transições entre páginas (View Transitions): troca suave e curta */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; animation-timing-function: var(--ease); }
+
+/* Folha do telemóvel: pega para arrastar para baixo */
+.sheet-grip { display: none; }
+@media (max-width: 959px) {
+  .sheet-grip { display: block; width: 40px; height: 5px; border-radius: 99px; background: var(--input-border); margin: 8px auto 2px; touch-action: none; cursor: grab; }
+  .side-panel .side-panel-head { touch-action: none; }
+}
+
+/* Fotografias: aparecem com um esbatimento suave por cima das iniciais (em vez de surgirem de repente) */
+.avatar img { animation: photo-in 360ms var(--ease) backwards; }
+@keyframes photo-in { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: none; } }
+
+/* Hit slop: ícones pequenos com área de toque maior do que o desenho */
+.multi-select-remove { position: relative; }
+.multi-select-remove::after { content: ''; position: absolute; inset: -8px; }
+.cs-icon, .ml-num { touch-action: manipulation; }
+
+/* Zonas seguras (entalhe e cantos do iPhone, também na horizontal) */
+.topbar { padding-top: max(8px, env(safe-area-inset-top)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.main { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.bottom-nav { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+@media (min-width: 960px) { .main { padding-left: 28px; padding-right: 28px; } }
+
+/* Títulos equilibrados (sem uma palavra sozinha na última linha) e parágrafos sem viúvas */
+h1, h2, h3, h4, .stat-label, .empty p { text-wrap: balance; }
+p, li, dd { text-wrap: pretty; }
+
+/* Cantos contínuos (squircle), onde o navegador já os suporta */
+@supports (corner-shape: squircle) {
+  .card, .stat, .btn, .tab, .area-card, .slot, .person, .alert, .side-panel, .cmd-box, input, select, textarea { corner-shape: squircle; }
+  .card, .stat, .area-card, .cmd-box { border-radius: 22px; }
+  .btn, input, select, textarea, .alert { border-radius: 16px; }
+}
