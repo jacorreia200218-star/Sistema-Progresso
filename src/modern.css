@@ -1,0 +1,103 @@
+/* ---------- Interface mais viva (novembro de 2026) ----------
+   Movimento curto e discreto, sombras suaves e navegação mais clara.
+   Mesmas cores, mesma letra (Arial) e mesmos tamanhos; claro e escuro.
+   Tudo o que mexe desliga-se com «Reduzir movimento» no sistema. */
+
+:root {
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(31, 35, 40, 0.04), 0 2px 6px rgba(31, 35, 40, 0.04), 0 8px 24px rgba(31, 35, 40, 0.04);
+  --shadow-lift: 0 2px 4px rgba(31, 35, 40, 0.05), 0 10px 28px rgba(31, 35, 40, 0.09);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+:root[data-theme='dark'] {
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 6px 20px rgba(0, 0, 0, 0.22);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 6px 20px rgba(0, 0, 0, 0.22);
+    --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Âncoras e campos com foco não ficam escondidos debaixo da barra de cima */
+html { scroll-padding-top: 72px; }
+
+/* Números alinhados em colunas (tabelas, contadores, indicadores) */
+.stat-value, .count, .nav-count, .badge, table td, table th, .money, .ml-num { font-variant-numeric: tabular-nums; }
+
+/* 1. Resposta ao toque: tudo o que se carrega encolhe ligeiramente */
+.btn { transition: background-color 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease), box-shadow 160ms var(--ease), transform 180ms var(--spring); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.stat { transition: border-color 160ms var(--ease), box-shadow 200ms var(--ease), transform 200ms var(--spring); }
+.area-card, .person, .where-card, .caminho-shortcut, a.list-item, .tab, .segment, .filter-chip, .slot {
+  transition: background-color 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease), box-shadow 200ms var(--ease), transform 200ms var(--spring);
+}
+.stat:active, .area-card:active, .person:active, .slot:active, .tab:active, .filter-chip:active { transform: scale(0.98); }
+a.list-item:active, .where-card:active, .caminho-shortcut:active { transform: scale(0.99); }
+
+/* 2. Cartões clicáveis sobem um pouco ao passar o rato (só computador) */
+@media (hover: hover) and (pointer: fine) {
+  .stat:hover, .area-card:hover, a.slot:hover, .person:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+}
+
+/* 3. Indicadores: o ícone ganha um aro suave */
+.stat-icon { width: 36px; height: 36px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone-ink) 6%, transparent); }
+
+/* 4. Barra de cima translúcida; barra de baixo com pílula no destino atual */
+.topbar { -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px); background: color-mix(in srgb, var(--card) 92%, transparent); }
+.bottom-nav .nav-icon { padding: 2px 16px; border-radius: 99px; transition: background-color 220ms var(--ease), transform 220ms var(--spring); }
+.bottom-nav .nav-link[aria-current='page'] .nav-icon { background: var(--accent-tint); }
+.bottom-nav .nav-link:active .nav-icon { transform: scale(0.9); }
+.bottom-nav .nav-count { right: 2px; top: -4px; }
+
+/* 5. Menu lateral: traço no destino atual */
+.side-nav .nav-link[aria-current='page']::before {
+  content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--accent-ink);
+  animation: grow-y 240ms var(--ease);
+}
+@keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
+
+/* 6. Entrada em cascata: os blocos da página aparecem um a seguir ao outro */
+.page-enter > * > :not(.side-panel):not(.sheet-backdrop):not(dialog):not(.page-head) {
+  animation: rise 360ms var(--ease) backwards;
+}
+.page-enter > * > :nth-child(2) { animation-delay: 40ms; }
+.page-enter > * > :nth-child(3) { animation-delay: 80ms; }
+.page-enter > * > :nth-child(4) { animation-delay: 120ms; }
+.page-enter > * > :nth-child(5) { animation-delay: 160ms; }
+.page-enter > * > :nth-child(n + 6) { animation-delay: 200ms; }
+.stats > li { animation: pop-in 380ms var(--spring) backwards; }
+.stats > li:nth-child(2) { animation-delay: 50ms; }
+.stats > li:nth-child(3) { animation-delay: 100ms; }
+.stats > li:nth-child(4) { animation-delay: 150ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* 7. Barras de progresso enchem ao aparecer */
+.meter > span { transform-origin: left center; animation: fill-x 700ms var(--ease) 120ms backwards; }
+@keyframes fill-x { from { transform: scaleX(0); } to { transform: none; } }
+
+/* 8. Campos: realce suave na cor da app quando se escreve */
+input:not([type='checkbox']):not([type='radio']):not([type='file']):focus, select:focus, textarea:focus {
+  border-color: var(--accent-ink); box-shadow: 0 0 0 4px var(--accent-tint);
+}
+
+/* 9. Separadores e escolhas: transição mais macia */
+.tab[aria-selected='true'], .tab[aria-current='page'] { box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 18%, transparent); }
+
+/* 10. Estados vazios: ícone num círculo suave */
+.empty { padding: 28px 16px; }
+.empty svg { box-sizing: content-box; padding: 14px; border-radius: 50%; background: var(--green-tint); margin-bottom: 12px; animation: pop-in 420ms var(--spring) backwards; }
+
+/* 11. Avisos entram a deslizar */
+.alert { animation: rise 260ms var(--ease); }
+
+/* 12. Contadores de notificações com pequeno salto ao aparecer */
+.nav-count, .notice-dot[data-count]::after { animation: pop-in 320ms var(--spring) backwards; }
+
+/* Menos movimento: sem atrasos nem animações (o estilo de base já põe a duração a zero) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-delay: 0ms !important; }
+  .stat:hover, .area-card:hover, a.slot:hover, .person:hover { transform: none; }
+}

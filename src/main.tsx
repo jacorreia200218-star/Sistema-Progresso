@@ -4,6 +4,8 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import './styles.css';
+import './modern.css';
+import { installHaptics } from './lib/haptics';
 import { registerServiceWorker } from './lib/push';
 import { supabase } from './lib/supabase';
 
@@ -30,3 +32,4 @@ createRoot(document.getElementById('root')!).render(
 );
 
 registerServiceWorker();
+installHaptics();
